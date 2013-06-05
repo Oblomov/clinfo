@@ -1,8 +1,14 @@
+SRCDIR=src/
+
+VPATH=$(SRCDIR)
+
+HDR=$(wildcard $(SRCDIR)/*.h)
+
 LDLIBS=-lOpenCL
 
-vpath %.c src/
+clinfo:
 
-clinfo: clinfo.c
+clinfo.o: clinfo.c $(HDR)
 
 clean:
-	$(RM) clinfo
+	$(RM) clinfo.o clinfo
