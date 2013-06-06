@@ -200,7 +200,13 @@ printDeviceInfo(cl_uint d)
 	// compute units and clock
 	INT_PARAM(MAX_COMPUTE_UNITS, "Max compute units",);
 	INT_PARAM(MAX_CLOCK_FREQUENCY, "Max clock frequency", "MHz");
-	// TODO NV extensions
+	if (*has_nv) {
+		GET_PARAM(COMPUTE_CAPABILITY_MAJOR_NV, uintval);
+		GET_PARAM(COMPUTE_CAPABILITY_MINOR_NV, uintval2);
+		printf("  %-46s: %u.%u\n",
+			"NVIDIA Compute Capability",
+			uintval, uintval2);
+	}
 
 	// workgroup sizes
 	INT_PARAM(MAX_WORK_ITEM_DIMENSIONS, "Max work item dimensions",);
@@ -270,6 +276,10 @@ printDeviceInfo(cl_uint d)
 	MEM_PARAM(GLOBAL_MEM_SIZE, "Global memory size");
 	MEM_PARAM(MAX_MEM_ALLOC_SIZE, "Max memory allocation");
 	BOOL_PARAM(HOST_UNIFIED_MEMORY, "Unified memory for Host and Device");
+	if (*has_nv) {
+		BOOL_PARAM(INTEGRATED_MEMORY_NV, "NVIDIA integrated memory");
+		BOOL_PARAM(GPU_OVERLAP_NV, "NVIDIA concurrent copy and kernel execution");
+	}
 
 	GET_PARAM(GLOBAL_MEM_CACHE_TYPE, cachetype);
 	STR_PRINT("Global Memory cache type", cache_type_str[cachetype]);
@@ -292,6 +302,9 @@ printDeviceInfo(cl_uint d)
 	INT_PARAM(MAX_CONSTANT_ARGS, "Max number of constant args",);
 	MEM_PARAM(MAX_PARAMETER_SIZE, "Max size of kernel argument");
 
+	if (*has_nv) {
+		INT_PARAM(REGISTERS_PER_BLOCK_NV, "NVIDIA registers per CU",);
+	}
 
 	// and finally the extensions
 	printf("  %-46s: %s\n", "Device Extensions", extensions); \
