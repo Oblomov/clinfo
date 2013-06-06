@@ -3,9 +3,9 @@
  */
 
 #ifdef __APPLE__
-#include <OpenCL/cl.h>
+#include <OpenCL/cl_ext.h>
 #else
-#include <CL/cl.h>
+#include <CL/cl_ext.h>
 #endif
 
 #include <string.h>
@@ -30,7 +30,7 @@ const char* cache_type_str[] = { "None", "Read-Only", "Read/Write" };
 char *buffer;
 size_t bufsz, nusz;
 
-#define SHOW_STRING(cmd, id, param, str) do { \
+#define GET_STRING(cmd, id, param) do { \
 	error = cmd(id, param, 0, NULL, &nusz); \
 	CHECK_ERROR("get " #param " size"); \
 	if (nusz > bufsz) { \
@@ -39,6 +39,10 @@ size_t bufsz, nusz;
 	} \
 	error = cmd(id, param, bufsz, buffer, 0); \
 	CHECK_ERROR("get " #param); \
+} while (0)
+
+#define SHOW_STRING(cmd, id, param, str) do { \
+	GET_STRING(cmd, id, param); \
 	printf("  %-46s: %s\n", str, buffer); \
 } while (0)
 
@@ -83,6 +87,10 @@ printPlatformInfo(cl_uint p)
 	CHECK_ERROR("get " #param); \
 } while (0)
 
+// not available
+static const char na[] = "n/a";
+static const char fpsupp[] = "Floating-point support";
+
 void
 printDeviceInfo(cl_uint d)
 {
@@ -90,6 +98,7 @@ printDeviceInfo(cl_uint d)
 	cl_device_type devtype;
 	cl_device_local_mem_type lmemtype;
 	cl_device_mem_cache_type cachetype;
+	cl_device_fp_config fpconfig;
 	cl_uint uintval, uintval2;
 	cl_uint cursor;
 	cl_ulong ulongval;
@@ -97,6 +106,13 @@ printDeviceInfo(cl_uint d)
 	cl_bool boolval;
 	size_t szval;
 	size_t *szvals = NULL;
+
+	char* extensions;
+
+	// these will hold the string from which we detected extension support
+	char has_half[12] = {0};
+	char has_double[12] = {0};
+	char has_nv[29] = {0};
 
 #define KB 1024UL
 #define MB (KB*KB)
@@ -149,6 +165,33 @@ printDeviceInfo(cl_uint d)
 	STR_PARAM(VERSION, "Device Version");
 	SHOW_STRING(clGetDeviceInfo, dev, CL_DRIVER_VERSION, "Driver Version");
 
+	// we get the extensions information here, but only print it at the end
+	GET_STRING(clGetDeviceInfo, dev, CL_DEVICE_EXTENSIONS);
+	size_t len = strlen(buffer);
+	extensions = malloc(len+1);
+	memcpy(extensions, buffer, len);
+	extensions[len] = '\0';
+
+#define HAS_EXT(ext) (strstr(extensions, #ext))
+#define CPY_EXT(what, ext) do { \
+	strncpy(has_##what, has, sizeof(#ext)); \
+	has_##what[sizeof(#ext)-1] = '\0'; \
+} while (0)
+#define CHECK_EXT(what, ext) do { \
+	has = HAS_EXT(ext); \
+	if (has) CPY_EXT(what, ext); \
+} while(0)
+
+	{
+		char *has;
+		CHECK_EXT(half, cl_khr_fp16);
+		CHECK_EXT(double, cl_khr_fp64);
+		if (!*has_double)
+			CHECK_EXT(double, cl_amd_fp64);
+		CHECK_EXT(nv, cl_nv_device_attribute_query);
+	}
+
+
 	// device type
 	GET_PARAM(TYPE, devtype);
 	// FIXME this can be a combination of flags
@@ -172,19 +215,51 @@ printDeviceInfo(cl_uint d)
 
 	// preferred/native vector widths
 	printf("  %-46s:", "Preferred / native vector sizes");
-#define PRINT_VEC(UCtype, type) do { \
+#define _PRINT_VEC(UCtype, type, optional, ext) do { \
 	GET_PARAM(PREFERRED_VECTOR_WIDTH_##UCtype, uintval); \
 	GET_PARAM(NATIVE_VECTOR_WIDTH_##UCtype, uintval2); \
 	printf("\n%44s    : %8u / %-8u", #type, uintval, uintval2); \
+	if (optional) \
+		printf("(%s)", *ext ? ext : na); \
 } while (0)
+#define PRINT_VEC(UCtype, type) _PRINT_VEC(UCtype, type, 0, "")
+#define PRINT_VEC_OPT(UCtype, type, ext) _PRINT_VEC(UCtype, type, 1, ext)
+
 	PRINT_VEC(CHAR, char);
 	PRINT_VEC(SHORT, short);
 	PRINT_VEC(INT, int);
-	PRINT_VEC(LONG, long);
-	PRINT_VEC(HALF, half);
+	PRINT_VEC(LONG, long); // this is actually optional in EMBED profiles
+	PRINT_VEC_OPT(HALF, half, has_half);
 	PRINT_VEC(FLOAT, float);
-	PRINT_VEC(DOUBLE, double);
+	PRINT_VEC_OPT(DOUBLE, double, has_double);
 	puts("");
+
+	// FP configurations
+#define SHOW_FP_FLAG(str, flag) \
+	printf("    %-44s: %s\n", str, bool_str[!!(fpconfig & CL_FP_##flag)])
+#define SHOW_FP_SUPPORT(type) do { \
+	GET_PARAM(type##_FP_CONFIG, fpconfig); \
+	SHOW_FP_FLAG("Denormals", DENORM); \
+	SHOW_FP_FLAG("Infinity and NANs", INF_NAN); \
+	SHOW_FP_FLAG("Round to nearest", ROUND_TO_NEAREST); \
+	SHOW_FP_FLAG("Round to zero", ROUND_TO_ZERO); \
+	SHOW_FP_FLAG("Round to infinity", ROUND_TO_INF); \
+	SHOW_FP_FLAG("IEEE754-2008 fused multiply-add", FMA); \
+	SHOW_FP_FLAG("Support is emulated in software", SOFT_FLOAT); \
+} while (0)
+
+#define FPSUPP_STR(str, opt) \
+	"  %-17s%-29s:" opt "\n", #str "-precision", fpsupp
+	printf(FPSUPP_STR(Half, " (%s)"),
+		*has_half ? has_half : na);
+	if (*has_half)
+		SHOW_FP_SUPPORT(HALF);
+	printf(FPSUPP_STR(Single, ""));
+	SHOW_FP_SUPPORT(SINGLE);
+	printf(FPSUPP_STR(Double, " (%s)"),
+		*has_double ? has_double : na);
+	if (*has_double)
+		SHOW_FP_SUPPORT(DOUBLE);
 
 	// arch bits and endianness
 	GET_PARAM(ADDRESS_BITS, uintval);
@@ -218,7 +293,8 @@ printDeviceInfo(cl_uint d)
 	MEM_PARAM(MAX_PARAMETER_SIZE, "Max size of kernel argument");
 
 
-
+	// and finally the extensions
+	printf("  %-46s: %s\n", "Device Extensions", extensions); \
 }
 
 int main(void)
