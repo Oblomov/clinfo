@@ -8,7 +8,7 @@ void
 check_ocl_error(cl_int err, const char *what, const char *func, int line)
 {
 	if (err != CL_SUCCESS) {
-		fprintf(stderr, "%s:%s: %s : error %d\n",
+		fprintf(stderr, "%s:%u: %s : error %d\n",
 			func, line, what, err);
 		exit(1);
 	}
