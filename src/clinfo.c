@@ -91,8 +91,7 @@ printPlatformInfo(cl_uint p)
 #define GET_PARAM_ARRAY(param, var, num) do { \
 	error = clGetDeviceInfo(dev, CL_DEVICE_##param, 0, NULL, &num); \
 	CHECK_ERROR("get number of " #param); \
-	var = malloc(num); \
-	CHECK_MEM(var, #param); \
+	REALLOC(var, num/sizeof(*var), #param); \
 	error = clGetDeviceInfo(dev, CL_DEVICE_##param, num, var, NULL); \
 	CHECK_ERROR("get " #param); \
 } while (0)
@@ -137,11 +136,13 @@ printDeviceInfo(cl_uint d)
 	char has_half[12] = {0};
 	char has_double[12] = {0};
 	char has_nv[29] = {0};
+	char has_amd[30] = {0};
 	char has_fission[22] = {0};
 	char has_atomic_counters[26] = {0};
 
 	// device supports OpenCL 1.2
-	cl_bool is_12 = 0;
+	cl_bool is_12 = CL_FALSE;
+	cl_bool is_gpu = CL_FALSE;
 
 #define KB 1024UL
 #define MB (KB*KB)
@@ -166,6 +167,10 @@ printDeviceInfo(cl_uint d)
 #define INT_PARAM(param, name, sfx) do { \
 	GET_PARAM(param, uintval); \
 	printf("  %-46s: %u" sfx "\n", name, uintval); \
+} while (0)
+#define LONG_PARAM(param, name, sfx) do { \
+	GET_PARAM(param, ulongval); \
+	printf("  %-46s: %u" sfx "\n", name, ulongval); \
 } while (0)
 #define SZ_PARAM(param, name, sfx) do { \
 	GET_PARAM(param, szval); \
@@ -220,6 +225,7 @@ printDeviceInfo(cl_uint d)
 		if (!*has_double)
 			CHECK_EXT(double, cl_amd_fp64);
 		CHECK_EXT(nv, cl_nv_device_attribute_query);
+		CHECK_EXT(amd, cl_amd_device_attribute_query);
 		CHECK_EXT(fission, cl_ext_device_fission);
 		CHECK_EXT(atomic_counters, cl_ext_atomic_counters_64);
 		if (!*has_atomic_counters)
@@ -231,10 +237,21 @@ printDeviceInfo(cl_uint d)
 	GET_PARAM(TYPE, devtype);
 	// FIXME this can be a combination of flags
 	STR_PRINT("Device Type", device_type_str[ffs(devtype)]);
+	is_gpu = !!(devtype & CL_DEVICE_TYPE_GPU);
 	STR_PARAM(PROFILE, "Device Profile");
+	if (*has_amd) {
+		// TODO CL_DEVICE_TOPOLOGY_AMD
+		STR_PARAM(BOARD_NAME_AMD, "Board Name");
+	}
 
 	// compute units and clock
 	INT_PARAM(MAX_COMPUTE_UNITS, "Max compute units",);
+	if (*has_amd && is_gpu) {
+		// these are GPU-only
+		INT_PARAM(SIMD_PER_COMPUTE_UNIT_AMD, "SIMD per compute units (AMD)",);
+		INT_PARAM(SIMD_WIDTH_AMD, "SIMD width (AMD)",);
+		INT_PARAM(SIMD_INSTRUCTION_WIDTH_AMD, "SIMD instruction width (AMD)",);
+	}
 	INT_PARAM(MAX_CLOCK_FREQUENCY, "Max clock frequency", "MHz");
 	if (*has_nv) {
 		GET_PARAM(COMPUTE_CAPABILITY_MAJOR_NV, uintval);
@@ -366,6 +383,13 @@ printDeviceInfo(cl_uint d)
 		printf("    %-44s: %zu\n", buffer , szvals[cursor]);
 	}
 	SZ_PARAM(MAX_WORK_GROUP_SIZE, "Max work group size",);
+	// TODO CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE on a simple kernel
+	if (*has_nv) {
+		INT_PARAM(WARP_SIZE_NV, "Warp size (NVIDIA)",);
+	}
+	if (*has_amd && is_gpu) {
+		INT_PARAM(WAVEFRONT_WIDTH_AMD, "Wavefront width (AMD)",);
+	}
 
 	// preferred/native vector widths
 	printf("  %-46s:", "Preferred / native vector sizes");
@@ -424,6 +448,26 @@ printDeviceInfo(cl_uint d)
 
 	// global
 	MEM_PARAM(GLOBAL_MEM_SIZE, "Global memory size");
+	if (*has_amd && is_gpu) {
+		// FIXME seek better documentation about this. what does it mean?
+		GET_PARAM_ARRAY(GLOBAL_FREE_MEMORY_AMD, szvals, szval);
+		szels = szval/sizeof(*szvals);
+		for (cursor = 0; cursor < szels; ++cursor) {
+			doubleval = szvals[cursor];
+			if (szvals[cursor] > KB) {
+				snprintf(buffer, bufsz, " (%6.4lg%s)",
+					MEM_SIZE(doubleval),
+					MEM_PFX(doubleval));
+				buffer[bufsz-1] = '\0';
+			} else buffer[0] = '\0';
+			printf("  %-46s: %lu%s\n", "Free global memory (AMD)", szvals[cursor], buffer);
+		}
+
+		INT_PARAM(GLOBAL_MEM_CHANNELS_AMD, "Global memory channels (AMD)",);
+		INT_PARAM(GLOBAL_MEM_CHANNEL_BANKS_AMD, "Global memory banks per channel (AMD)",);
+		INT_PARAM(GLOBAL_MEM_CHANNEL_BANK_WIDTH_AMD, "Global memory bank width (AMD)", " bytes");
+	}
+
 	BOOL_PARAM(ERROR_CORRECTION_SUPPORT, "Error Correction support");
 	MEM_PARAM(MAX_MEM_ALLOC_SIZE, "Max memory allocation");
 	BOOL_PARAM(HOST_UNIFIED_MEMORY, "Unified memory for Host and Device");
@@ -466,9 +510,14 @@ printDeviceInfo(cl_uint d)
 
 	// local
 	GET_PARAM(LOCAL_MEM_TYPE, lmemtype);
-	STR_PRINT("Local Memory type", local_mem_type_str[lmemtype]);
+	STR_PRINT("Local memory type", local_mem_type_str[lmemtype]);
 	if (lmemtype != CL_NONE)
-		MEM_PARAM(LOCAL_MEM_SIZE, "Local Memory size");
+		MEM_PARAM(LOCAL_MEM_SIZE, "Local memory size");
+	if (*has_amd && is_gpu) {
+		MEM_PARAM(LOCAL_MEM_SIZE_PER_COMPUTE_UNIT_AMD, "Local memory size per CU (AMD)");
+		INT_PARAM(LOCAL_MEM_BANKS_AMD, "Local memory banks (AMD)",);
+	}
+
 
 	// constant
 	MEM_PARAM(MAX_CONSTANT_BUFFER_SIZE, "Max constant buffer size");
@@ -489,6 +538,10 @@ printDeviceInfo(cl_uint d)
 	STR_PRINT("  Out-of-order execution", bool_str[!!(queueprop & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE)]);
 	STR_PRINT("  Profiling", bool_str[!!(queueprop & CL_QUEUE_PROFILING_ENABLE)]);
 	SZ_PARAM(PROFILING_TIMER_RESOLUTION, "Profiling timer resolution", "ns");
+	if (*has_amd) {
+		// TODO print this in a more meaningful way
+		LONG_PARAM(PROFILING_TIMER_OFFSET_AMD, "Profiling timer offset since Epoch (AMD)", "ns");
+	}
 
 	printf("  %-46s:\n", "Execution capabilities");
 	GET_PARAM(EXECUTION_CAPABILITIES, execap);
