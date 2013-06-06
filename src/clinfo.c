@@ -83,7 +83,7 @@ printPlatformInfo(cl_uint p)
 } while (0)
 
 #define GET_PARAM_PTR(param, var, num) do { \
-	error = clGetDeviceInfo(dev, CL_DEVICE_##param, num*sizeof(var), var, 0); \
+	error = clGetDeviceInfo(dev, CL_DEVICE_##param, num*sizeof(*var), var, 0); \
 	CHECK_ERROR("get " #param); \
 } while (0)
 
@@ -108,6 +108,7 @@ printDeviceInfo(cl_uint d)
 	cl_bool boolval;
 	size_t szval;
 	size_t *szvals = NULL;
+	cl_uint szels = 3;
 
 	char* extensions;
 
@@ -217,7 +218,9 @@ printDeviceInfo(cl_uint d)
 
 	// workgroup sizes
 	INT_PARAM(MAX_WORK_ITEM_DIMENSIONS, "Max work item dimensions",);
-	REALLOC(szvals, uintval, "work item sizes");
+	if (uintval > szels)
+		szels = uintval;
+	REALLOC(szvals, szels, "work item sizes");
 	GET_PARAM_PTR(MAX_WORK_ITEM_SIZES, szvals, uintval);
 	for (cursor = 0; cursor < uintval; ++cursor) {
 		snprintf(buffer, bufsz, "Max work item size[%u]", cursor);
@@ -280,6 +283,8 @@ printDeviceInfo(cl_uint d)
 	printf("  %-46s: %u, %s\n", "Address bits", uintval, endian_str[boolval]);
 
 	// memory size and alignment
+
+	// global
 	MEM_PARAM(GLOBAL_MEM_SIZE, "Global memory size");
 	BOOL_PARAM(ERROR_CORRECTION_SUPPORT, "Error Correction support");
 	MEM_PARAM(MAX_MEM_ALLOC_SIZE, "Max memory allocation");
@@ -288,7 +293,12 @@ printDeviceInfo(cl_uint d)
 		BOOL_PARAM(INTEGRATED_MEMORY_NV, "NVIDIA integrated memory");
 		BOOL_PARAM(GPU_OVERLAP_NV, "NVIDIA concurrent copy and kernel execution");
 	}
+	INT_PARAM(MIN_DATA_TYPE_ALIGN_SIZE, "Minimum alignment for any data type", " bytes");
+	GET_PARAM(MEM_BASE_ADDR_ALIGN, uintval);
+	printf("  %-46s: %u bits (%u bytes)\n",
+		"Alignment of base address", uintval, uintval/8);
 
+	// cache
 	GET_PARAM(GLOBAL_MEM_CACHE_TYPE, cachetype);
 	STR_PRINT("Global Memory cache type", cache_type_str[cachetype]);
 	if (cachetype != CL_NONE) {
@@ -296,23 +306,42 @@ printDeviceInfo(cl_uint d)
 		INT_PARAM(GLOBAL_MEM_CACHELINE_SIZE, "Global Memory cache line", " bytes");
 	}
 
-	INT_PARAM(MIN_DATA_TYPE_ALIGN_SIZE, "Minimum alignment for any data type", " bytes");
-	GET_PARAM(MEM_BASE_ADDR_ALIGN, uintval);
-	printf("  %-46s: %u bits (%u bytes)\n",
-		"Alignment of base address", uintval, uintval/8);
+	// images
+	BOOL_PARAM(IMAGE_SUPPORT, "Image support");
+	if (boolval) {
+		if (is_12) {
+			SZ_PARAM(IMAGE_MAX_BUFFER_SIZE, "  Max 1D image size", " pixels");
+			SZ_PARAM(IMAGE_MAX_ARRAY_SIZE, "  Max 1D or 2D image array size", " images");
+		}
+		GET_PARAM_PTR(IMAGE2D_MAX_HEIGHT, szvals, 1);
+		GET_PARAM_PTR(IMAGE2D_MAX_WIDTH, (szvals+1), 1);
+		printf("    %-44s: %zux%zu pixels\n", "Max 2D image size",
+			szvals[0], szvals[1]);
+		GET_PARAM_PTR(IMAGE3D_MAX_HEIGHT, szvals, 1);
+		GET_PARAM_PTR(IMAGE3D_MAX_WIDTH, (szvals+1), 1);
+		GET_PARAM_PTR(IMAGE3D_MAX_DEPTH, (szvals+2), 1);
+		printf("    %-44s: %zux%zux%zu pixels\n", "Max 3D image size",
+			szvals[0], szvals[1], szvals[2]);
+		INT_PARAM(MAX_READ_IMAGE_ARGS, "  Max number of read image args",);
+		INT_PARAM(MAX_WRITE_IMAGE_ARGS, "  Max number of write image args",);
+	}
 
+	// local
 	GET_PARAM(LOCAL_MEM_TYPE, lmemtype);
 	STR_PRINT("Local Memory type", local_mem_type_str[lmemtype]);
 	if (lmemtype != CL_NONE)
 		MEM_PARAM(LOCAL_MEM_SIZE, "Local Memory size");
 
+	// constant
 	MEM_PARAM(MAX_CONSTANT_BUFFER_SIZE, "Max constant buffer size");
 	INT_PARAM(MAX_CONSTANT_ARGS, "Max number of constant args",);
-	MEM_PARAM(MAX_PARAMETER_SIZE, "Max size of kernel argument");
 
+	// nv: registers/CU
 	if (*has_nv) {
 		INT_PARAM(REGISTERS_PER_BLOCK_NV, "NVIDIA registers per CU",);
 	}
+
+	MEM_PARAM(MAX_PARAMETER_SIZE, "Max size of kernel argument");
 
 	// queue and kernel capabilities
 	printf("  %-46s:\n", "Queue properties support");
