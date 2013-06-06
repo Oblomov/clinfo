@@ -138,6 +138,7 @@ printDeviceInfo(cl_uint d)
 	char has_double[12] = {0};
 	char has_nv[29] = {0};
 	char has_fission[22] = {0};
+	char has_atomic_counters[26] = {0};
 
 	// device supports OpenCL 1.2
 	cl_bool is_12 = 0;
@@ -220,6 +221,9 @@ printDeviceInfo(cl_uint d)
 			CHECK_EXT(double, cl_amd_fp64);
 		CHECK_EXT(nv, cl_nv_device_attribute_query);
 		CHECK_EXT(fission, cl_ext_device_fission);
+		CHECK_EXT(atomic_counters, cl_ext_atomic_counters_64);
+		if (!*has_atomic_counters)
+			CHECK_EXT(atomic_counters, cl_ext_atomic_counters_32);
 	}
 
 
@@ -476,6 +480,8 @@ printDeviceInfo(cl_uint d)
 	}
 
 	MEM_PARAM(MAX_PARAMETER_SIZE, "Max size of kernel argument");
+	if (*has_atomic_counters)
+		INT_PARAM(MAX_ATOMIC_COUNTERS_EXT, "Max number of atomic counters",);
 
 	// queue and kernel capabilities
 	printf("  %-46s:\n", "Queue properties support");
