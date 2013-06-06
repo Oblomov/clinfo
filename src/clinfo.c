@@ -21,9 +21,10 @@ cl_uint num_devs_all;
 cl_device_id *all_devices;
 cl_device_id *device;
 
+const char unk[] = "Unknown";
 const char* bool_str[] = { "No", "Yes" };
 const char* endian_str[] = { "Big-Endian", "Little-Endian" };
-const char* device_type_str[] = { "Unknown", "Default", "CPU", "GPU", "Accelerator", "Custom" };
+const char* device_type_str[] = { unk, "Default", "CPU", "GPU", "Accelerator", "Custom" };
 const char* local_mem_type_str[] = { "None", "Local", "Global" };
 const char* cache_type_str[] = { "None", "Read-Only", "Read/Write" };
 
@@ -87,6 +88,15 @@ printPlatformInfo(cl_uint p)
 	CHECK_ERROR("get " #param); \
 } while (0)
 
+#define GET_PARAM_ARRAY(param, var, num) do { \
+	error = clGetDeviceInfo(dev, CL_DEVICE_##param, 0, NULL, &num); \
+	CHECK_ERROR("get number of " #param); \
+	var = malloc(num); \
+	CHECK_MEM(var, #param); \
+	error = clGetDeviceInfo(dev, CL_DEVICE_##param, num, var, NULL); \
+	CHECK_ERROR("get " #param); \
+} while (0)
+
 // not available
 static const char na[] = "n/a";
 static const char fpsupp[] = "Floating-point support";
@@ -100,7 +110,18 @@ printDeviceInfo(cl_uint d)
 	cl_device_mem_cache_type cachetype;
 	cl_device_exec_capabilities execap;
 	cl_device_fp_config fpconfig;
+
 	cl_command_queue_properties queueprop;
+
+	cl_device_partition_property *partprop = NULL;
+	size_t numpartprop = 0;
+	cl_device_affinity_domain partdom;
+
+	cl_device_partition_property_ext *partprop_ext = NULL;
+	size_t numpartprop_ext = 0;
+	cl_device_partition_property_ext *partdom_ext = NULL;
+	size_t numpartdom_ext = 0;
+
 	cl_uint uintval, uintval2;
 	cl_uint cursor;
 	cl_ulong ulongval;
@@ -116,6 +137,7 @@ printDeviceInfo(cl_uint d)
 	char has_half[12] = {0};
 	char has_double[12] = {0};
 	char has_nv[29] = {0};
+	char has_fission[22] = {0};
 
 	// device supports OpenCL 1.2
 	cl_bool is_12 = 0;
@@ -179,14 +201,15 @@ printDeviceInfo(cl_uint d)
 	memcpy(extensions, buffer, len);
 	extensions[len] = '\0';
 
-#define HAS_EXT(ext) (strstr(extensions, #ext))
+#define _HAS_EXT(ext) (strstr(extensions, ext))
+#define HAS_EXT(ext) _HAS_EXT(#ext)
 #define CPY_EXT(what, ext) do { \
-	strncpy(has_##what, has, sizeof(#ext)); \
-	has_##what[sizeof(#ext)-1] = '\0'; \
+	strncpy(has_##what, has, sizeof(ext)); \
+	has_##what[sizeof(ext)-1] = '\0'; \
 } while (0)
 #define CHECK_EXT(what, ext) do { \
-	has = HAS_EXT(ext); \
-	if (has) CPY_EXT(what, ext); \
+	has = _HAS_EXT(#ext); \
+	if (has) CPY_EXT(what, #ext); \
 } while(0)
 
 	{
@@ -196,6 +219,7 @@ printDeviceInfo(cl_uint d)
 		if (!*has_double)
 			CHECK_EXT(double, cl_amd_fp64);
 		CHECK_EXT(nv, cl_nv_device_attribute_query);
+		CHECK_EXT(fission, cl_ext_device_fission);
 	}
 
 
@@ -214,6 +238,116 @@ printDeviceInfo(cl_uint d)
 		printf("  %-46s: %u.%u\n",
 			"NVIDIA Compute Capability",
 			uintval, uintval2);
+	}
+
+	/* device fission, two different ways: core in 1.2, extension previously
+	 * platforms that suppot both might expose different properties (e.g., partition
+	 * by name is not considered in OpenCL 1.2, but an option with the extension
+	 */
+	szval = 0;
+	if (is_12) {
+		strncpy(buffer + szval, "core, ", *has_fission ? 6 : 4);
+		szval += (*has_fission ? 6 : 4);
+	}
+	if (*has_fission) {
+		strcpy(buffer + szval, has_fission);
+		szval += strlen(has_fission);
+	}
+	buffer[szval] = 0;
+
+	printf("  %-46s: (%s)\n", "Device Partition",
+		szval ? buffer : na);
+	if (is_12) {
+		GET_PARAM_ARRAY(PARTITION_PROPERTIES, partprop, szval);
+		numpartprop = szval/sizeof(*partprop);
+		printf("  %-46s:", "  Supported partition types");
+		for (cursor = 0; cursor < numpartprop ; ++cursor) {
+			switch(partprop[cursor]) {
+			case 0:
+				printf(" none"); break;
+			case CL_DEVICE_PARTITION_EQUALLY:
+				printf(" equally"); break;
+			case CL_DEVICE_PARTITION_BY_COUNTS:
+				printf(" by counts"); break;
+			case CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN:
+				printf(" by affinity domain"); break;
+			default:
+				printf(" by <unknown>"); break;
+			}
+			if (cursor < numpartprop - 1)
+				printf(",");
+		}
+		puts("");
+		GET_PARAM(PARTITION_AFFINITY_DOMAIN, partdom);
+		if (partdom) {
+			printf("  %-46s:", "  Supported affinity domains");
+			cl_bool comma = CL_FALSE;
+#define CHECK_AFFINITY_FLAG(flag, text) do { \
+	if (partdom & CL_DEVICE_AFFINITY_DOMAIN_##flag) { \
+		printf("%s %s", (comma ? ",": ""), text); comma = CL_TRUE; \
+	} \
+} while (0)
+#define CHECK_AFFINITY_CACHE(level) \
+	CHECK_AFFINITY_FLAG( level##_CACHE, #level " cache")
+
+			CHECK_AFFINITY_FLAG(NUMA, "NUMA");
+			CHECK_AFFINITY_CACHE(L1);
+			CHECK_AFFINITY_CACHE(L2);
+			CHECK_AFFINITY_CACHE(L3);
+			CHECK_AFFINITY_CACHE(L4);
+			CHECK_AFFINITY_FLAG(NEXT_PARTITIONABLE, "next partitionable");
+			puts("");
+		}
+	}
+	if (*has_fission) {
+		GET_PARAM_ARRAY(PARTITION_TYPES_EXT, partprop_ext, szval);
+		numpartprop_ext = szval/sizeof(*partprop_ext);
+		printf("  %-46s:", "  Supported partition types (ext)");
+		for (cursor = 0; cursor < numpartprop_ext ; ++cursor) {
+			switch(partprop_ext[cursor]) {
+			case 0:
+				printf(" none"); break;
+			case CL_DEVICE_PARTITION_EQUALLY_EXT:
+				printf(" equally"); break;
+			case CL_DEVICE_PARTITION_BY_COUNTS_EXT:
+				printf(" by counts"); break;
+			case CL_DEVICE_PARTITION_BY_NAMES_EXT:
+				printf(" by names"); break;
+			case CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN_EXT:
+				printf(" by affinity domain"); break;
+			default:
+				printf(" by <unknown>"); break;
+			}
+			if (cursor < numpartprop_ext - 1)
+				printf(",");
+		}
+		puts("");
+		GET_PARAM_ARRAY(AFFINITY_DOMAINS_EXT, partdom_ext, szval);
+		numpartdom_ext = szval/sizeof(*partdom_ext);
+		if (numpartdom_ext) {
+			printf("  %-46s:", "  Supported affinity domains (ext)");
+#define CASE_CACHE(level) \
+	case CL_AFFINITY_DOMAIN_##level##_CACHE_EXT: \
+		printf(" " #level " cache")
+			for (cursor = 0; cursor < numpartdom_ext ; ++cursor) {
+				switch(partdom_ext[cursor]) {
+				CASE_CACHE(L1); break;
+				CASE_CACHE(L2); break;
+				CASE_CACHE(L3); break;
+				CASE_CACHE(L4); break;
+				case CL_AFFINITY_DOMAIN_NUMA_EXT:
+					printf(" NUMA"); break;
+				case CL_AFFINITY_DOMAIN_NEXT_FISSIONABLE_EXT:
+					printf(" next fissionable"); break;
+				default:
+					printf(" <unknown> (0x%X)", partdom_ext[cursor]);
+					break;
+				}
+				if (cursor < numpartdom_ext - 1)
+					printf(",");
+			}
+			puts("");
+		}
 	}
 
 	// workgroup sizes
