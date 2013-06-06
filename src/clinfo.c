@@ -98,7 +98,9 @@ printDeviceInfo(cl_uint d)
 	cl_device_type devtype;
 	cl_device_local_mem_type lmemtype;
 	cl_device_mem_cache_type cachetype;
+	cl_device_exec_capabilities execap;
 	cl_device_fp_config fpconfig;
+	cl_command_queue_properties queueprop;
 	cl_uint uintval, uintval2;
 	cl_uint cursor;
 	cl_ulong ulongval;
@@ -113,6 +115,9 @@ printDeviceInfo(cl_uint d)
 	char has_half[12] = {0};
 	char has_double[12] = {0};
 	char has_nv[29] = {0};
+
+	// device supports OpenCL 1.2
+	cl_bool is_12 = 0;
 
 #define KB 1024UL
 #define MB (KB*KB)
@@ -163,6 +168,7 @@ printDeviceInfo(cl_uint d)
 	STR_PARAM(NAME, "Device Name");
 	STR_PARAM(VENDOR, "Device Vendor");
 	STR_PARAM(VERSION, "Device Version");
+	is_12 = !!(strstr(buffer, "OpenCL 1.2"));
 	SHOW_STRING(clGetDeviceInfo, dev, CL_DRIVER_VERSION, "Driver Version");
 
 	// we get the extensions information here, but only print it at the end
@@ -196,6 +202,7 @@ printDeviceInfo(cl_uint d)
 	GET_PARAM(TYPE, devtype);
 	// FIXME this can be a combination of flags
 	STR_PRINT("Device Type", device_type_str[ffs(devtype)]);
+	STR_PARAM(PROFILE, "Device Profile");
 
 	// compute units and clock
 	INT_PARAM(MAX_COMPUTE_UNITS, "Max compute units",);
@@ -274,6 +281,7 @@ printDeviceInfo(cl_uint d)
 
 	// memory size and alignment
 	MEM_PARAM(GLOBAL_MEM_SIZE, "Global memory size");
+	BOOL_PARAM(ERROR_CORRECTION_SUPPORT, "Error Correction support");
 	MEM_PARAM(MAX_MEM_ALLOC_SIZE, "Max memory allocation");
 	BOOL_PARAM(HOST_UNIFIED_MEMORY, "Unified memory for Host and Device");
 	if (*has_nv) {
@@ -305,6 +313,29 @@ printDeviceInfo(cl_uint d)
 	if (*has_nv) {
 		INT_PARAM(REGISTERS_PER_BLOCK_NV, "NVIDIA registers per CU",);
 	}
+
+	// queue and kernel capabilities
+	printf("  %-46s:\n", "Queue properties support");
+	GET_PARAM(QUEUE_PROPERTIES, queueprop);
+	STR_PRINT("  Out-of-order execution", bool_str[!!(queueprop & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE)]);
+	STR_PRINT("  Profiling", bool_str[!!(queueprop & CL_QUEUE_PROFILING_ENABLE)]);
+
+	printf("  %-46s:\n", "Execution capabilities");
+	GET_PARAM(EXECUTION_CAPABILITIES, execap);
+	STR_PRINT("  Run OpenCL kernels", bool_str[!!(execap & CL_EXEC_KERNEL)]);
+	STR_PRINT("  Run native kernels", bool_str[!!(execap & CL_EXEC_NATIVE_KERNEL)]);
+	if (*has_nv) {
+		BOOL_PARAM(KERNEL_EXEC_TIMEOUT_NV, "  NVIDIA kernel execution timeout");
+	}
+
+	if (is_12)
+		STR_PARAM(BUILT_IN_KERNELS, "Built-in kernels");
+
+	// misc. availability
+	BOOL_PARAM(AVAILABLE, "Device Available");
+	BOOL_PARAM(COMPILER_AVAILABLE, "Compiler Available");
+	if (is_12)
+		BOOL_PARAM(LINKER_AVAILABLE, "Linker Available");
 
 	// and finally the extensions
 	printf("  %-46s: %s\n", "Device Extensions", extensions); \
