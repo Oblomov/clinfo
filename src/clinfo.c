@@ -168,7 +168,7 @@ printDeviceInfo(cl_uint d)
 } while (0)
 #define SZ_PARAM(param, name, sfx) do { \
 	GET_PARAM(param, szval); \
-	printf("  %-46s: %zu\n", name, szval); \
+	printf("  %-46s: %zu" sfx "\n", name, szval); \
 } while (0)
 #define MEM_PARAM(param, name) do { \
 	GET_PARAM(param, ulongval); \
@@ -482,6 +482,7 @@ printDeviceInfo(cl_uint d)
 	GET_PARAM(QUEUE_PROPERTIES, queueprop);
 	STR_PRINT("  Out-of-order execution", bool_str[!!(queueprop & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE)]);
 	STR_PRINT("  Profiling", bool_str[!!(queueprop & CL_QUEUE_PROFILING_ENABLE)]);
+	SZ_PARAM(PROFILING_TIMER_RESOLUTION, "Profiling timer resolution", "ns");
 
 	printf("  %-46s:\n", "Execution capabilities");
 	GET_PARAM(EXECUTION_CAPABILITIES, execap);
@@ -491,8 +492,11 @@ printDeviceInfo(cl_uint d)
 		BOOL_PARAM(KERNEL_EXEC_TIMEOUT_NV, "  NVIDIA kernel execution timeout");
 	}
 
-	if (is_12)
+	if (is_12) {
+		BOOL_PARAM(PREFERRED_INTEROP_USER_SYNC, "Prefer user sync for interops");
+		SZ_PARAM(PRINTF_BUFFER_SIZE, "printf() buffer size",);
 		STR_PARAM(BUILT_IN_KERNELS, "Built-in kernels");
+	}
 
 	// misc. availability
 	BOOL_PARAM(AVAILABLE, "Device Available");
