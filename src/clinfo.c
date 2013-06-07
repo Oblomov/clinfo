@@ -556,8 +556,8 @@ printDeviceInfo(cl_uint d)
 			SZ_PARAM(IMAGE_MAX_ARRAY_SIZE, INDENT "Max 1D or 2D image array size", " images");
 		}
 		if (*has_image2d_buffer) {
-			SZ_PARAM(IMAGE_BASE_ADDRESS_ALIGNMENT, INDENT "Base address for 2D image buffer",);
-			SZ_PARAM(IMAGE_PITCH_ALIGNMENT, INDENT "Pitch alignment for 2D image buffer",);
+			SZ_PARAM(IMAGE_BASE_ADDRESS_ALIGNMENT, INDENT "Base address alignment for 2D image buffers",);
+			SZ_PARAM(IMAGE_PITCH_ALIGNMENT, INDENT "Pitch alignment for 2D image buffers",);
 		}
 		GET_PARAM_PTR(IMAGE2D_MAX_HEIGHT, szvals, 1);
 		GET_PARAM_PTR(IMAGE2D_MAX_WIDTH, (szvals+1), 1);
