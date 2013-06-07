@@ -1,0 +1,56 @@
+.TH CLINFO 1 "2013-06-07" 1.2
+
+.SH NAME
+clinfo \- show OpenCL platforms and devices
+
+.SH SYNOPSIS
+.B clinfo
+
+.SH DESCRIPTION
+.B clinfo
+prints all available information about all OpenCL platforms
+available on the system and the devices they expose.
+
+.SH OPTIONS
+This program accepts no options.
+
+.SH CONFORMING TO
+
+OpenCL 1.1, OpenCL 1.2.
+
+.SH EXTENSIONS
+
+Supported OpenCL extensions:
+.IP "cl_khr_fp16, cl_khr_fp64, cl_amd_fp64"
+for information about support for half-precision and double-precision
+floating-point data types;
+.IP cl_ext_device_fission
+for device fission support in OpenCL 1.1 devices;
+.IP "cl_ext_atomic_counters_32, cl_ext_atomic_counters_64"
+for the atomic counter extension;
+.IP cl_amd_device_attribute_query
+for AMD-specific device attributes;
+.IP cl_nv_device_attribute_query
+for NVIDIA-specific device attributes.
+
+.SH NOTES
+Some information is duplicated when available from multiple sources.
+Examples:
+.IP \(bu 2
+supported device partition types and domains as obtained using the
+cl_ext_device_fission extension typically match the ones obtained  using
+the core OpenCL 1.2 device partition feature;
+.IP \(bu
+the preferred work-group size multiple matches the NVIDIA warp size (on
+NVIDIA devices) or the AMD wavefront width (on AMD devices).
+
+.SH BUGS
+The results of the following undocumented properties might be
+interpreted incorrectly:
+.IP \(bu 2
+.B CL_DEVICE_GLOBA_FREE_MEMORY_AMD
+
+.P
+Please report any issues to the project tracker at
+.IR http://github.com/Oblomov/clinfo .
+
