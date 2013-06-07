@@ -51,9 +51,17 @@ size_t wgm[NUM_KERNELS];
 
 #define ARRAY_SIZE(ar) (sizeof(ar)/sizeof(*ar))
 
+#define INDENT "  "
+#define I0_STR "%-48s  "
+#define I1_STR "  %-46s  "
+#define I2_STR "    %-44s  "
+
+#define STR_PRINT(name, str) \
+	printf(I1_STR "%s\n", name, str)
+
 #define SHOW_STRING(cmd, param, name, ...) do { \
 	GET_STRING(cmd, param, __VA_ARGS__); \
-	printf("  %-46s: %s\n", name, strbuf); \
+	STR_PRINT(name, strbuf); \
 } while (0)
 
 /* Print platform info and prepare arrays for device info */
@@ -207,22 +215,19 @@ printDeviceInfo(cl_uint d)
 	val > MB ? "MB" : \
 	 "KB" )
 
-#define STR_PRINT(name, str) \
-	printf("  %-46s: %s\n", name, str)
-
 #define STR_PARAM(param, str) \
 	SHOW_STRING(clGetDeviceInfo, CL_DEVICE_##param, "Device " str, dev)
 #define INT_PARAM(param, name, sfx) do { \
 	GET_PARAM(param, uintval); \
-	printf("  %-46s: %u" sfx "\n", name, uintval); \
+	printf(I1_STR "%u" sfx "\n", name, uintval); \
 } while (0)
 #define LONG_PARAM(param, name, sfx) do { \
 	GET_PARAM(param, ulongval); \
-	printf("  %-46s: %u" sfx "\n", name, ulongval); \
+	printf(I1_STR "%u" sfx "\n", name, ulongval); \
 } while (0)
 #define SZ_PARAM(param, name, sfx) do { \
 	GET_PARAM(param, szval); \
-	printf("  %-46s: %zu" sfx "\n", name, szval); \
+	printf(I1_STR "%zu" sfx "\n", name, szval); \
 } while (0)
 #define MEM_PARAM(param, name) do { \
 	GET_PARAM(param, ulongval); \
@@ -233,7 +238,7 @@ printDeviceInfo(cl_uint d)
 			MEM_PFX(doubleval)); \
 		strbuf[bufsz-1] = '\0'; \
 	} else strbuf[0] = '\0'; \
-	printf("  %-46s: %lu%s\n", \
+	printf(I1_STR "%lu%s\n", \
 		name, ulongval, strbuf); \
 } while (0)
 #define BOOL_PARAM(param, name) do { \
@@ -304,7 +309,7 @@ printDeviceInfo(cl_uint d)
 	if (*has_nv) {
 		GET_PARAM(COMPUTE_CAPABILITY_MAJOR_NV, uintval);
 		GET_PARAM(COMPUTE_CAPABILITY_MINOR_NV, uintval2);
-		printf("  %-46s: %u.%u\n",
+		printf(I1_STR "%u.%u\n",
 			"NVIDIA Compute Capability",
 			uintval, uintval2);
 	}
@@ -324,40 +329,40 @@ printDeviceInfo(cl_uint d)
 	}
 	strbuf[szval] = 0;
 
-	printf("  %-46s: (%s)\n", "Device Partition",
+	printf(I1_STR "(%s)\n", "Device Partition",
 		szval ? strbuf : na);
 	if (is_12) {
 		GET_PARAM_ARRAY(PARTITION_PROPERTIES, partprop, szval);
 		numpartprop = szval/sizeof(*partprop);
-		printf("  %-46s:", "  Supported partition types");
+		printf(I2_STR, "Supported partition types");
 		for (cursor = 0; cursor < numpartprop ; ++cursor) {
 			switch(partprop[cursor]) {
 			case 0:
-				printf(" none"); break;
+				printf("none"); break;
 			case CL_DEVICE_PARTITION_EQUALLY:
-				printf(" equally"); break;
+				printf("equally"); break;
 			case CL_DEVICE_PARTITION_BY_COUNTS:
-				printf(" by counts"); break;
+				printf("by counts"); break;
 			case CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN:
-				printf(" by affinity domain"); break;
+				printf("by affinity domain"); break;
 			default:
-				printf(" by <unknown>"); break;
+				printf("by <unknown>"); break;
 			}
 			if (cursor < numpartprop - 1)
-				printf(",");
+				printf(", ");
 		}
 		puts("");
 		GET_PARAM(PARTITION_AFFINITY_DOMAIN, partdom);
 		if (partdom) {
-			printf("  %-46s:", "  Supported affinity domains");
+			printf(I2_STR, "Supported affinity domains");
 			cl_bool comma = CL_FALSE;
 #define CHECK_AFFINITY_FLAG(flag, text) do { \
 	if (partdom & CL_DEVICE_AFFINITY_DOMAIN_##flag) { \
-		printf("%s %s", (comma ? ",": ""), text); comma = CL_TRUE; \
+		printf("%s%s", (comma ? ", ": ""), text); comma = CL_TRUE; \
 	} \
 } while (0)
 #define CHECK_AFFINITY_CACHE(level) \
-	CHECK_AFFINITY_FLAG( level##_CACHE, #level " cache")
+	CHECK_AFFINITY_FLAG(level##_CACHE, #level " cache")
 
 			CHECK_AFFINITY_FLAG(NUMA, "NUMA");
 			CHECK_AFFINITY_CACHE(L1);
@@ -371,33 +376,33 @@ printDeviceInfo(cl_uint d)
 	if (*has_fission) {
 		GET_PARAM_ARRAY(PARTITION_TYPES_EXT, partprop_ext, szval);
 		numpartprop_ext = szval/sizeof(*partprop_ext);
-		printf("  %-46s:", "  Supported partition types (ext)");
+		printf(I2_STR, "Supported partition types (ext)");
 		for (cursor = 0; cursor < numpartprop_ext ; ++cursor) {
 			switch(partprop_ext[cursor]) {
 			case 0:
-				printf(" none"); break;
+				printf("none"); break;
 			case CL_DEVICE_PARTITION_EQUALLY_EXT:
-				printf(" equally"); break;
+				printf("equally"); break;
 			case CL_DEVICE_PARTITION_BY_COUNTS_EXT:
-				printf(" by counts"); break;
+				printf("by counts"); break;
 			case CL_DEVICE_PARTITION_BY_NAMES_EXT:
-				printf(" by names"); break;
+				printf("by names"); break;
 			case CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN_EXT:
-				printf(" by affinity domain"); break;
+				printf("by affinity domain"); break;
 			default:
-				printf(" by <unknown>"); break;
+				printf("by <unknown>"); break;
 			}
 			if (cursor < numpartprop_ext - 1)
-				printf(",");
+				printf(", ");
 		}
 		puts("");
 		GET_PARAM_ARRAY(AFFINITY_DOMAINS_EXT, partdom_ext, szval);
 		numpartdom_ext = szval/sizeof(*partdom_ext);
 		if (numpartdom_ext) {
-			printf("  %-46s:", "  Supported affinity domains (ext)");
+			printf(I2_STR, "Supported affinity domains (ext)");
 #define CASE_CACHE(level) \
 	case CL_AFFINITY_DOMAIN_##level##_CACHE_EXT: \
-		printf(" " #level " cache")
+		printf(#level " cache")
 			for (cursor = 0; cursor < numpartdom_ext ; ++cursor) {
 				switch(partdom_ext[cursor]) {
 				CASE_CACHE(L1); break;
@@ -405,15 +410,15 @@ printDeviceInfo(cl_uint d)
 				CASE_CACHE(L3); break;
 				CASE_CACHE(L4); break;
 				case CL_AFFINITY_DOMAIN_NUMA_EXT:
-					printf(" NUMA"); break;
+					printf("NUMA"); break;
 				case CL_AFFINITY_DOMAIN_NEXT_FISSIONABLE_EXT:
-					printf(" next fissionable"); break;
+					printf("next fissionable"); break;
 				default:
-					printf(" <unknown> (0x%X)", partdom_ext[cursor]);
+					printf("<unknown> (0x%X)", partdom_ext[cursor]);
 					break;
 				}
 				if (cursor < numpartdom_ext - 1)
-					printf(",");
+					printf(", ");
 			}
 			puts("");
 		}
@@ -428,13 +433,13 @@ printDeviceInfo(cl_uint d)
 	for (cursor = 0; cursor < uintval; ++cursor) {
 		snprintf(strbuf, bufsz, "Max work item size[%u]", cursor);
 		strbuf[bufsz-1] = '\0'; // this is probably never needed, but better safe than sorry
-		printf("    %-44s: %zu\n", strbuf , szvals[cursor]);
+		printf(I2_STR "%zu\n", strbuf , szvals[cursor]);
 	}
 	SZ_PARAM(MAX_WORK_GROUP_SIZE, "Max work group size",);
 
 	GET_PARAM(PLATFORM, pid);
 	getWGsizes(pid, dev);
-	printf("  %-46s: %zu\n", "Preferred work group size multiple", wgm[0]);
+	printf(I1_STR "%zu\n", "Preferred work group size multiple", wgm[0]);
 
 	if (*has_nv) {
 		INT_PARAM(WARP_SIZE_NV, "Warp size (NVIDIA)",);
@@ -444,13 +449,13 @@ printDeviceInfo(cl_uint d)
 	}
 
 	// preferred/native vector widths
-	printf("  %-46s:", "Preferred / native vector sizes");
+	printf(I1_STR, "Preferred / native vector sizes");
 #define _PRINT_VEC(UCtype, type, optional, ext) do { \
 	GET_PARAM(PREFERRED_VECTOR_WIDTH_##UCtype, uintval); \
 	GET_PARAM(NATIVE_VECTOR_WIDTH_##UCtype, uintval2); \
-	printf("\n%44s    : %8u / %-8u", #type, uintval, uintval2); \
+	printf("\n" I2_STR "%8u / %-8u", #type, uintval, uintval2); \
 	if (optional) \
-		printf("(%s)", *ext ? ext : na); \
+		printf(" (%s)", *ext ? ext : na); \
 } while (0)
 #define PRINT_VEC(UCtype, type) _PRINT_VEC(UCtype, type, 0, "")
 #define PRINT_VEC_OPT(UCtype, type, ext) _PRINT_VEC(UCtype, type, 1, ext)
@@ -466,7 +471,7 @@ printDeviceInfo(cl_uint d)
 
 	// FP configurations
 #define SHOW_FP_FLAG(str, flag) \
-	printf("    %-44s: %s\n", str, bool_str[!!(fpconfig & CL_FP_##flag)])
+	printf(I2_STR "%s\n", str, bool_str[!!(fpconfig & CL_FP_##flag)])
 #define SHOW_FP_SUPPORT(type) do { \
 	GET_PARAM(type##_FP_CONFIG, fpconfig); \
 	SHOW_FP_FLAG("Denormals", DENORM); \
@@ -479,7 +484,7 @@ printDeviceInfo(cl_uint d)
 } while (0)
 
 #define FPSUPP_STR(str, opt) \
-	"  %-17s%-29s:" opt "\n", #str "-precision", fpsupp
+	"  %-17s%-29s " opt "\n", #str "-precision", fpsupp
 	printf(FPSUPP_STR(Half, " (%s)"),
 		*has_half ? has_half : na);
 	if (*has_half)
@@ -494,7 +499,7 @@ printDeviceInfo(cl_uint d)
 	// arch bits and endianness
 	GET_PARAM(ADDRESS_BITS, uintval);
 	GET_PARAM(ENDIAN_LITTLE, boolval);
-	printf("  %-46s: %u, %s\n", "Address bits", uintval, endian_str[boolval]);
+	printf(I1_STR "%u, %s\n", "Address bits", uintval, endian_str[boolval]);
 
 	// memory size and alignment
 
@@ -512,7 +517,7 @@ printDeviceInfo(cl_uint d)
 					MEM_PFX(doubleval));
 				strbuf[bufsz-1] = '\0';
 			} else strbuf[0] = '\0';
-			printf("  %-46s: %lu%s\n", "Free global memory (AMD)", szvals[cursor], strbuf);
+			printf(I1_STR "%lu%s\n", "Free global memory (AMD)", szvals[cursor], strbuf);
 		}
 
 		INT_PARAM(GLOBAL_MEM_CHANNELS_AMD, "Global memory channels (AMD)",);
@@ -529,7 +534,7 @@ printDeviceInfo(cl_uint d)
 	}
 	INT_PARAM(MIN_DATA_TYPE_ALIGN_SIZE, "Minimum alignment for any data type", " bytes");
 	GET_PARAM(MEM_BASE_ADDR_ALIGN, uintval);
-	printf("  %-46s: %u bits (%u bytes)\n",
+	printf(I1_STR "%u bits (%u bytes)\n",
 		"Alignment of base address", uintval, uintval/8);
 
 	// cache
@@ -549,12 +554,12 @@ printDeviceInfo(cl_uint d)
 		}
 		GET_PARAM_PTR(IMAGE2D_MAX_HEIGHT, szvals, 1);
 		GET_PARAM_PTR(IMAGE2D_MAX_WIDTH, (szvals+1), 1);
-		printf("    %-44s: %zux%zu pixels\n", "Max 2D image size",
+		printf(I2_STR "%zux%zu pixels\n", "Max 2D image size",
 			szvals[0], szvals[1]);
 		GET_PARAM_PTR(IMAGE3D_MAX_HEIGHT, szvals, 1);
 		GET_PARAM_PTR(IMAGE3D_MAX_WIDTH, (szvals+1), 1);
 		GET_PARAM_PTR(IMAGE3D_MAX_DEPTH, (szvals+2), 1);
-		printf("    %-44s: %zux%zux%zu pixels\n", "Max 3D image size",
+		printf(I2_STR "%zux%zux%zu pixels\n", "Max 3D image size",
 			szvals[0], szvals[1], szvals[2]);
 		INT_PARAM(MAX_READ_IMAGE_ARGS, "  Max number of read image args",);
 		INT_PARAM(MAX_WRITE_IMAGE_ARGS, "  Max number of write image args",);
@@ -585,22 +590,22 @@ printDeviceInfo(cl_uint d)
 		INT_PARAM(MAX_ATOMIC_COUNTERS_EXT, "Max number of atomic counters",);
 
 	// queue and kernel capabilities
-	printf("  %-46s:\n", "Queue properties support");
+	printf(I2_STR "\n", "Queue properties support");
 	GET_PARAM(QUEUE_PROPERTIES, queueprop);
-	STR_PRINT("  Out-of-order execution", bool_str[!!(queueprop & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE)]);
-	STR_PRINT("  Profiling", bool_str[!!(queueprop & CL_QUEUE_PROFILING_ENABLE)]);
+	STR_PRINT(INDENT "Out-of-order execution", bool_str[!!(queueprop & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE)]);
+	STR_PRINT(INDENT "Profiling", bool_str[!!(queueprop & CL_QUEUE_PROFILING_ENABLE)]);
 	SZ_PARAM(PROFILING_TIMER_RESOLUTION, "Profiling timer resolution", "ns");
 	if (*has_amd) {
 		// TODO print this in a more meaningful way
 		LONG_PARAM(PROFILING_TIMER_OFFSET_AMD, "Profiling timer offset since Epoch (AMD)", "ns");
 	}
 
-	printf("  %-46s:\n", "Execution capabilities");
+	printf(I1_STR "\n", "Execution capabilities");
 	GET_PARAM(EXECUTION_CAPABILITIES, execap);
-	STR_PRINT("  Run OpenCL kernels", bool_str[!!(execap & CL_EXEC_KERNEL)]);
-	STR_PRINT("  Run native kernels", bool_str[!!(execap & CL_EXEC_NATIVE_KERNEL)]);
+	STR_PRINT(INDENT "Run OpenCL kernels", bool_str[!!(execap & CL_EXEC_KERNEL)]);
+	STR_PRINT(INDENT "Run native kernels", bool_str[!!(execap & CL_EXEC_NATIVE_KERNEL)]);
 	if (*has_nv) {
-		BOOL_PARAM(KERNEL_EXEC_TIMEOUT_NV, "  NVIDIA kernel execution timeout");
+		BOOL_PARAM(KERNEL_EXEC_TIMEOUT_NV, INDENT "NVIDIA kernel execution timeout");
 	}
 
 	if (is_12) {
@@ -616,7 +621,7 @@ printDeviceInfo(cl_uint d)
 		BOOL_PARAM(LINKER_AVAILABLE, "Linker Available");
 
 	// and finally the extensions
-	printf("  %-46s: %s\n", "Device Extensions", extensions); \
+	printf(I1_STR "%s\n", "Device Extensions", extensions); \
 }
 
 int main(void)
@@ -629,7 +634,7 @@ int main(void)
 	error = clGetPlatformIDs(0, NULL, &num_platforms);
 	CHECK_ERROR("number of platforms");
 
-	printf("%-48s: %u\n", "Number of platforms", num_platforms);
+	printf(I0_STR "%u\n", "Number of platforms", num_platforms);
 	if (!num_platforms)
 		return 0;
 
@@ -649,10 +654,12 @@ int main(void)
 	     p < num_platforms;
 	     device += num_devs[p++]) {
 		error = clGetDeviceIDs(platform[p], CL_DEVICE_TYPE_ALL, num_devs[p], device, NULL);
-		printf("\n  %-46s: %s\n", "Platform Name", platform_name[p]);
-		printf("%-48s: %u\n", "Number of devices", num_devs[p]);
+		printf("\n" I1_STR "%s\n", "Platform Name", platform_name[p]);
+		printf(I0_STR "%u\n", "Number of devices", num_devs[p]);
 		for (d = 0; d < num_devs[p]; ++d) {
 			printDeviceInfo(d);
+			if (d < num_devs[p] - 1)
+				puts("");
 		}
 	}
 }
