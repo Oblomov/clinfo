@@ -49,7 +49,7 @@ size_t wgm[NUM_KERNELS];
 #define ARRAY_SIZE(ar) (sizeof(ar)/sizeof(*ar))
 
 #define SHOW_STRING(cmd, id, param, str) do { \
-	GET_STRING(cmd, id, param); \
+	GET_STRINGX(cmd, param, id); \
 	printf("  %-46s: %s\n", str, strbuf); \
 } while (0)
 
@@ -250,7 +250,7 @@ printDeviceInfo(cl_uint d)
 	SHOW_STRING(clGetDeviceInfo, dev, CL_DRIVER_VERSION, "Driver Version");
 
 	// we get the extensions information here, but only print it at the end
-	GET_STRING(clGetDeviceInfo, dev, CL_DEVICE_EXTENSIONS);
+	GET_STRINGX(clGetDeviceInfo, CL_DEVICE_EXTENSIONS, dev);
 	size_t len = strlen(strbuf);
 	extensions = malloc(len+1);
 	memcpy(extensions, strbuf, len);
