@@ -10,8 +10,9 @@
 
 #include <string.h>
 
-#include "cl_error.h"
-#include "cl_mem.h"
+#include "error.h"
+#include "memory.h"
+#include "strbuf.h"
 
 cl_uint num_platforms;
 cl_platform_id *platform;
@@ -22,11 +23,12 @@ cl_device_id *all_devices;
 cl_device_id *device;
 
 const char unk[] = "Unknown";
+const char none[] = "None";
 const char* bool_str[] = { "No", "Yes" };
 const char* endian_str[] = { "Big-Endian", "Little-Endian" };
 const char* device_type_str[] = { unk, "Default", "CPU", "GPU", "Accelerator", "Custom" };
-const char* local_mem_type_str[] = { "None", "Local", "Global" };
-const char* cache_type_str[] = { "None", "Read-Only", "Read/Write" };
+const char* local_mem_type_str[] = { none, "Local", "Global" };
+const char* cache_type_str[] = { none, "Read-Only", "Read/Write" };
 
 const char* sources[] = {
 	"#define GWO(type) global write_only type* restrict\n",
@@ -37,42 +39,18 @@ const char* sources[] = {
 	"KRN()\n/* KRN(2)\nKRN(4)\nKRN(8)\nKRN(16) */\n",
 };
 
-// preferred workgroup size multiple for each kernel
-// have not found a platform where the WG multiple changes,
-// but keep this flexible (this can grow up to 5)
+/* preferred workgroup size multiple for each kernel
+ * have not found a platform where the WG multiple changes,
+ * but keep this flexible (this can grow up to 5)
+ */
 #define NUM_KERNELS 1
 size_t wgm[NUM_KERNELS];
 
 #define ARRAY_SIZE(ar) (sizeof(ar)/sizeof(*ar))
 
-char *buffer;
-size_t bufsz, nusz;
-
-#define GET_STRING(cmd, id, param) do { \
-	error = cmd(id, param, 0, NULL, &nusz); \
-	CHECK_ERROR("get " #param " size"); \
-	if (nusz > bufsz) { \
-		REALLOC(buffer, nusz, #param); \
-		bufsz = nusz; \
-	} \
-	error = cmd(id, param, bufsz, buffer, 0); \
-	CHECK_ERROR("get " #param); \
-} while (0)
-
-#define GET_STRINGX(cmd, param, ...) do { \
-	error = cmd(__VA_ARGS__, param, 0, NULL, &nusz); \
-	CHECK_ERROR("get " #param " size"); \
-	if (nusz > bufsz) { \
-		REALLOC(buffer, nusz, #param); \
-		bufsz = nusz; \
-	} \
-	error = cmd(__VA_ARGS__, param, bufsz, buffer, 0); \
-	CHECK_ERROR("get " #param); \
-} while (0)
-
 #define SHOW_STRING(cmd, id, param, str) do { \
 	GET_STRING(cmd, id, param); \
-	printf("  %-46s: %s\n", str, buffer); \
+	printf("  %-46s: %s\n", str, strbuf); \
 } while (0)
 
 /* Print platform info and prepare arrays for device info */
@@ -88,11 +66,11 @@ printPlatformInfo(cl_uint p)
 	PARAM(NAME, "Name");
 
 	/* Store name for future reference */
-	size_t len = strlen(buffer);
+	size_t len = strlen(strbuf);
 	platform_name[p] = malloc(len + 1);
 	/* memcpy instead of strncpy since we already have the len
 	 * and memcpy is possibly more optimized */
-	memcpy(platform_name[p], buffer, len);
+	memcpy(platform_name[p], strbuf, len);
 	platform_name[p][len] = '\0';
 
 	PARAM(VENDOR, "Vendor");
@@ -147,7 +125,7 @@ getWGsizes(cl_platform_id pid, cl_device_id dev)
 #if 0
 	if (error != CL_SUCCESS) {
 		GET_STRINGX(clGetProgramBuildInfo, CL_PROGRAM_BUILD_LOG, prg, dev);
-		fputs(buffer, stderr);
+		fputs(strbuf, stderr);
 		exit(1);
 	}
 #else
@@ -155,10 +133,10 @@ getWGsizes(cl_platform_id pid, cl_device_id dev)
 #endif
 
 	for (cursor = 0; cursor < NUM_KERNELS; ++cursor) {
-		sprintf(buffer, "sum%u", 1<<cursor);
+		sprintf(strbuf, "sum%u", 1<<cursor);
 		if (cursor == 0)
-			buffer[3] = 0; // scalar kernel is called 'sum'
-		krn = clCreateKernel(prg, buffer, &error);
+			strbuf[3] = 0; // scalar kernel is called 'sum'
+		krn = clCreateKernel(prg, strbuf, &error);
 		CHECK_ERROR("create kernel");
 		error = clGetKernelWorkGroupInfo(krn, dev, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE,
 			sizeof(*wgm), wgm + cursor, NULL);
@@ -251,13 +229,13 @@ printDeviceInfo(cl_uint d)
 	GET_PARAM(param, ulongval); \
 	doubleval = ulongval; \
 	if (ulongval > KB) { \
-		snprintf(buffer, bufsz, " (%6.4lg%s)", \
+		snprintf(strbuf, bufsz, " (%6.4lg%s)", \
 			MEM_SIZE(doubleval), \
 			MEM_PFX(doubleval)); \
-		buffer[bufsz-1] = '\0'; \
-	} else buffer[0] = '\0'; \
+		strbuf[bufsz-1] = '\0'; \
+	} else strbuf[0] = '\0'; \
 	printf("  %-46s: %lu%s\n", \
-		name, ulongval, buffer); \
+		name, ulongval, strbuf); \
 } while (0)
 #define BOOL_PARAM(param, name) do { \
 	GET_PARAM(param, boolval); \
@@ -268,14 +246,14 @@ printDeviceInfo(cl_uint d)
 	STR_PARAM(NAME, "Device Name");
 	STR_PARAM(VENDOR, "Device Vendor");
 	STR_PARAM(VERSION, "Device Version");
-	is_12 = !!(strstr(buffer, "OpenCL 1.2"));
+	is_12 = !!(strstr(strbuf, "OpenCL 1.2"));
 	SHOW_STRING(clGetDeviceInfo, dev, CL_DRIVER_VERSION, "Driver Version");
 
 	// we get the extensions information here, but only print it at the end
 	GET_STRING(clGetDeviceInfo, dev, CL_DEVICE_EXTENSIONS);
-	size_t len = strlen(buffer);
+	size_t len = strlen(strbuf);
 	extensions = malloc(len+1);
-	memcpy(extensions, buffer, len);
+	memcpy(extensions, strbuf, len);
 	extensions[len] = '\0';
 
 #define _HAS_EXT(ext) (strstr(extensions, ext))
@@ -338,17 +316,17 @@ printDeviceInfo(cl_uint d)
 	 */
 	szval = 0;
 	if (is_12) {
-		strncpy(buffer + szval, "core, ", *has_fission ? 6 : 4);
+		strncpy(strbuf + szval, "core, ", *has_fission ? 6 : 4);
 		szval += (*has_fission ? 6 : 4);
 	}
 	if (*has_fission) {
-		strcpy(buffer + szval, has_fission);
+		strcpy(strbuf + szval, has_fission);
 		szval += strlen(has_fission);
 	}
-	buffer[szval] = 0;
+	strbuf[szval] = 0;
 
 	printf("  %-46s: (%s)\n", "Device Partition",
-		szval ? buffer : na);
+		szval ? strbuf : na);
 	if (is_12) {
 		GET_PARAM_ARRAY(PARTITION_PROPERTIES, partprop, szval);
 		numpartprop = szval/sizeof(*partprop);
@@ -449,9 +427,9 @@ printDeviceInfo(cl_uint d)
 	REALLOC(szvals, szels, "work item sizes");
 	GET_PARAM_PTR(MAX_WORK_ITEM_SIZES, szvals, uintval);
 	for (cursor = 0; cursor < uintval; ++cursor) {
-		snprintf(buffer, bufsz, "Max work item size[%u]", cursor);
-		buffer[bufsz-1] = '\0'; // this is probably never needed, but better safe than sorry
-		printf("    %-44s: %zu\n", buffer , szvals[cursor]);
+		snprintf(strbuf, bufsz, "Max work item size[%u]", cursor);
+		strbuf[bufsz-1] = '\0'; // this is probably never needed, but better safe than sorry
+		printf("    %-44s: %zu\n", strbuf , szvals[cursor]);
 	}
 	SZ_PARAM(MAX_WORK_GROUP_SIZE, "Max work group size",);
 
@@ -530,12 +508,12 @@ printDeviceInfo(cl_uint d)
 		for (cursor = 0; cursor < szels; ++cursor) {
 			doubleval = szvals[cursor];
 			if (szvals[cursor] > KB) {
-				snprintf(buffer, bufsz, " (%6.4lg%s)",
+				snprintf(strbuf, bufsz, " (%6.4lg%s)",
 					MEM_SIZE(doubleval),
 					MEM_PFX(doubleval));
-				buffer[bufsz-1] = '\0';
-			} else buffer[0] = '\0';
-			printf("  %-46s: %lu%s\n", "Free global memory (AMD)", szvals[cursor], buffer);
+				strbuf[bufsz-1] = '\0';
+			} else strbuf[0] = '\0';
+			printf("  %-46s: %lu%s\n", "Free global memory (AMD)", szvals[cursor], strbuf);
 		}
 
 		INT_PARAM(GLOBAL_MEM_CHANNELS_AMD, "Global memory channels (AMD)",);
@@ -595,7 +573,7 @@ printDeviceInfo(cl_uint d)
 
 
 	// constant
-	MEM_PARAM(MAX_CONSTANT_BUFFER_SIZE, "Max constant buffer size");
+	MEM_PARAM(MAX_CONSTANT_BUFFER_SIZE, "Max constant strbuf size");
 	INT_PARAM(MAX_CONSTANT_ARGS, "Max number of constant args",);
 
 	// nv: registers/CU
@@ -628,7 +606,7 @@ printDeviceInfo(cl_uint d)
 
 	if (is_12) {
 		BOOL_PARAM(PREFERRED_INTEROP_USER_SYNC, "Prefer user sync for interops");
-		SZ_PARAM(PRINTF_BUFFER_SIZE, "printf() buffer size",);
+		SZ_PARAM(PRINTF_BUFFER_SIZE, "printf() strbuf size",);
 		STR_PARAM(BUILT_IN_KERNELS, "Built-in kernels");
 	}
 
@@ -646,7 +624,7 @@ int main(void)
 {
 	cl_uint p, d;
 
-	ALLOC(buffer, 1024, "general string buffer");
+	ALLOC(strbuf, 1024, "general string strbuf");
 	bufsz = 1024;
 
 	error = clGetPlatformIDs(0, NULL, &num_platforms);
