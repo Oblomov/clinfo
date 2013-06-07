@@ -598,7 +598,7 @@ printDeviceInfo(cl_uint d)
 		INT_PARAM(MAX_ATOMIC_COUNTERS_EXT, "Max number of atomic counters",);
 
 	// queue and kernel capabilities
-	printf(I2_STR "\n", "Queue properties support");
+	printf(I1_STR "\n", "Queue properties");
 	GET_PARAM(QUEUE_PROPERTIES, queueprop);
 	STR_PRINT(INDENT "Out-of-order execution", bool_str[!!(queueprop & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE)]);
 	STR_PRINT(INDENT "Profiling", bool_str[!!(queueprop & CL_QUEUE_PROFILING_ENABLE)]);
@@ -626,7 +626,7 @@ printDeviceInfo(cl_uint d)
 
 	if (is_12) {
 		BOOL_PARAM(PREFERRED_INTEROP_USER_SYNC, "Prefer user sync for interops");
-		SZ_PARAM(PRINTF_BUFFER_SIZE, "printf() strbuf size",);
+		MEM_PARAM(PRINTF_BUFFER_SIZE, "printf() strbuf size");
 		STR_PARAM(BUILT_IN_KERNELS, "Built-in kernels");
 	}
 
