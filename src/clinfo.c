@@ -254,6 +254,7 @@ printDeviceInfo(cl_uint d)
 	STR_PARAM(VERSION, "Version");
 	is_12 = !!(strstr(strbuf, "OpenCL 1.2"));
 	SHOW_STRING(clGetDeviceInfo, CL_DRIVER_VERSION, "Driver Version", dev);
+	STR_PARAM(OPENCL_C_VERSION, "OpenCL C Version");
 
 	// we get the extensions information here, but only print it at the end
 	GET_STRING(clGetDeviceInfo, CL_DEVICE_EXTENSIONS, dev);
