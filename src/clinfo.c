@@ -196,6 +196,7 @@ printDeviceInfo(cl_uint d)
 	char has_amd[30] = {0};
 	char has_fission[22] = {0};
 	char has_atomic_counters[26] = {0};
+	char has_image2d_buffer[22] = {0};
 
 	// device supports OpenCL 1.2
 	cl_bool is_12 = CL_FALSE;
@@ -284,6 +285,7 @@ printDeviceInfo(cl_uint d)
 		CHECK_EXT(atomic_counters, cl_ext_atomic_counters_64);
 		if (!*has_atomic_counters)
 			CHECK_EXT(atomic_counters, cl_ext_atomic_counters_32);
+		CHECK_EXT(image2d_buffer, cl_khr_image2D_buffer);
 	}
 
 
@@ -552,6 +554,10 @@ printDeviceInfo(cl_uint d)
 		if (is_12) {
 			SZ_PARAM(IMAGE_MAX_BUFFER_SIZE, INDENT "Max 1D image size", " pixels");
 			SZ_PARAM(IMAGE_MAX_ARRAY_SIZE, INDENT "Max 1D or 2D image array size", " images");
+		}
+		if (*has_image2d_buffer) {
+			SZ_PARAM(IMAGE_BASE_ADDRESS_ALIGNMENT, INDENT "Base address for 2D image buffer",);
+			SZ_PARAM(IMAGE_PITCH_ALIGNMENT, INDENT "Pitch alignment for 2D image buffer",);
 		}
 		GET_PARAM_PTR(IMAGE2D_MAX_HEIGHT, szvals, 1);
 		GET_PARAM_PTR(IMAGE2D_MAX_WIDTH, (szvals+1), 1);
