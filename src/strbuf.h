@@ -4,7 +4,7 @@
 char *strbuf;
 size_t bufsz, nusz;
 
-#define GET_STRINGX(cmd, param, ...) do { \
+#define GET_STRING(cmd, param, ...) do { \
 	error = cmd(__VA_ARGS__, param, 0, NULL, &nusz); \
 	CHECK_ERROR("get " #param " size"); \
 	if (nusz > bufsz) { \
