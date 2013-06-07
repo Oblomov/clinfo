@@ -550,8 +550,8 @@ printDeviceInfo(cl_uint d)
 	BOOL_PARAM(IMAGE_SUPPORT, "Image support");
 	if (boolval) {
 		if (is_12) {
-			SZ_PARAM(IMAGE_MAX_BUFFER_SIZE, "  Max 1D image size", " pixels");
-			SZ_PARAM(IMAGE_MAX_ARRAY_SIZE, "  Max 1D or 2D image array size", " images");
+			SZ_PARAM(IMAGE_MAX_BUFFER_SIZE, INDENT "Max 1D image size", " pixels");
+			SZ_PARAM(IMAGE_MAX_ARRAY_SIZE, INDENT "Max 1D or 2D image array size", " images");
 		}
 		GET_PARAM_PTR(IMAGE2D_MAX_HEIGHT, szvals, 1);
 		GET_PARAM_PTR(IMAGE2D_MAX_WIDTH, (szvals+1), 1);
@@ -562,8 +562,8 @@ printDeviceInfo(cl_uint d)
 		GET_PARAM_PTR(IMAGE3D_MAX_DEPTH, (szvals+2), 1);
 		printf(I2_STR "%zux%zux%zu pixels\n", "Max 3D image size",
 			szvals[0], szvals[1], szvals[2]);
-		INT_PARAM(MAX_READ_IMAGE_ARGS, "  Max number of read image args",);
-		INT_PARAM(MAX_WRITE_IMAGE_ARGS, "  Max number of write image args",);
+		INT_PARAM(MAX_READ_IMAGE_ARGS, INDENT "Max number of read image args",);
+		INT_PARAM(MAX_WRITE_IMAGE_ARGS, INDENT "Max number of write image args",);
 	}
 
 	// local
