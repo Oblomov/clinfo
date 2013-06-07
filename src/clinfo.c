@@ -28,6 +28,23 @@ const char* device_type_str[] = { unk, "Default", "CPU", "GPU", "Accelerator", "
 const char* local_mem_type_str[] = { "None", "Local", "Global" };
 const char* cache_type_str[] = { "None", "Read-Only", "Read/Write" };
 
+const char* sources[] = {
+	"#define GWO(type) global write_only type* restrict\n",
+	"#define GRO(type) global read_only type* restrict\n",
+	"#define BODY int i = get_global_id(0); out[i] = in1[i] + in2[i]\n",
+	"#define _KRN(T, N) void kernel sum##N(GWO(T##N) out, GRO(T##N) in1, GRO(T##N) in2) { BODY; }\n",
+	"#define KRN(N) _KRN(float, N)\n",
+	"KRN()\n/* KRN(2)\nKRN(4)\nKRN(8)\nKRN(16) */\n",
+};
+
+// preferred workgroup size multiple for each kernel
+// have not found a platform where the WG multiple changes,
+// but keep this flexible (this can grow up to 5)
+#define NUM_KERNELS 1
+size_t wgm[NUM_KERNELS];
+
+#define ARRAY_SIZE(ar) (sizeof(ar)/sizeof(*ar))
+
 char *buffer;
 size_t bufsz, nusz;
 
@@ -39,6 +56,17 @@ size_t bufsz, nusz;
 		bufsz = nusz; \
 	} \
 	error = cmd(id, param, bufsz, buffer, 0); \
+	CHECK_ERROR("get " #param); \
+} while (0)
+
+#define GET_STRINGX(cmd, param, ...) do { \
+	error = cmd(__VA_ARGS__, param, 0, NULL, &nusz); \
+	CHECK_ERROR("get " #param " size"); \
+	if (nusz > bufsz) { \
+		REALLOC(buffer, nusz, #param); \
+		bufsz = nusz; \
+	} \
+	error = cmd(__VA_ARGS__, param, bufsz, buffer, 0); \
 	CHECK_ERROR("get " #param); \
 } while (0)
 
@@ -101,6 +129,48 @@ static const char na[] = "n/a";
 static const char fpsupp[] = "Floating-point support";
 
 void
+getWGsizes(cl_platform_id pid, cl_device_id dev)
+{
+	cl_context_properties ctxpft[] = {
+		CL_CONTEXT_PLATFORM, (cl_context_properties)pid,
+		0, 0 };
+	cl_uint cursor;
+	cl_context ctx;
+	cl_program prg;
+	cl_kernel krn;
+
+	ctx = clCreateContext(ctxpft, 1, &dev, NULL, NULL, &error);
+	CHECK_ERROR("create context");
+	prg = clCreateProgramWithSource(ctx, ARRAY_SIZE(sources), sources, NULL, &error);
+	CHECK_ERROR("create program");
+	error = clBuildProgram(prg, 1, &dev, NULL, NULL, NULL);
+#if 0
+	if (error != CL_SUCCESS) {
+		GET_STRINGX(clGetProgramBuildInfo, CL_PROGRAM_BUILD_LOG, prg, dev);
+		fputs(buffer, stderr);
+		exit(1);
+	}
+#else
+	CHECK_ERROR("build program");
+#endif
+
+	for (cursor = 0; cursor < NUM_KERNELS; ++cursor) {
+		sprintf(buffer, "sum%u", 1<<cursor);
+		if (cursor == 0)
+			buffer[3] = 0; // scalar kernel is called 'sum'
+		krn = clCreateKernel(prg, buffer, &error);
+		CHECK_ERROR("create kernel");
+		error = clGetKernelWorkGroupInfo(krn, dev, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE,
+			sizeof(*wgm), wgm + cursor, NULL);
+		CHECK_ERROR("get kernel info");
+		clReleaseKernel(krn);
+	}
+
+	clReleaseProgram(prg);
+	clReleaseContext(ctx);
+}
+
+void
 printDeviceInfo(cl_uint d)
 {
 	cl_device_id dev = device[d];
@@ -109,6 +179,7 @@ printDeviceInfo(cl_uint d)
 	cl_device_mem_cache_type cachetype;
 	cl_device_exec_capabilities execap;
 	cl_device_fp_config fpconfig;
+	cl_platform_id pid;
 
 	cl_command_queue_properties queueprop;
 
@@ -383,7 +454,11 @@ printDeviceInfo(cl_uint d)
 		printf("    %-44s: %zu\n", buffer , szvals[cursor]);
 	}
 	SZ_PARAM(MAX_WORK_GROUP_SIZE, "Max work group size",);
-	// TODO CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE on a simple kernel
+
+	GET_PARAM(PLATFORM, pid);
+	getWGsizes(pid, dev);
+	printf("  %-46s: %zu\n", "Preferred work group size multiple", wgm[0]);
+
 	if (*has_nv) {
 		INT_PARAM(WARP_SIZE_NV, "Warp size (NVIDIA)",);
 	}
