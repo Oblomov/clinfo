@@ -47,6 +47,12 @@ the core OpenCL 1.2 device partition feature;
 the preferred work-group size multiple matches the NVIDIA warp size (on
 NVIDIA devices) or the AMD wavefront width (on AMD devices).
 
+.P
+Some floating-point configuration flags may only be meaningful for
+specific precisions and/or specific OpenCL versions. For example,
+.BR CL_FP_CORRECTLY_ROUNDED_DIVIDE_SQRT ,
+is only relevant for single precision in OpenCL 1.2 devices.
+
 .SH BUGS
 The results of the following undocumented properties might be
 interpreted incorrectly:

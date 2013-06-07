@@ -483,6 +483,7 @@ printDeviceInfo(cl_uint d)
 	SHOW_FP_FLAG("Round to zero", ROUND_TO_ZERO); \
 	SHOW_FP_FLAG("Round to infinity", ROUND_TO_INF); \
 	SHOW_FP_FLAG("IEEE754-2008 fused multiply-add", FMA); \
+	SHOW_FP_FLAG("Correctly-rounded divide and sqrt operations", CORRECTLY_ROUNDED_DIVIDE_SQRT); \
 	SHOW_FP_FLAG("Support is emulated in software", SOFT_FLOAT); \
 } while (0)
 
