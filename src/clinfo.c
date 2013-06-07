@@ -74,7 +74,6 @@ printPlatformInfo(cl_uint p)
 #define PARAM(param, str) \
 	SHOW_STRING(clGetPlatformInfo, CL_PLATFORM_##param, "Platform " str, pid)
 
-	puts("");
 	PARAM(NAME, "Name");
 
 	/* Store name for future reference */
@@ -662,8 +661,11 @@ int main(void)
 	ALLOC(platform_name, num_platforms, "platform names");
 	ALLOC(num_devs, num_platforms, "platform devices");
 
-	for (p = 0; p < num_platforms; ++p)
+	for (p = 0; p < num_platforms; ++p) {
 		printPlatformInfo(p);
+		puts("");
+	}
+
 
 	ALLOC(all_devices, num_devs_all, "device IDs");
 
@@ -671,12 +673,14 @@ int main(void)
 	     p < num_platforms;
 	     device += num_devs[p++]) {
 		error = clGetDeviceIDs(platform[p], CL_DEVICE_TYPE_ALL, num_devs[p], device, NULL);
-		printf("\n" I1_STR "%s\n", "Platform Name", platform_name[p]);
+		printf(I1_STR "%s\n", "Platform Name", platform_name[p]);
 		printf(I0_STR "%u\n", "Number of devices", num_devs[p]);
 		for (d = 0; d < num_devs[p]; ++d) {
 			printDeviceInfo(d);
 			if (d < num_devs[p] - 1)
 				puts("");
 		}
+		if (p < num_platforms - 1)
+			puts("");
 	}
 }
