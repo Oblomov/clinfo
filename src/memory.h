@@ -11,11 +11,11 @@
 } while (0)
 
 #define ALLOC(var, num, what) do { \
-	var = malloc(num*sizeof(*var)); \
+	var = malloc((num)*sizeof(*var)); \
 	CHECK_MEM(var, what); \
 } while (0)
 
 #define REALLOC(var, num, what) do { \
-	var = realloc(var, num*sizeof(*var)); \
+	var = realloc(var, (num)*sizeof(*var)); \
 	CHECK_MEM(var, what); \
 } while (0)

@@ -22,15 +22,18 @@ cl_uint num_devs_all;
 cl_device_id *all_devices;
 cl_device_id *device;
 
-const char unk[] = "Unknown";
-const char none[] = "None";
-const char* bool_str[] = { "No", "Yes" };
-const char* endian_str[] = { "Big-Endian", "Little-Endian" };
-const char* device_type_str[] = { unk, "Default", "CPU", "GPU", "Accelerator", "Custom" };
-const char* local_mem_type_str[] = { none, "Local", "Global" };
-const char* cache_type_str[] = { none, "Read-Only", "Read/Write" };
+static const char unk[] = "Unknown";
+static const char none[] = "None";
+static const char na[] = "n/a"; // not available
+static const char fpsupp[] = "Floating-point support";
 
-const char* sources[] = {
+static const char* bool_str[] = { "No", "Yes" };
+static const char* endian_str[] = { "Big-Endian", "Little-Endian" };
+static const char* device_type_str[] = { unk, "Default", "CPU", "GPU", "Accelerator", "Custom" };
+static const char* local_mem_type_str[] = { none, "Local", "Global" };
+static const char* cache_type_str[] = { none, "Read-Only", "Read/Write" };
+
+static const char* sources[] = {
 	"#define GWO(type) global write_only type* restrict\n",
 	"#define GRO(type) global read_only type* restrict\n",
 	"#define BODY int i = get_global_id(0); out[i] = in1[i] + in2[i]\n",
@@ -48,9 +51,9 @@ size_t wgm[NUM_KERNELS];
 
 #define ARRAY_SIZE(ar) (sizeof(ar)/sizeof(*ar))
 
-#define SHOW_STRING(cmd, id, param, str) do { \
-	GET_STRING(cmd, param, id); \
-	printf("  %-46s: %s\n", str, strbuf); \
+#define SHOW_STRING(cmd, param, name, ...) do { \
+	GET_STRING(cmd, param, __VA_ARGS__); \
+	printf("  %-46s: %s\n", name, strbuf); \
 } while (0)
 
 /* Print platform info and prepare arrays for device info */
@@ -60,7 +63,7 @@ printPlatformInfo(cl_uint p)
 	cl_platform_id pid = platform[p];
 
 #define PARAM(param, str) \
-	SHOW_STRING(clGetPlatformInfo, pid, CL_PLATFORM_##param, "Platform " str)
+	SHOW_STRING(clGetPlatformInfo, CL_PLATFORM_##param, "Platform " str, pid)
 
 	puts("");
 	PARAM(NAME, "Name");
@@ -101,10 +104,6 @@ printPlatformInfo(cl_uint p)
 	error = clGetDeviceInfo(dev, CL_DEVICE_##param, num, var, NULL); \
 	CHECK_ERROR("get " #param); \
 } while (0)
-
-// not available
-static const char na[] = "n/a";
-static const char fpsupp[] = "Floating-point support";
 
 void
 getWGsizes(cl_platform_id pid, cl_device_id dev)
@@ -212,7 +211,7 @@ printDeviceInfo(cl_uint d)
 	printf("  %-46s: %s\n", name, str)
 
 #define STR_PARAM(param, str) \
-	SHOW_STRING(clGetDeviceInfo, dev, CL_DEVICE_##param, "Device " str)
+	SHOW_STRING(clGetDeviceInfo, CL_DEVICE_##param, "Device " str, dev)
 #define INT_PARAM(param, name, sfx) do { \
 	GET_PARAM(param, uintval); \
 	printf("  %-46s: %u" sfx "\n", name, uintval); \
@@ -243,16 +242,16 @@ printDeviceInfo(cl_uint d)
 } while (0)
 
 	// device name
-	STR_PARAM(NAME, "Device Name");
-	STR_PARAM(VENDOR, "Device Vendor");
-	STR_PARAM(VERSION, "Device Version");
+	STR_PARAM(NAME, "Name");
+	STR_PARAM(VENDOR, "Vendor");
+	STR_PARAM(VERSION, "Version");
 	is_12 = !!(strstr(strbuf, "OpenCL 1.2"));
-	SHOW_STRING(clGetDeviceInfo, dev, CL_DRIVER_VERSION, "Driver Version");
+	SHOW_STRING(clGetDeviceInfo, CL_DRIVER_VERSION, "Driver Version", dev);
 
 	// we get the extensions information here, but only print it at the end
 	GET_STRING(clGetDeviceInfo, CL_DEVICE_EXTENSIONS, dev);
 	size_t len = strlen(strbuf);
-	extensions = malloc(len+1);
+	ALLOC(extensions, len+1, "extensions");
 	memcpy(extensions, strbuf, len);
 	extensions[len] = '\0';
 
@@ -287,7 +286,7 @@ printDeviceInfo(cl_uint d)
 	// FIXME this can be a combination of flags
 	STR_PRINT("Device Type", device_type_str[ffs(devtype)]);
 	is_gpu = !!(devtype & CL_DEVICE_TYPE_GPU);
-	STR_PARAM(PROFILE, "Device Profile");
+	STR_PARAM(PROFILE, "Profile");
 	if (*has_amd) {
 		// TODO CL_DEVICE_TOPOLOGY_AMD
 		STR_PARAM(BOARD_NAME_AMD, "Board Name");
