@@ -195,7 +195,7 @@ printDeviceInfo(cl_uint d)
 	char has_amd[30] = {0};
 	char has_fission[22] = {0};
 	char has_atomic_counters[26] = {0};
-	char has_image2d_buffer[22] = {0};
+	char has_image2d_buffer[27] = {0};
 
 	// device supports OpenCL 1.2
 	cl_bool is_12 = CL_FALSE;
@@ -285,7 +285,7 @@ printDeviceInfo(cl_uint d)
 		CHECK_EXT(atomic_counters, cl_ext_atomic_counters_64);
 		if (!*has_atomic_counters)
 			CHECK_EXT(atomic_counters, cl_ext_atomic_counters_32);
-		CHECK_EXT(image2d_buffer, cl_khr_image2D_buffer);
+		CHECK_EXT(image2d_buffer, cl_khr_image2d_from_buffer);
 	}
 
 
