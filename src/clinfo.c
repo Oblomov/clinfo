@@ -585,7 +585,7 @@ printDeviceInfo(cl_uint d)
 
 
 	// constant
-	MEM_PARAM(MAX_CONSTANT_BUFFER_SIZE, "Max constant strbuf size");
+	MEM_PARAM(MAX_CONSTANT_BUFFER_SIZE, "Max constant buffer size");
 	INT_PARAM(MAX_CONSTANT_ARGS, "Max number of constant args",);
 
 	// nv: registers/CU
@@ -626,7 +626,7 @@ printDeviceInfo(cl_uint d)
 
 	if (is_12) {
 		BOOL_PARAM(PREFERRED_INTEROP_USER_SYNC, "Prefer user sync for interops");
-		MEM_PARAM(PRINTF_BUFFER_SIZE, "printf() strbuf size");
+		MEM_PARAM(PRINTF_BUFFER_SIZE, "printf() buffer size");
 		STR_PARAM(BUILT_IN_KERNELS, "Built-in kernels");
 	}
 
@@ -644,7 +644,7 @@ int main(void)
 {
 	cl_uint p, d;
 
-	ALLOC(strbuf, 1024, "general string strbuf");
+	ALLOC(strbuf, 1024, "general string buffer");
 	bufsz = 1024;
 
 	error = clGetPlatformIDs(0, NULL, &num_platforms);
