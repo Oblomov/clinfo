@@ -2,15 +2,10 @@
  * on all available OpenCL platforms present in the system
  */
 
-#ifdef __APPLE__
-#include <OpenCL/cl_ext.h>
-#else
-#include <CL/cl_ext.h>
-#endif
-
 #include <time.h>
 #include <string.h>
 
+#include "ext.h"
 #include "error.h"
 #include "memory.h"
 #include "strbuf.h"
