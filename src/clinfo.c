@@ -349,7 +349,7 @@ printDeviceInfo(cl_uint d)
 			case CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN:
 				printf("by affinity domain"); break;
 			default:
-				printf("by <unknown>"); break;
+				printf("by <unknown> (0x%X)", partprop[cursor]); break;
 			}
 			if (cursor < numpartprop - 1)
 				printf(", ");
@@ -393,7 +393,7 @@ printDeviceInfo(cl_uint d)
 			case CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN_EXT:
 				printf("by affinity domain"); break;
 			default:
-				printf("by <unknown>"); break;
+				printf("by <unknown> (0x%X)", partprop_ext[cursor]); break;
 			}
 			if (cursor < numpartprop_ext - 1)
 				printf(", ");
