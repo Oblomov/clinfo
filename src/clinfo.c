@@ -191,6 +191,7 @@ printDeviceInfo(cl_uint d)
 	char has_fission[22] = {0};
 	char has_atomic_counters[26] = {0};
 	char has_image2d_buffer[27] = {0};
+	char has_intel_local_thread[30] = {0};
 
 	// device supports OpenCL 1.2
 	cl_bool is_12 = CL_FALSE;
@@ -281,6 +282,7 @@ printDeviceInfo(cl_uint d)
 		if (!*has_atomic_counters)
 			CHECK_EXT(atomic_counters, cl_ext_atomic_counters_32);
 		CHECK_EXT(image2d_buffer, cl_khr_image2d_from_buffer);
+		CHECK_EXT(intel_local_thread, cl_intel_exec_by_local_thread);
 	}
 
 
@@ -597,6 +599,9 @@ printDeviceInfo(cl_uint d)
 	GET_PARAM(QUEUE_PROPERTIES, queueprop);
 	STR_PRINT(INDENT "Out-of-order execution", bool_str[!!(queueprop & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE)]);
 	STR_PRINT(INDENT "Profiling", bool_str[!!(queueprop & CL_QUEUE_PROFILING_ENABLE)]);
+	if (*has_intel_local_thread) {
+		printf(I1_STR "%s\n", INDENT "Intel local thread execution", bool_str[1]);
+	}
 	SZ_PARAM(PROFILING_TIMER_RESOLUTION, "Profiling timer resolution", "ns");
 	if (*has_amd) {
 		time_t time;

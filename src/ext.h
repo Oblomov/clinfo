@@ -25,10 +25,12 @@
 #define CL_DEVICE_LOCAL_MEM_SIZE_PER_COMPUTE_UNIT_AMD   0x4047
 #define CL_DEVICE_LOCAL_MEM_BANKS_AMD               0x4048
 
+#ifndef CL_DEVICE_TOPOLOGY_TYPE_PCIE_AMD
+#define CL_DEVICE_TOPOLOGY_TYPE_PCIE_AMD            1
+
 typedef union
 {
     struct { cl_uint type; cl_uint data[5]; } raw;
     struct { cl_uint type; cl_char unused[17]; cl_char bus; cl_char device; cl_char function; } pcie;
 } cl_device_topology_amd;
-
-#define CL_DEVICE_TOPOLOGY_TYPE_PCIE_AMD            1
+#endif
