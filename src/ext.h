@@ -8,9 +8,8 @@
 #include <CL/cl_ext.h>
 #endif
 
-/*********************************
-* cl_amd_device_attribute_query *
-*********************************/
+/* cl_amd_device_attribute_query */
+
 #define CL_DEVICE_PROFILING_TIMER_OFFSET_AMD        0x4036
 #define CL_DEVICE_TOPOLOGY_AMD                      0x4037
 #define CL_DEVICE_BOARD_NAME_AMD                    0x4038
@@ -34,3 +33,9 @@ typedef union
     struct { cl_uint type; cl_char unused[17]; cl_char bus; cl_char device; cl_char function; } pcie;
 } cl_device_topology_amd;
 #endif
+
+/* cl_ext_atomic_counters_{32,64} */
+#define CL_DEVICE_MAX_ATOMIC_COUNTERS_EXT           0x4032
+
+/* cl_intel_device_partition_by_names */
+#define CL_DEVICE_PARTITION_BY_NAMES_INTEL          0x4052
