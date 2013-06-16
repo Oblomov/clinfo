@@ -332,6 +332,7 @@ printDeviceInfo(cl_uint d)
 	printf(I1_STR "(%s)\n", "Device Partition",
 		szval ? strbuf : na);
 	if (is_12) {
+		INT_PARAM(PARTITION_MAX_SUB_DEVICES, INDENT "Max number of sub-devices",);
 		GET_PARAM_ARRAY(PARTITION_PROPERTIES, partprop, szval);
 		numpartprop = szval/sizeof(*partprop);
 		printf(I2_STR, "Supported partition types");
