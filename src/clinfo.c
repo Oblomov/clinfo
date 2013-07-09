@@ -347,7 +347,7 @@ printDeviceInfo(cl_uint d)
 			case CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN:
 				printf("by affinity domain"); break;
 			default:
-				printf("by <unknown> (0x%X)", partprop[cursor]); break;
+				printf("by <unknown> (0x%lX)", partprop[cursor]); break;
 			}
 			if (cursor < numpartprop - 1)
 				printf(", ");
@@ -391,7 +391,7 @@ printDeviceInfo(cl_uint d)
 			case CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN_EXT:
 				printf("by affinity domain"); break;
 			default:
-				printf("by <unknown> (0x%X)", partprop_ext[cursor]); break;
+				printf("by <unknown> (0x%lX)", partprop_ext[cursor]); break;
 			}
 			if (cursor < numpartprop_ext - 1)
 				printf(", ");
@@ -415,7 +415,7 @@ printDeviceInfo(cl_uint d)
 				case CL_AFFINITY_DOMAIN_NEXT_FISSIONABLE_EXT:
 					printf("next fissionable"); break;
 				default:
-					printf("<unknown> (0x%X)", partdom_ext[cursor]);
+					printf("<unknown> (0x%lX)", partdom_ext[cursor]);
 					break;
 				}
 				if (cursor < numpartdom_ext - 1)

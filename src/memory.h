@@ -4,7 +4,7 @@
 
 #define CHECK_MEM(var, what) do { \
 	if (!var) { \
-		fprintf(stderr, "%s:%s: %s : Out of memory\n", \
+		fprintf(stderr, "%s:%d: %s : Out of memory\n", \
 			__func__, __LINE__, what); \
 		exit(1); \
 	} \
