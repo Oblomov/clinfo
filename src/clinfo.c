@@ -550,6 +550,7 @@ printDeviceInfo(cl_uint d)
 	// images
 	BOOL_PARAM(IMAGE_SUPPORT, "Image support");
 	if (boolval) {
+		INT_PARAM(MAX_SAMPLERS, INDENT "Max number of samplers per kernel",);
 		if (is_12) {
 			SZ_PARAM(IMAGE_MAX_BUFFER_SIZE, INDENT "Max 1D image size", " pixels");
 			SZ_PARAM(IMAGE_MAX_ARRAY_SIZE, INDENT "Max 1D or 2D image array size", " images");
