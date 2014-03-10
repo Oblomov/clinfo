@@ -108,16 +108,20 @@ printPlatformInfo(cl_uint p)
 	CHECK_ERROR("get " #param); \
 } while (0)
 
-void
+int
 getWGsizes(cl_platform_id pid, cl_device_id dev)
 {
+	int ret = 0;
+// make CHECK_ERROR return instead of exit
+#define exit(val) do { ret = val; goto out; } while(0)
+
 	cl_context_properties ctxpft[] = {
 		CL_CONTEXT_PLATFORM, (cl_context_properties)pid,
 		0, 0 };
-	cl_uint cursor;
-	cl_context ctx;
-	cl_program prg;
-	cl_kernel krn;
+	cl_uint cursor = 0;
+	cl_context ctx = 0;
+	cl_program prg = 0;
+	cl_kernel krn = 0;
 
 	ctx = clCreateContext(ctxpft, 1, &dev, NULL, NULL, &error);
 	CHECK_ERROR("create context");
@@ -144,10 +148,18 @@ getWGsizes(cl_platform_id pid, cl_device_id dev)
 			sizeof(*wgm), wgm + cursor, NULL);
 		CHECK_ERROR("get kernel info");
 		clReleaseKernel(krn);
+		krn = 0;
 	}
 
-	clReleaseProgram(prg);
-	clReleaseContext(ctx);
+out:
+	if (krn)
+		clReleaseKernel(krn);
+	if (prg)
+		clReleaseProgram(prg);
+	if (ctx)
+		clReleaseContext(ctx);
+	return ret;
+#undef exit
 }
 
 void
@@ -441,8 +453,10 @@ printDeviceInfo(cl_uint d)
 	SZ_PARAM(MAX_WORK_GROUP_SIZE, "Max work group size",);
 
 	GET_PARAM(PLATFORM, pid);
-	getWGsizes(pid, dev);
-	printf(I1_STR "%zu\n", "Preferred work group size multiple", wgm[0]);
+	if (!getWGsizes(pid, dev))
+		printf(I1_STR "%zu\n", "Preferred work group size multiple", wgm[0]);
+	else
+		printf(I1_STR "%s\n", "Preferred work group size multiple", "<detection failed>");
 
 	if (*has_nv) {
 		INT_PARAM(WARP_SIZE_NV, "Warp size (NVIDIA)",);
