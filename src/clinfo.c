@@ -346,6 +346,8 @@ printDeviceInfo(cl_uint d)
 				printf("by counts"); break;
 			case CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN:
 				printf("by affinity domain"); break;
+			case CL_DEVICE_PARTITION_BY_NAMES_INTEL:
+				printf("by name (Intel extension)"); break;
 			default:
 				printf("by <unknown> (0x%lX)", partprop[cursor]); break;
 			}
