@@ -86,7 +86,8 @@ printPlatformInfo(cl_uint p)
 #undef PARAM
 
 	error = clGetDeviceIDs(pid, CL_DEVICE_TYPE_ALL, 0, NULL, num_devs + p);
-	CHECK_ERROR("number of devices");
+	if (error != CL_DEVICE_NOT_FOUND)
+		CHECK_ERROR("number of devices");
 	num_devs_all += num_devs[p];
 }
 
