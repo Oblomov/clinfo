@@ -685,15 +685,18 @@ int main(void)
 		puts("");
 	}
 
-
-	ALLOC(all_devices, num_devs_all, "device IDs");
+	if (num_devs_all > 0)
+		ALLOC(all_devices, num_devs_all, "device IDs");
 
 	for (p = 0, device = all_devices;
 	     p < num_platforms;
 	     device += num_devs[p++]) {
-		error = clGetDeviceIDs(platform[p], CL_DEVICE_TYPE_ALL, num_devs[p], device, NULL);
 		printf(I1_STR "%s\n", "Platform Name", platform_name[p]);
 		printf(I0_STR "%u\n", "Number of devices", num_devs[p]);
+		if (num_devs[p] == 0)
+			continue;
+
+		error = clGetDeviceIDs(platform[p], CL_DEVICE_TYPE_ALL, num_devs[p], device, NULL);
 		for (d = 0; d < num_devs[p]; ++d) {
 			printDeviceInfo(d);
 			if (d < num_devs[p] - 1)
