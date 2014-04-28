@@ -693,10 +693,11 @@ int main(void)
 	     device += num_devs[p++]) {
 		printf(I1_STR "%s\n", "Platform Name", platform_name[p]);
 		printf(I0_STR "%u\n", "Number of devices", num_devs[p]);
-		if (num_devs[p] == 0)
-			continue;
 
-		error = clGetDeviceIDs(platform[p], CL_DEVICE_TYPE_ALL, num_devs[p], device, NULL);
+		if (num_devs[p] > 0) {
+			error = clGetDeviceIDs(platform[p], CL_DEVICE_TYPE_ALL, num_devs[p], device, NULL);
+			CHECK_ERROR("device IDs");
+		}
 		for (d = 0; d < num_devs[p]; ++d) {
 			printDeviceInfo(d);
 			if (d < num_devs[p] - 1)
