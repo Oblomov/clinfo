@@ -246,17 +246,19 @@ printDeviceInfo(cl_uint d)
 	GET_PARAM(param, szval); \
 	printf(I1_STR "%zu" sfx "\n", name, szval); \
 } while (0)
-#define MEM_PARAM(param, name) do { \
-	GET_PARAM(param, ulongval); \
-	doubleval = ulongval; \
-	if (ulongval > KB) { \
+#define MEM_PARAM_STR(var, fmt, name) do { \
+	doubleval = var; \
+	if (var > KB) { \
 		snprintf(strbuf, bufsz, " (%6.4lg%s)", \
 			MEM_SIZE(doubleval), \
 			MEM_PFX(doubleval)); \
 		strbuf[bufsz-1] = '\0'; \
 	} else strbuf[0] = '\0'; \
-	printf(I1_STR "%" PRIu64 "%s\n", \
-		name, ulongval, strbuf); \
+	printf(I1_STR fmt "%s\n", name, var, strbuf); \
+} while (0)
+#define MEM_PARAM(param, name) do { \
+	GET_PARAM(param, ulongval); \
+	MEM_PARAM_STR(ulongval, "%" PRIu64, name); \
 } while (0)
 #define BOOL_PARAM(param, name) do { \
 	GET_PARAM(param, boolval); \
@@ -536,14 +538,7 @@ printDeviceInfo(cl_uint d)
 		GET_PARAM_ARRAY(GLOBAL_FREE_MEMORY_AMD, szvals, szval);
 		szels = szval/sizeof(*szvals);
 		for (cursor = 0; cursor < szels; ++cursor) {
-			doubleval = szvals[cursor];
-			if (szvals[cursor] > KB) {
-				snprintf(strbuf, bufsz, " (%6.4lg%s)",
-					MEM_SIZE(doubleval),
-					MEM_PFX(doubleval));
-				strbuf[bufsz-1] = '\0';
-			} else strbuf[0] = '\0';
-			printf(I1_STR "%zu%s\n", "Free global memory (AMD)", szvals[cursor], strbuf);
+			MEM_PARAM_STR(szvals[cursor], "%zu", "Free global memory (AMD)");
 		}
 
 		INT_PARAM(GLOBAL_MEM_CHANNELS_AMD, "Global memory channels (AMD)",);
