@@ -212,6 +212,7 @@ printDeviceInfo(cl_uint d)
 	char has_atomic_counters[26] = {0};
 	char has_image2d_buffer[27] = {0};
 	char has_intel_local_thread[30] = {0};
+	char has_altera_dev_temp[29] = {0};
 
 	// device supports OpenCL 1.2
 	cl_bool is_12 = CL_FALSE;
@@ -305,6 +306,7 @@ printDeviceInfo(cl_uint d)
 			CHECK_EXT(atomic_counters, cl_ext_atomic_counters_32);
 		CHECK_EXT(image2d_buffer, cl_khr_image2d_from_buffer);
 		CHECK_EXT(intel_local_thread, cl_intel_exec_by_local_thread);
+		CHECK_EXT(altera_dev_temp, cl_altera_device_temperature);
 	}
 
 
@@ -335,6 +337,8 @@ printDeviceInfo(cl_uint d)
 			"NVIDIA Compute Capability",
 			uintval, uintval2);
 	}
+	if (*has_altera_dev_temp)
+		INT_PARAM(CORE_TEMPERATURE_ALTERA, "Core temperature (Altera)", " C");
 
 	/* device fission, two different ways: core in 1.2, extension previously
 	 * platforms that suppot both might expose different properties (e.g., partition
