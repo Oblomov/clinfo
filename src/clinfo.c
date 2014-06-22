@@ -317,8 +317,25 @@ printDeviceInfo(cl_uint d)
 	is_gpu = !!(devtype & CL_DEVICE_TYPE_GPU);
 	STR_PARAM(PROFILE, "Profile");
 	if (*has_amd) {
-		// TODO CL_DEVICE_TOPOLOGY_AMD
-		STR_PARAM(BOARD_NAME_AMD, "Board Name");
+		STR_PARAM(BOARD_NAME_AMD, "Board Name (AMD)");
+
+		cl_device_topology_amd devtopo;
+		GET_PARAM(TOPOLOGY_AMD, devtopo);
+
+		switch (devtopo.raw.type) {
+		case 0:
+			snprintf(strbuf, bufsz, "(%s)", na);
+			break;
+		case CL_DEVICE_TOPOLOGY_TYPE_PCIE_AMD:
+			snprintf(strbuf, bufsz, "PCI-E, %02x:%02x.%u",
+				devtopo.pcie.bus, devtopo.pcie.device, devtopo.pcie.function);
+			break;
+		default:
+			snprintf(strbuf, bufsz, "<unknown (%u): %u %u %u %u %u>", devtopo.raw.type,
+				devtopo.raw.data[0], devtopo.raw.data[1], devtopo.raw.data[2],
+				devtopo.raw.data[3], devtopo.raw.data[4]);
+		}
+		STR_PRINT("Device Topology (AMD)", strbuf);
 	}
 
 	// compute units and clock
