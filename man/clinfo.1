@@ -1,4 +1,4 @@
-.TH CLINFO 1 "2013-06-07" 1.2
+.TH CLINFO 1 "2014-07-09" "clinfo 1.2.14.7.9"
 
 .SH NAME
 clinfo \- show OpenCL platforms and devices
@@ -21,24 +21,34 @@ OpenCL 1.1, OpenCL 1.2.
 .SH EXTENSIONS
 
 Supported OpenCL extensions:
-.IP "cl_khr_fp16, cl_khr_fp64, cl_amd_fp64"
+.TP 2
+.BR cl_khr_fp16 ", " cl_khr_fp64 ", " cl_amd_fp64
 for information about support for half-precision and double-precision
 floating-point data types;
-.IP cl_khr_image2d_from_buffer
+.TP
+.B cl_khr_image2d_from_buffer
 for information about the base address and pitch alignment requirements
 of buffers to be used as base for 2D images;
-.IP cl_ext_device_fission
+.TP
+.B cl_ext_device_fission
 for device fission support in OpenCL 1.1 devices;
-.IP "cl_ext_atomic_counters_32, cl_ext_atomic_counters_64"
+.TP
+.B cl_ext_atomic_counters_32
+.TQ
+.B cl_ext_atomic_counters_64
 for the atomic counter extension;
-.IP cl_amd_device_attribute_query
+.TP
+.B cl_amd_device_attribute_query
 for AMD-specific device attributes;
-.IP cl_nv_device_attribute_query
+.TP
+.B cl_nv_device_attribute_query
 for NVIDIA-specific device attributes;
-.IP cl_intel_exec_by_local_thread
+.TP
+.B cl_intel_exec_by_local_thread
 for the Intel extension allowing CPU devices to run kernels as part of
 the current host thread;
-.IP cl_altera_device_temperature
+.TP
+.B cl_altera_device_temperature
 for the Altera extension to query the core temperature of the device.
 
 .SH NOTES
@@ -55,7 +65,7 @@ NVIDIA devices) or the AMD wavefront width (on AMD devices).
 .P
 Some floating-point configuration flags may only be meaningful for
 specific precisions and/or specific OpenCL versions. For example,
-.BR CL_FP_CORRECTLY_ROUNDED_DIVIDE_SQRT ,
+.B CL_FP_CORRECTLY_ROUNDED_DIVIDE_SQRT
 is only relevant for single precision in OpenCL 1.2 devices.
 
 .SH BUGS
@@ -65,6 +75,7 @@ interpreted incorrectly:
 .B CL_DEVICE_GLOBAL_FREE_MEMORY_AMD
 
 .P
-Please report any issues to the project tracker at
-.IR http://github.com/Oblomov/clinfo .
-
+Please report any issues on
+.UR http://github.com/Oblomov/clinfo
+the project tracker on GitHub
+.UE .
