@@ -8,8 +8,11 @@ int
 check_ocl_error(cl_int err, const char *what, const char *func, int line)
 {
 	if (err != CL_SUCCESS) {
+		fflush(stdout);
+		fflush(stderr);
 		fprintf(stderr, "%s:%u: %s : error %d\n",
 			func, line, what, err);
+		fflush(stderr);
 	}
 	return err != CL_SUCCESS;
 }

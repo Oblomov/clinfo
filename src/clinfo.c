@@ -725,6 +725,8 @@ int main(void)
 			printDeviceInfo(d);
 			if (d < num_devs[p] - 1)
 				puts("");
+			fflush(stdout);
+			fflush(stderr);
 		}
 		if (p < num_platforms - 1)
 			puts("");
