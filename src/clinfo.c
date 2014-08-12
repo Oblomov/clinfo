@@ -213,9 +213,11 @@ printDeviceInfo(cl_uint d)
 	char has_image2d_buffer[27] = {0};
 	char has_intel_local_thread[30] = {0};
 	char has_altera_dev_temp[29] = {0};
+	char has_spir[12] = {0};
 
 	// device supports OpenCL 1.2
 	cl_bool is_12 = CL_FALSE;
+	// device is a GPU
 	cl_bool is_gpu = CL_FALSE;
 
 #define KB UINT64_C(1024)
@@ -296,6 +298,7 @@ printDeviceInfo(cl_uint d)
 		char *has;
 		CHECK_EXT(half, cl_khr_fp16);
 		CHECK_EXT(double, cl_khr_fp64);
+		CHECK_EXT(spir, cl_khr_spir);
 		if (!*has_double)
 			CHECK_EXT(double, cl_amd_fp64);
 		CHECK_EXT(nv, cl_nv_device_attribute_query);
@@ -664,6 +667,9 @@ printDeviceInfo(cl_uint d)
 	STR_PRINT(INDENT "Run native kernels", bool_str[!!(execap & CL_EXEC_NATIVE_KERNEL)]);
 	if (*has_nv) {
 		BOOL_PARAM(KERNEL_EXEC_TIMEOUT_NV, INDENT "NVIDIA kernel execution timeout");
+	}
+	if (*has_spir) {
+		SHOW_STRING(clGetDeviceInfo, CL_DEVICE_SPIR_VERSIONS, INDENT "SPIR versions", dev);
 	}
 
 	if (is_12) {
