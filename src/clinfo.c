@@ -582,8 +582,6 @@ printDeviceInfo(cl_uint d)
 	BOOL_PARAM(HOST_UNIFIED_MEMORY, "Unified memory for Host and Device");
 	if (*has_nv) {
 		BOOL_PARAM(INTEGRATED_MEMORY_NV, "NVIDIA integrated memory");
-		BOOL_PARAM(GPU_OVERLAP_NV, "NVIDIA concurrent copy and kernel execution");
-		INT_PARAM(ATTRIBUTE_ASYNC_ENGINE_COUNT_NV, INDENT "Number of copy engines",);
 	}
 	INT_PARAM(MIN_DATA_TYPE_ALIGN_SIZE, "Minimum alignment for any data type", " bytes");
 	GET_PARAM(MEM_BASE_ADDR_ALIGN, uintval);
@@ -633,15 +631,15 @@ printDeviceInfo(cl_uint d)
 		INT_PARAM(LOCAL_MEM_BANKS_AMD, "Local memory banks (AMD)",);
 	}
 
-
-	// constant
-	MEM_PARAM(MAX_CONSTANT_BUFFER_SIZE, "Max constant buffer size");
-	INT_PARAM(MAX_CONSTANT_ARGS, "Max number of constant args",);
-
 	// nv: registers/CU
 	if (*has_nv) {
 		INT_PARAM(REGISTERS_PER_BLOCK_NV, "NVIDIA registers per CU",);
 	}
+
+
+	// constant
+	MEM_PARAM(MAX_CONSTANT_BUFFER_SIZE, "Max constant buffer size");
+	INT_PARAM(MAX_CONSTANT_ARGS, "Max number of constant args",);
 
 	MEM_PARAM(MAX_PARAMETER_SIZE, "Max size of kernel argument");
 	if (*has_atomic_counters)
@@ -675,6 +673,8 @@ printDeviceInfo(cl_uint d)
 	STR_PRINT(INDENT "Run native kernels", bool_str[!!(execap & CL_EXEC_NATIVE_KERNEL)]);
 	if (*has_nv) {
 		BOOL_PARAM(KERNEL_EXEC_TIMEOUT_NV, INDENT "NVIDIA kernel execution timeout");
+		BOOL_PARAM(GPU_OVERLAP_NV, "NVIDIA concurrent copy and kernel execution");
+		INT_PARAM(ATTRIBUTE_ASYNC_ENGINE_COUNT_NV, INDENT "Number of copy engines",);
 	}
 	if (*has_spir) {
 		SHOW_STRING(clGetDeviceInfo, CL_DEVICE_SPIR_VERSIONS, INDENT "SPIR versions", dev);
