@@ -340,6 +340,13 @@ printDeviceInfo(cl_uint d)
 		}
 		STR_PRINT("Device Topology (AMD)", strbuf);
 	}
+	if (*has_nv) {
+		cl_uint bus, slot;
+		GET_PARAM(PCI_BUS_ID_NV, bus);
+		GET_PARAM(PCI_SLOT_ID_NV, slot);
+		snprintf(strbuf, bufsz, "%02x:%02x", bus, slot);
+		STR_PRINT("Device Topology (NV)", strbuf);
+	}
 
 	// compute units and clock
 	INT_PARAM(MAX_COMPUTE_UNITS, "Max compute units",);
@@ -576,6 +583,7 @@ printDeviceInfo(cl_uint d)
 	if (*has_nv) {
 		BOOL_PARAM(INTEGRATED_MEMORY_NV, "NVIDIA integrated memory");
 		BOOL_PARAM(GPU_OVERLAP_NV, "NVIDIA concurrent copy and kernel execution");
+		INT_PARAM(ATTRIBUTE_ASYNC_ENGINE_COUNT_NV, INDENT "Number of copy engines",);
 	}
 	INT_PARAM(MIN_DATA_TYPE_ALIGN_SIZE, "Minimum alignment for any data type", " bytes");
 	GET_PARAM(MEM_BASE_ADDR_ALIGN, uintval);

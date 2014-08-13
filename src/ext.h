@@ -8,6 +8,13 @@
 #include <CL/cl_ext.h>
 #endif
 
+/* cl_nv_device_attribute_query extension */
+/* these clGetDeviceInfo param_names are not included in the official
+ * headers */
+#define CL_DEVICE_ATTRIBUTE_ASYNC_ENGINE_COUNT_NV   0x4007
+#define CL_DEVICE_PCI_BUS_ID_NV                     0x4008
+#define CL_DEVICE_PCI_SLOT_ID_NV                    0x4009
+
 /* cl_amd_device_attribute_query */
 
 #define CL_DEVICE_PROFILING_TIMER_OFFSET_AMD        0x4036
