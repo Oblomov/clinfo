@@ -90,6 +90,8 @@ printPlatformInfo(cl_uint p)
 	PARAM(VERSION, "Version");
 	PARAM(PROFILE, "Profile");
 	PARAM(EXTENSIONS, "Extensions");
+	if (strstr(strbuf, "cl_khr_icd"))
+		PARAM(ICD_SUFFIX_KHR, "Extensions function suffix");
 #undef PARAM
 
 	error = clGetDeviceIDs(pid, CL_DEVICE_TYPE_ALL, 0, NULL, num_devs + p);
