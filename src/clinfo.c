@@ -214,6 +214,7 @@ printDeviceInfo(cl_uint d)
 	char has_intel_local_thread[30] = {0};
 	char has_altera_dev_temp[29] = {0};
 	char has_spir[12] = {0};
+	char has_qcom_ext_host_ptr[21] = {0};
 
 	// device supports OpenCL 1.2
 	cl_bool is_12 = CL_FALSE;
@@ -310,6 +311,7 @@ printDeviceInfo(cl_uint d)
 		CHECK_EXT(image2d_buffer, cl_khr_image2d_from_buffer);
 		CHECK_EXT(intel_local_thread, cl_intel_exec_by_local_thread);
 		CHECK_EXT(altera_dev_temp, cl_altera_device_temperature);
+		CHECK_EXT(qcom_ext_host_ptr, cl_qcom_ext_host_ptr);
 	}
 
 
@@ -587,6 +589,10 @@ printDeviceInfo(cl_uint d)
 	GET_PARAM(MEM_BASE_ADDR_ALIGN, uintval);
 	printf(I1_STR "%u bits (%u bytes)\n",
 		"Alignment of base address", uintval, uintval/8);
+	if (*has_qcom_ext_host_ptr) {
+		SZ_PARAM(PAGE_SIZE_QCOM, "Page size (QUALCOMM)", " bytes");
+		SZ_PARAM(EXT_MEM_PADDING_IN_BYTES_QCOM, "Externa memory padding (QUALCOMM)", " bytes");
+	}
 
 	// cache
 	GET_PARAM(GLOBAL_MEM_CACHE_TYPE, cachetype);
