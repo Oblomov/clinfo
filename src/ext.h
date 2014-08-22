@@ -47,5 +47,8 @@ typedef union
 /* cl_intel_device_partition_by_names */
 #define CL_DEVICE_PARTITION_BY_NAMES_INTEL          0x4052
 
+/* cl_khr_spir */
+#define CL_DEVICE_SPIR_VERSIONS                     0x40E0
+
 /* cl_altera_device_temperature */
 #define CL_DEVICE_CORE_TEMPERATURE_ALTERA           0x40F3
