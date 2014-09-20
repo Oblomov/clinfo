@@ -367,7 +367,7 @@ printDeviceInfo(cl_uint d)
 				break;
 			case CL_DEVICE_TOPOLOGY_TYPE_PCIE_AMD:
 				snprintf(strbuf, bufsz, "PCI-E, %02x:%02x.%u",
-					devtopo.pcie.bus, devtopo.pcie.device, devtopo.pcie.function);
+					(cl_uchar)devtopo.pcie.bus, devtopo.pcie.device, devtopo.pcie.function);
 				break;
 			default:
 				snprintf(strbuf, bufsz, "<unknown (%u): %u %u %u %u %u>", devtopo.raw.type,
