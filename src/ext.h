@@ -47,6 +47,10 @@ typedef union
 /* cl_intel_device_partition_by_names */
 #define CL_DEVICE_PARTITION_BY_NAMES_INTEL          0x4052
 
+/* cl_qcom_ext_host_ptr */
+#define CL_DEVICE_EXT_MEM_PADDING_IN_BYTES_QCOM     0x40A0
+#define CL_DEVICE_PAGE_SIZE_QCOM                    0x40A1
+
 /* cl_khr_spir */
 #define CL_DEVICE_SPIR_VERSIONS                     0x40E0
 
