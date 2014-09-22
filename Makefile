@@ -1,4 +1,4 @@
-SRCDIR=src/
+SRCDIR=src
 
 VPATH=$(SRCDIR)
 
