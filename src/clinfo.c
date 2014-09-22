@@ -100,30 +100,41 @@ printPlatformInfo(cl_uint p)
 	num_devs_all += num_devs[p];
 }
 
+int had_error = 0;
+
 #define GET_PARAM(param, var) do { \
 	error = clGetDeviceInfo(dev, CL_DEVICE_##param, sizeof(var), &var, 0); \
-	CHECK_ERROR("get " #param); \
+	had_error = REPORT_ERROR("get " #param); \
 } while (0)
 
 #define GET_PARAM_PTR(param, var, num) do { \
 	error = clGetDeviceInfo(dev, CL_DEVICE_##param, num*sizeof(*var), var, 0); \
-	CHECK_ERROR("get " #param); \
+	had_error = REPORT_ERROR("get " #param); \
 } while (0)
 
 #define GET_PARAM_ARRAY(param, var, num) do { \
 	error = clGetDeviceInfo(dev, CL_DEVICE_##param, 0, NULL, &num); \
-	CHECK_ERROR("get number of " #param); \
-	REALLOC(var, num/sizeof(*var), #param); \
-	error = clGetDeviceInfo(dev, CL_DEVICE_##param, num, var, NULL); \
-	CHECK_ERROR("get " #param); \
+	had_error = REPORT_ERROR("get number of " #param); \
+	if (!had_error) { \
+		REALLOC(var, num/sizeof(*var), #param); \
+		error = clGetDeviceInfo(dev, CL_DEVICE_##param, num, var, NULL); \
+		had_error = REPORT_ERROR("get " #param); \
+	} \
 } while (0)
 
 int
 getWGsizes(cl_platform_id pid, cl_device_id dev)
 {
 	int ret = 0;
-// make CHECK_ERROR return instead of exit
-#define exit(val) do { ret = val; goto out; } while(0)
+
+#define RR_ERROR(what) do { \
+	had_error = REPORT_ERROR(what); \
+	if (had_error) { \
+		ret = error; \
+		goto out; \
+	} \
+} while(0)
+
 
 	cl_context_properties ctxpft[] = {
 		CL_CONTEXT_PLATFORM, (cl_context_properties)pid,
@@ -134,9 +145,9 @@ getWGsizes(cl_platform_id pid, cl_device_id dev)
 	cl_kernel krn = 0;
 
 	ctx = clCreateContext(ctxpft, 1, &dev, NULL, NULL, &error);
-	CHECK_ERROR("create context");
+	RR_ERROR("create context");
 	prg = clCreateProgramWithSource(ctx, ARRAY_SIZE(sources), sources, NULL, &error);
-	CHECK_ERROR("create program");
+	RR_ERROR("create program");
 	error = clBuildProgram(prg, 1, &dev, NULL, NULL, NULL);
 #if 0
 	if (error != CL_SUCCESS) {
@@ -145,7 +156,7 @@ getWGsizes(cl_platform_id pid, cl_device_id dev)
 		exit(1);
 	}
 #else
-	CHECK_ERROR("build program");
+	RR_ERROR("build program");
 #endif
 
 	for (cursor = 0; cursor < NUM_KERNELS; ++cursor) {
@@ -153,10 +164,10 @@ getWGsizes(cl_platform_id pid, cl_device_id dev)
 		if (cursor == 0)
 			strbuf[3] = 0; // scalar kernel is called 'sum'
 		krn = clCreateKernel(prg, strbuf, &error);
-		CHECK_ERROR("create kernel");
+		RR_ERROR("create kernel");
 		error = clGetKernelWorkGroupInfo(krn, dev, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE,
 			sizeof(*wgm), wgm + cursor, NULL);
-		CHECK_ERROR("get kernel info");
+		RR_ERROR("get kernel info");
 		clReleaseKernel(krn);
 		krn = 0;
 	}
@@ -169,7 +180,6 @@ out:
 	if (ctx)
 		clReleaseContext(ctx);
 	return ret;
-#undef exit
 }
 
 void
@@ -242,15 +252,27 @@ printDeviceInfo(cl_uint d)
 	SHOW_STRING(clGetDeviceInfo, CL_DEVICE_##param, "Device " str, dev)
 #define INT_PARAM(param, name, sfx) do { \
 	GET_PARAM(param, uintval); \
-	printf(I1_STR "%u" sfx "\n", name, uintval); \
+	if (had_error) { \
+		printf(I1_STR "%s\n", name, strbuf); \
+	} else { \
+		printf(I1_STR "%u" sfx "\n", name, uintval); \
+	} \
 } while (0)
 #define LONG_PARAM(param, name, sfx) do { \
 	GET_PARAM(param, ulongval); \
-	printf(I1_STR "%u" sfx "\n", name, ulongval); \
+	if (had_error) { \
+		printf(I1_STR "%s\n", name, strbuf); \
+	} else { \
+		printf(I1_STR "%u" sfx "\n", name, ulongval); \
+	} \
 } while (0)
 #define SZ_PARAM(param, name, sfx) do { \
 	GET_PARAM(param, szval); \
-	printf(I1_STR "%zu" sfx "\n", name, szval); \
+	if (had_error) { \
+		printf(I1_STR "%s\n", name, strbuf); \
+	} else { \
+		printf(I1_STR "%zu" sfx "\n", name, szval); \
+	} \
 } while (0)
 #define MEM_PARAM_STR(var, fmt, name) do { \
 	doubleval = var; \
@@ -264,11 +286,19 @@ printDeviceInfo(cl_uint d)
 } while (0)
 #define MEM_PARAM(param, name) do { \
 	GET_PARAM(param, ulongval); \
-	MEM_PARAM_STR(ulongval, "%" PRIu64, name); \
+	if (had_error) { \
+		printf(I1_STR "%s\n", name, strbuf); \
+	} else { \
+		MEM_PARAM_STR(ulongval, "%" PRIu64, name); \
+	} \
 } while (0)
 #define BOOL_PARAM(param, name) do { \
 	GET_PARAM(param, boolval); \
-	STR_PRINT(name, bool_str[boolval]); \
+	if (had_error) { \
+		printf(I1_STR "%s\n", name, strbuf); \
+	} else { \
+		STR_PRINT(name, bool_str[boolval]); \
+	} \
 } while (0)
 
 	// device name
@@ -320,7 +350,8 @@ printDeviceInfo(cl_uint d)
 	// device type
 	GET_PARAM(TYPE, devtype);
 	// FIXME this can be a combination of flags
-	STR_PRINT("Device Type", device_type_str[ffs(devtype)]);
+	STR_PRINT("Device Type", had_error ? strbuf : device_type_str[ffs(devtype)]);
+
 	is_gpu = !!(devtype & CL_DEVICE_TYPE_GPU);
 	STR_PARAM(PROFILE, "Profile");
 	if (*has_amd) {
@@ -329,26 +360,30 @@ printDeviceInfo(cl_uint d)
 		cl_device_topology_amd devtopo;
 		GET_PARAM(TOPOLOGY_AMD, devtopo);
 
-		switch (devtopo.raw.type) {
-		case 0:
-			snprintf(strbuf, bufsz, "(%s)", na);
-			break;
-		case CL_DEVICE_TOPOLOGY_TYPE_PCIE_AMD:
-			snprintf(strbuf, bufsz, "PCI-E, %02x:%02x.%u",
-				devtopo.pcie.bus, devtopo.pcie.device, devtopo.pcie.function);
-			break;
-		default:
-			snprintf(strbuf, bufsz, "<unknown (%u): %u %u %u %u %u>", devtopo.raw.type,
-				devtopo.raw.data[0], devtopo.raw.data[1], devtopo.raw.data[2],
-				devtopo.raw.data[3], devtopo.raw.data[4]);
+		if (!had_error) {
+			switch (devtopo.raw.type) {
+			case 0:
+				snprintf(strbuf, bufsz, "(%s)", na);
+				break;
+			case CL_DEVICE_TOPOLOGY_TYPE_PCIE_AMD:
+				snprintf(strbuf, bufsz, "PCI-E, %02x:%02x.%u",
+					devtopo.pcie.bus, devtopo.pcie.device, devtopo.pcie.function);
+				break;
+			default:
+				snprintf(strbuf, bufsz, "<unknown (%u): %u %u %u %u %u>", devtopo.raw.type,
+					devtopo.raw.data[0], devtopo.raw.data[1], devtopo.raw.data[2],
+					devtopo.raw.data[3], devtopo.raw.data[4]);
+			}
 		}
 		STR_PRINT("Device Topology (AMD)", strbuf);
 	}
 	if (*has_nv) {
 		cl_uint bus, slot;
 		GET_PARAM(PCI_BUS_ID_NV, bus);
-		GET_PARAM(PCI_SLOT_ID_NV, slot);
-		snprintf(strbuf, bufsz, "%02x:%02x", bus, slot);
+		if (!had_error)
+			GET_PARAM(PCI_SLOT_ID_NV, slot);
+		if (!had_error)
+			snprintf(strbuf, bufsz, "%02x:%02x", bus, slot);
 		STR_PRINT("Device Topology (NV)", strbuf);
 	}
 
@@ -363,10 +398,13 @@ printDeviceInfo(cl_uint d)
 	INT_PARAM(MAX_CLOCK_FREQUENCY, "Max clock frequency", "MHz");
 	if (*has_nv) {
 		GET_PARAM(COMPUTE_CAPABILITY_MAJOR_NV, uintval);
-		GET_PARAM(COMPUTE_CAPABILITY_MINOR_NV, uintval2);
-		printf(I1_STR "%u.%u\n",
-			"NVIDIA Compute Capability",
-			uintval, uintval2);
+		if (!had_error)
+			GET_PARAM(COMPUTE_CAPABILITY_MINOR_NV, uintval2);
+		if (had_error) {
+			printf(I1_STR "%s\n", "NVIDIA Compute Capability", strbuf);
+		} else {
+			printf(I1_STR "%u.%u\n", "NVIDIA Compute Capability", uintval, uintval2);
+		}
 	}
 	if (*has_altera_dev_temp)
 		INT_PARAM(CORE_TEMPERATURE_ALTERA, "Core temperature (Altera)", " C");
@@ -501,7 +539,7 @@ printDeviceInfo(cl_uint d)
 	if (!getWGsizes(pid, dev))
 		printf(I1_STR "%zu\n", "Preferred work group size multiple", wgm[0]);
 	else
-		printf(I1_STR "%s\n", "Preferred work group size multiple", "<detection failed>");
+		printf(I1_STR "%s\n", "Preferred work group size multiple", strbuf);
 
 	if (*has_nv) {
 		INT_PARAM(WARP_SIZE_NV, "Warp size (NVIDIA)",);
@@ -514,10 +552,15 @@ printDeviceInfo(cl_uint d)
 	printf(I1_STR, "Preferred / native vector sizes");
 #define _PRINT_VEC(UCtype, type, optional, ext) do { \
 	GET_PARAM(PREFERRED_VECTOR_WIDTH_##UCtype, uintval); \
-	GET_PARAM(NATIVE_VECTOR_WIDTH_##UCtype, uintval2); \
-	printf("\n" I2_STR "%8u / %-8u", #type, uintval, uintval2); \
-	if (optional) \
+	if (!had_error) \
+		GET_PARAM(NATIVE_VECTOR_WIDTH_##UCtype, uintval2); \
+	if (had_error) { \
+		printf("\n" I2_STR "%s", #type, strbuf); \
+	} else { \
+		printf("\n" I2_STR "%8u / %-8u", #type, uintval, uintval2); \
+		if (optional) \
 		printf(" (%s)", *ext ? ext : na); \
+	} \
 } while (0)
 #define PRINT_VEC(UCtype, type) _PRINT_VEC(UCtype, type, 0, "")
 #define PRINT_VEC_OPT(UCtype, type, ext) _PRINT_VEC(UCtype, type, 1, ext)
@@ -536,14 +579,18 @@ printDeviceInfo(cl_uint d)
 	printf(I2_STR "%s\n", str, bool_str[!!(fpconfig & CL_FP_##flag)])
 #define SHOW_FP_SUPPORT(type) do { \
 	GET_PARAM(type##_FP_CONFIG, fpconfig); \
-	SHOW_FP_FLAG("Denormals", DENORM); \
-	SHOW_FP_FLAG("Infinity and NANs", INF_NAN); \
-	SHOW_FP_FLAG("Round to nearest", ROUND_TO_NEAREST); \
-	SHOW_FP_FLAG("Round to zero", ROUND_TO_ZERO); \
-	SHOW_FP_FLAG("Round to infinity", ROUND_TO_INF); \
-	SHOW_FP_FLAG("IEEE754-2008 fused multiply-add", FMA); \
-	SHOW_FP_FLAG("Correctly-rounded divide and sqrt operations", CORRECTLY_ROUNDED_DIVIDE_SQRT); \
-	SHOW_FP_FLAG("Support is emulated in software", SOFT_FLOAT); \
+	if (had_error) { \
+		printf(I2_STR "%s\n", "Error", strbuf); \
+	} else { \
+		SHOW_FP_FLAG("Denormals", DENORM); \
+		SHOW_FP_FLAG("Infinity and NANs", INF_NAN); \
+		SHOW_FP_FLAG("Round to nearest", ROUND_TO_NEAREST); \
+		SHOW_FP_FLAG("Round to zero", ROUND_TO_ZERO); \
+		SHOW_FP_FLAG("Round to infinity", ROUND_TO_INF); \
+		SHOW_FP_FLAG("IEEE754-2008 fused multiply-add", FMA); \
+		SHOW_FP_FLAG("Correctly-rounded divide and sqrt operations", CORRECTLY_ROUNDED_DIVIDE_SQRT); \
+		SHOW_FP_FLAG("Support is emulated in software", SOFT_FLOAT); \
+	} \
 } while (0)
 
 #define FPSUPP_STR(str, opt) \
