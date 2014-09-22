@@ -63,7 +63,7 @@ size_t wgm[NUM_KERNELS];
 	printf(I1_STR "%s\n", name, str)
 
 #define SHOW_STRING(cmd, param, name, ...) do { \
-	GET_STRING(cmd, param, __VA_ARGS__); \
+	GET_STRING(cmd, param, #param, __VA_ARGS__); \
 	STR_PRINT(name, strbuf); \
 } while (0)
 
@@ -140,7 +140,7 @@ getWGsizes(cl_platform_id pid, cl_device_id dev)
 	error = clBuildProgram(prg, 1, &dev, NULL, NULL, NULL);
 #if 0
 	if (error != CL_SUCCESS) {
-		GET_STRING(clGetProgramBuildInfo, CL_PROGRAM_BUILD_LOG, prg, dev);
+		GET_STRING(clGetProgramBuildInfo, CL_PROGRAM_BUILD_LOG, "CL_PROGRAM_BUILD_LOG", prg, dev);
 		fputs(strbuf, stderr);
 		exit(1);
 	}
@@ -280,7 +280,7 @@ printDeviceInfo(cl_uint d)
 	STR_PARAM(OPENCL_C_VERSION, "OpenCL C Version");
 
 	// we get the extensions information here, but only print it at the end
-	GET_STRING(clGetDeviceInfo, CL_DEVICE_EXTENSIONS, dev);
+	GET_STRING(clGetDeviceInfo, CL_DEVICE_EXTENSIONS, "CL_DEVICE_EXTENSIONS", dev);
 	size_t len = strlen(strbuf);
 	ALLOC(extensions, len+1, "extensions");
 	memcpy(extensions, strbuf, len);

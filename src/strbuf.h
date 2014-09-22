@@ -4,15 +4,15 @@
 char *strbuf;
 size_t bufsz, nusz;
 
-#define GET_STRING(cmd, param, ...) do { \
+#define GET_STRING(cmd, param, param_str, ...) do { \
 	error = cmd(__VA_ARGS__, param, 0, NULL, &nusz); \
-	CHECK_ERROR("get " #param " size"); \
+	CHECK_ERROR("get " param_str " size"); \
 	if (nusz > bufsz) { \
 		REALLOC(strbuf, nusz, #param); \
 		bufsz = nusz; \
 	} \
 	error = cmd(__VA_ARGS__, param, bufsz, strbuf, 0); \
-	CHECK_ERROR("get " #param); \
+	CHECK_ERROR("get " param_str); \
 } while (0)
 
 
