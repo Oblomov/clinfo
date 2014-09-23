@@ -8,6 +8,36 @@
 #include <CL/cl_ext.h>
 #endif
 
+#ifdef __APPLE__
+/* Apple's header lacks a lot */
+#define CL_PLATFORM_ICD_SUFFIX_KHR                  0x0920
+
+#define CL_DEVICE_COMPUTE_CAPABILITY_MAJOR_NV       0x4000
+#define CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV       0x4001
+
+#define CL_DEVICE_PARTITION_EQUALLY_EXT             0x4050
+#define CL_DEVICE_PARTITION_BY_COUNTS_EXT           0x4051
+#define CL_DEVICE_PARTITION_BY_NAMES_EXT            0x4052
+#define CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN_EXT  0x4053
+#define CL_DEVICE_PARTITION_TYPES_EXT               0x4055
+#define CL_DEVICE_AFFINITY_DOMAINS_EXT              0x4056
+
+#define CL_AFFINITY_DOMAIN_L1_CACHE_EXT             0x1
+#define CL_AFFINITY_DOMAIN_L2_CACHE_EXT             0x2
+#define CL_AFFINITY_DOMAIN_L3_CACHE_EXT             0x3
+#define CL_AFFINITY_DOMAIN_L4_CACHE_EXT             0x4
+#define CL_AFFINITY_DOMAIN_NUMA_EXT                 0x10
+#define CL_AFFINITY_DOMAIN_NEXT_FISSIONABLE_EXT     0x100
+
+#define CL_DEVICE_REGISTERS_PER_BLOCK_NV            0x4002
+#define CL_DEVICE_WARP_SIZE_NV                      0x4003
+#define CL_DEVICE_GPU_OVERLAP_NV                    0x4004
+#define CL_DEVICE_KERNEL_EXEC_TIMEOUT_NV            0x4005
+#define CL_DEVICE_INTEGRATED_MEMORY_NV              0x4006
+
+typedef cl_ulong  cl_device_partition_property_ext;
+#endif /* __APPLE__ */
+
 /* cl_nv_device_attribute_query extension */
 /* these clGetDeviceInfo param_names are not included in the official
  * headers */
