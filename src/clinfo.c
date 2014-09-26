@@ -217,7 +217,7 @@ printDeviceInfo(cl_uint d)
 
 	// these will hold the string from which we detected extension support
 	char has_half[12] = {0};
-	char has_double[12] = {0};
+	char has_double[24] = {0};
 	char has_nv[29] = {0};
 	char has_amd[30] = {0};
 	char has_fission[22] = {0};
@@ -334,6 +334,8 @@ printDeviceInfo(cl_uint d)
 		CHECK_EXT(spir, cl_khr_spir);
 		if (!*has_double)
 			CHECK_EXT(double, cl_amd_fp64);
+		if (!*has_double)
+			CHECK_EXT(double, cl_APPLE_fp64_basic_ops);
 		CHECK_EXT(nv, cl_nv_device_attribute_query);
 		CHECK_EXT(amd, cl_amd_device_attribute_query);
 		CHECK_EXT(fission, cl_ext_device_fission);
