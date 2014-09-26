@@ -4,7 +4,13 @@ VPATH=$(SRCDIR)
 
 HDR=$(wildcard $(SRCDIR)/*.h)
 
-LDLIBS=-lOpenCL
+PLATFORM=$(shell uname -s)
+
+ifeq ($(PLATFORM),Darwin)
+  LDLIBS=-framework OpenCL
+else
+  LDLIBS=-lOpenCL
+endif
 
 clinfo:
 
