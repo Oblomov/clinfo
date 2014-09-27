@@ -149,15 +149,20 @@ getWGsizes(cl_platform_id pid, cl_device_id dev)
 	prg = clCreateProgramWithSource(ctx, ARRAY_SIZE(sources), sources, NULL, &error);
 	RR_ERROR("create program");
 	error = clBuildProgram(prg, 1, &dev, NULL, NULL, NULL);
-#if 0
-	if (error != CL_SUCCESS) {
+	had_error = REPORT_ERROR("build program");
+	if (had_error)
+		ret = error;
+
+	/* for a program build failure, dump the log to stderr before bailing */
+	if (error == CL_BUILD_PROGRAM_FAILURE) {
 		GET_STRING(clGetProgramBuildInfo, CL_PROGRAM_BUILD_LOG, "CL_PROGRAM_BUILD_LOG", prg, dev);
-		fputs(strbuf, stderr);
-		exit(1);
+		if (error == CL_SUCCESS) {
+			fputs("=== CL_PROGRAM_BUILD_LOG ===\n", stderr);
+			fputs(strbuf, stderr);
+		}
 	}
-#else
-	RR_ERROR("build program");
-#endif
+	if (had_error)
+		goto out;
 
 	for (cursor = 0; cursor < NUM_KERNELS; ++cursor) {
 		sprintf(strbuf, "sum%u", 1<<cursor);
