@@ -606,7 +606,7 @@ printDeviceInfo(cl_uint d)
 		*has_half ? has_half : na);
 	if (*has_half)
 		SHOW_FP_SUPPORT(HALF);
-	printf(FPSUPP_STR(Single, ""));
+	printf(FPSUPP_STR(Single, " (core)"));
 	SHOW_FP_SUPPORT(SINGLE);
 	printf(FPSUPP_STR(Double, " (%s)"),
 		*has_double ? has_double : na);
