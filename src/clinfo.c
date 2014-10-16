@@ -243,15 +243,15 @@ printDeviceInfo(cl_uint d)
 #define GB (MB*KB)
 #define TB (GB*KB)
 #define MEM_SIZE(val) ( \
-	val > TB ? val/TB : \
-	val > GB ? val/GB : \
-	val > MB ? val/MB : \
+	val >= TB ? val/TB : \
+	val >= GB ? val/GB : \
+	val >= MB ? val/MB : \
 	val/KB )
 #define MEM_PFX(val) ( \
-	val > TB ? "TB" : \
-	val > GB ? "GB" : \
-	val > MB ? "MB" : \
-	 "KB" )
+	val >= TB ? "TiB" : \
+	val >= GB ? "GiB" : \
+	val >= MB ? "MiB" : \
+	 "KiB" )
 
 #define STR_PARAM(param, str) \
 	SHOW_STRING(clGetDeviceInfo, CL_DEVICE_##param, "Device " str, dev)
@@ -282,7 +282,7 @@ printDeviceInfo(cl_uint d)
 #define MEM_PARAM_STR(var, fmt, name) do { \
 	doubleval = var; \
 	if (var > KB) { \
-		snprintf(strbuf, bufsz, " (%6.4lg%s)", \
+		snprintf(strbuf, bufsz, " (%.4lg%s)", \
 			MEM_SIZE(doubleval), \
 			MEM_PFX(doubleval)); \
 		strbuf[bufsz-1] = '\0'; \
