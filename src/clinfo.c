@@ -60,7 +60,7 @@ size_t wgm[NUM_KERNELS];
 #define I2_STR "    %-44s  "
 
 #define STR_PRINT(name, str) \
-	printf(I1_STR "%s\n", name, str)
+	printf(I1_STR "%s\n", name, skip_leading_ws(str))
 
 #define SHOW_STRING(cmd, param, name, ...) do { \
 	GET_STRING(cmd, param, #param, __VA_ARGS__); \
