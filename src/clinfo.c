@@ -390,7 +390,7 @@ printDeviceInfo(cl_uint d)
 		if (!had_error)
 			GET_PARAM(PCI_SLOT_ID_NV, slot);
 		if (!had_error)
-			snprintf(strbuf, bufsz, "%02x:%02x.%x", bus, slot >> 3, slot & 7);
+			snprintf(strbuf, bufsz, "PCI-E, %02x:%02x.%x", bus, slot >> 3, slot & 7);
 		STR_PRINT("Device Topology (NV)", strbuf);
 	}
 
