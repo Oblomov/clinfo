@@ -187,6 +187,29 @@ out:
 	return ret;
 }
 
+/* parse a CL_DEVICE_VERSION info to determine the OpenCL version.
+ * Returns an unsigned integer in the from major*10 + minor
+ */
+cl_uint
+getOpenCLVersion(const char *version)
+{
+	cl_uint ret = 10;
+	long parse = 0;
+	const char *from = version;
+	char *next = NULL;
+	parse = strtol(from, &next, 10);
+
+	if (next != from) {
+		ret = parse*10;
+		// skip the dot TODO should we actually check for the dot?
+		from = ++next;
+		parse = strtol(from, &next, 10);
+		if (next != from)
+			ret += parse;
+	}
+	return ret;
+}
+
 void
 printDeviceInfo(cl_uint d)
 {
@@ -233,8 +256,13 @@ printDeviceInfo(cl_uint d)
 	char has_spir[12] = {0};
 	char has_qcom_ext_host_ptr[21] = {0};
 
+	// OpenCL device version, as major*10 + minor
+	cl_uint dev_version = 10;
+
 	// device supports OpenCL 1.2
 	cl_bool is_12 = CL_FALSE;
+	// device supports OpenCL 2.0
+	cl_bool is_20 = CL_FALSE;
 	// device is a GPU
 	cl_bool is_gpu = CL_FALSE;
 
@@ -319,7 +347,15 @@ printDeviceInfo(cl_uint d)
 	STR_PARAM(VENDOR, "Vendor");
 	HEX_PARAM(VENDOR_ID, "Device Vendor ID");
 	STR_PARAM(VERSION, "Version");
-	is_12 = !!(strstr(strbuf, "OpenCL 1.2"));
+	// skip "OpenCL "
+	dev_version = getOpenCLVersion(strbuf + 7);
+	is_12 = !!(dev_version >= 12);
+	is_20 = !!(dev_version >= 20);
+#if 0 // debug OpenCL version detection
+	printf("==> CL%u (is_12: %s, is_20: %s)\n",
+		dev_version, bool_str[is_12], bool_str[is_20]);
+#endif
+
 	SHOW_STRING(clGetDeviceInfo, CL_DRIVER_VERSION, "Driver Version", dev);
 	STR_PARAM(OPENCL_C_VERSION, "OpenCL C Version");
 
