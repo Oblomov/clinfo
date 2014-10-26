@@ -501,6 +501,9 @@ printDeviceInfo(cl_uint d)
 			if (cursor < numpartprop - 1)
 				printf(", ");
 		}
+		if (numpartprop == 0) {
+			printf("none specified"); // different from none
+		}
 		puts("");
 		GET_PARAM(PARTITION_AFFINITY_DOMAIN, partdom);
 		if (partdom) {
