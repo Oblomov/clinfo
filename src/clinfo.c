@@ -263,6 +263,14 @@ printDeviceInfo(cl_uint d)
 		printf(I1_STR "%u" sfx "\n", name, uintval); \
 	} \
 } while (0)
+#define HEX_PARAM(param, name) do { \
+	GET_PARAM(param, uintval); \
+	if (had_error) { \
+		printf(I1_STR "%s\n", name, strbuf); \
+	} else { \
+		printf(I1_STR "0x%x\n", name, uintval); \
+	} \
+} while (0)
 #define LONG_PARAM(param, name, sfx) do { \
 	GET_PARAM(param, ulongval); \
 	if (had_error) { \
@@ -309,6 +317,7 @@ printDeviceInfo(cl_uint d)
 	// device name
 	STR_PARAM(NAME, "Name");
 	STR_PARAM(VENDOR, "Vendor");
+	HEX_PARAM(VENDOR_ID, "Device Vendor ID");
 	STR_PARAM(VERSION, "Version");
 	is_12 = !!(strstr(strbuf, "OpenCL 1.2"));
 	SHOW_STRING(clGetDeviceInfo, CL_DRIVER_VERSION, "Driver Version", dev);
