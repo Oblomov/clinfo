@@ -1,6 +1,7 @@
 .TH CLINFO 1 "2014-09-27" "clinfo 1.2.14.9.27"
 
 .SH NAME
+
 clinfo \- show OpenCL platforms and devices
 
 .SH SYNOPSIS
@@ -67,7 +68,8 @@ Some information is duplicated when available from multiple sources.
 Examples:
 .IP \(bu 2
 supported device partition types and domains as obtained using the
-cl_ext_device_fission extension typically match the ones obtained using
+.B cl_ext_device_fission
+extension typically match the ones obtained using
 the core OpenCL 1.2 device partition feature;
 .IP \(bu
 the preferred work-group size multiple matches the NVIDIA warp size (on
@@ -90,3 +92,4 @@ Please report any issues on
 .UR http://github.com/Oblomov/clinfo
 the project tracker on GitHub
 .UE .
+
