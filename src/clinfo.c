@@ -248,6 +248,7 @@ printDeviceInfo(cl_uint d)
 	char has_double[24] = {0};
 	char has_nv[29] = {0};
 	char has_amd[30] = {0};
+	char has_svm[11] = {0};
 	char has_fission[22] = {0};
 	char has_atomic_counters[26] = {0};
 	char has_image2d_buffer[27] = {0};
@@ -388,6 +389,7 @@ printDeviceInfo(cl_uint d)
 			CHECK_EXT(double, cl_APPLE_fp64_basic_ops);
 		CHECK_EXT(nv, cl_nv_device_attribute_query);
 		CHECK_EXT(amd, cl_amd_device_attribute_query);
+		CHECK_EXT(svm, cl_amd_svm);
 		CHECK_EXT(fission, cl_ext_device_fission);
 		CHECK_EXT(atomic_counters, cl_ext_atomic_counters_64);
 		if (!*has_atomic_counters)
@@ -471,7 +473,7 @@ printDeviceInfo(cl_uint d)
 		szval += (*has_fission ? 6 : 4);
 	}
 	if (*has_fission) {
-		strcpy(strbuf + szval, has_fission);
+		strncpy(strbuf + szval, has_fission, bufsz - (szval + 1));
 		szval += strlen(has_fission);
 	}
 	strbuf[szval] = 0;
@@ -692,11 +694,24 @@ printDeviceInfo(cl_uint d)
 	}
 
 	// SVM TODO might also be supported by extensions on 1.2
-	if (is_20) {
+	if (is_20 || *has_svm) {
 		cl_device_svm_capabilities svm_cap;
 		GET_PARAM(SVM_CAPABILITIES, svm_cap);
-		printf(I1_STR "%s\n", "Shared Virtual Memory (SVM) capabilities",
-			had_error ? strbuf : "");
+		if (!had_error) {
+			szval = 0;
+			strbuf[szval++] = '(';
+			if (is_20) {
+				strncpy(strbuf + szval, "core, ", *has_svm ? 6 : 4);
+				szval += (*has_svm ? 6 : 4);
+			}
+			if (*has_svm) {
+				strncpy(strbuf + szval, has_svm, bufsz - (szval + 2));
+				szval += strlen(has_svm);
+			}
+			strbuf[szval++] = ')';
+			strbuf[szval++] = 0;
+		}
+		printf(I1_STR "%s\n", "Shared Virtual Memory (SVM) capabilities", strbuf);
 		if (!had_error) {
 			STR_PRINT(INDENT "Coarse-grained buffer sharing", bool_str[!!(svm_cap & CL_DEVICE_SVM_COARSE_GRAIN_BUFFER)]);
 			STR_PRINT(INDENT "Fine-grained buffer sharing", bool_str[!!(svm_cap & CL_DEVICE_SVM_FINE_GRAIN_BUFFER)]);
