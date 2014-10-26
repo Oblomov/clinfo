@@ -32,6 +32,8 @@
 #define CL_DEVICE_SVM_FINE_GRAIN_BUFFER             (1 << 1)
 #define CL_DEVICE_SVM_FINE_GRAIN_SYSTEM             (1 << 2)
 #define CL_DEVICE_SVM_ATOMICS                       (1 << 3)
+
+typedef cl_bitfield         cl_device_svm_capabilities;
 #endif
 
 /*

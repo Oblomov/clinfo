@@ -682,17 +682,49 @@ printDeviceInfo(cl_uint d)
 
 	BOOL_PARAM(ERROR_CORRECTION_SUPPORT, "Error Correction support");
 	MEM_PARAM(MAX_MEM_ALLOC_SIZE, "Max memory allocation");
+
 	BOOL_PARAM(HOST_UNIFIED_MEMORY, "Unified memory for Host and Device");
 	if (*has_nv) {
 		BOOL_PARAM(INTEGRATED_MEMORY_NV, "NVIDIA integrated memory");
 	}
+
+	// SVM TODO might also be supported by extensions on 1.2
+	if (is_20) {
+		cl_device_svm_capabilities svm_cap;
+		GET_PARAM(SVM_CAPABILITIES, svm_cap);
+		printf(I1_STR "%s\n", "Shared Virtual Memory (SVM) capabilities",
+			had_error ? strbuf : "");
+		if (!had_error) {
+			STR_PRINT(INDENT "Coarse-grained buffer sharing", bool_str[!!(svm_cap & CL_DEVICE_SVM_COARSE_GRAIN_BUFFER)]);
+			STR_PRINT(INDENT "Fine-grained buffer sharing", bool_str[!!(svm_cap & CL_DEVICE_SVM_FINE_GRAIN_BUFFER)]);
+			STR_PRINT(INDENT "Fine-grained system sharing", bool_str[!!(svm_cap & CL_DEVICE_SVM_FINE_GRAIN_SYSTEM)]);
+			STR_PRINT(INDENT "Atomics", bool_str[!!(svm_cap & CL_DEVICE_SVM_ATOMICS)]);
+		}
+	}
+
 	INT_PARAM(MIN_DATA_TYPE_ALIGN_SIZE, "Minimum alignment for any data type", " bytes");
 	GET_PARAM(MEM_BASE_ADDR_ALIGN, uintval);
 	printf(I1_STR "%u bits (%u bytes)\n",
 		"Alignment of base address", uintval, uintval/8);
+
+	// atomics alignment
+	if (is_20) {
+		printf(I1_STR "\n", "Preferred alignment for atomics");
+		INT_PARAM(PREFERRED_PLATFORM_ATOMIC_ALIGNMENT, INDENT "SVM", "");
+		INT_PARAM(PREFERRED_GLOBAL_ATOMIC_ALIGNMENT, INDENT "Global", "");
+		INT_PARAM(PREFERRED_LOCAL_ATOMIC_ALIGNMENT, INDENT "Local", "");
+
+	}
+
 	if (*has_qcom_ext_host_ptr) {
 		SZ_PARAM(PAGE_SIZE_QCOM, "Page size (QUALCOMM)", " bytes");
 		SZ_PARAM(EXT_MEM_PADDING_IN_BYTES_QCOM, "Externa memory padding (QUALCOMM)", " bytes");
+	}
+
+	// global variables
+	if (is_20) { // TODO some 1.2 devices respond to this too ...
+		MEM_PARAM(MAX_GLOBAL_VARIABLE_SIZE, "Max size for global variable");
+		MEM_PARAM(GLOBAL_VARIABLE_PREFERRED_TOTAL_SIZE, "Preferred total size of global vars");
 	}
 
 	// cache
@@ -726,7 +758,22 @@ printDeviceInfo(cl_uint d)
 			szvals[0], szvals[1], szvals[2]);
 		INT_PARAM(MAX_READ_IMAGE_ARGS, INDENT "Max number of read image args",);
 		INT_PARAM(MAX_WRITE_IMAGE_ARGS, INDENT "Max number of write image args",);
+		if (is_20) {
+			INT_PARAM(MAX_READ_WRITE_IMAGE_ARGS, INDENT "Max number of read/write image args",);
+		}
 	}
+
+	// pipes
+	if (is_20) {
+		INT_PARAM(MAX_PIPE_ARGS, "Max number of pipe args", "");
+		INT_PARAM(PIPE_MAX_ACTIVE_RESERVATIONS, "Max active pipe reservations", "");
+		GET_PARAM(PIPE_MAX_PACKET_SIZE, uintval);
+		if (had_error)
+			printf(I1_STR "%s\n", "Max pipe packet size", strbuf); \
+		else
+			MEM_PARAM_STR(uintval, "%u", "Max pipe packet size");
+	}
+
 
 	// local
 	GET_PARAM(LOCAL_MEM_TYPE, lmemtype);
@@ -753,13 +800,45 @@ printDeviceInfo(cl_uint d)
 		INT_PARAM(MAX_ATOMIC_COUNTERS_EXT, "Max number of atomic counters",);
 
 	// queue and kernel capabilities
-	printf(I1_STR "\n", "Queue properties");
+
 	GET_PARAM(QUEUE_PROPERTIES, queueprop);
-	STR_PRINT(INDENT "Out-of-order execution", bool_str[!!(queueprop & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE)]);
-	STR_PRINT(INDENT "Profiling", bool_str[!!(queueprop & CL_QUEUE_PROFILING_ENABLE)]);
+	printf(I1_STR "%s\n",
+		(is_20 ? "Queue properties (on host)" : "Queue properties"),
+		had_error ? strbuf : "");
+	if (!had_error) {
+		STR_PRINT(INDENT "Out-of-order execution", bool_str[!!(queueprop & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE)]);
+		STR_PRINT(INDENT "Profiling", bool_str[!!(queueprop & CL_QUEUE_PROFILING_ENABLE)]);
+	}
 	if (*has_intel_local_thread) {
 		printf(I1_STR "%s\n", INDENT "Intel local thread execution", bool_str[1]);
 	}
+
+	// queues on device
+	if (is_20) {
+		GET_PARAM(QUEUE_ON_DEVICE_PROPERTIES, queueprop);
+		printf(I1_STR "%s\n", "Queue properties (on device)",
+			had_error ? strbuf : "");
+		if (!had_error) {
+			STR_PRINT(INDENT "Out-of-order execution", bool_str[!!(queueprop & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE)]);
+			STR_PRINT(INDENT "Profiling", bool_str[!!(queueprop & CL_QUEUE_PROFILING_ENABLE)]);
+		}
+
+		GET_PARAM(QUEUE_ON_DEVICE_PREFERRED_SIZE, uintval);
+		if (had_error)
+			printf(I2_STR "%s\n", "Preferred size", strbuf); \
+		else
+			MEM_PARAM_STR(uintval, "%u", INDENT "Preferred size");
+		GET_PARAM(QUEUE_ON_DEVICE_MAX_SIZE, uintval);
+		if (had_error)
+			printf(I2_STR "%s\n", "Max size", strbuf); \
+		else
+			MEM_PARAM_STR(uintval, "%u", INDENT "Max size");
+
+		INT_PARAM(MAX_ON_DEVICE_QUEUES, "Max queues on device", "");
+		INT_PARAM(MAX_ON_DEVICE_EVENTS, "Max events on device", "");
+	}
+
+
 	SZ_PARAM(PROFILING_TIMER_RESOLUTION, "Profiling timer resolution", "ns");
 	if (*has_amd) {
 		time_t time;
