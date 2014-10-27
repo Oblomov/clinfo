@@ -33,6 +33,7 @@ static const char fpsupp[] = "Floating-point support";
 static const char* bool_str[] = { "No", "Yes" };
 static const char* endian_str[] = { "Big-Endian", "Little-Endian" };
 static const char* device_type_str[] = { unk, "Default", "CPU", "GPU", "Accelerator", "Custom" };
+static const size_t device_type_str_count = sizeof(device_type_str)/sizeof(*device_type_str);
 static const char* local_mem_type_str[] = { none, "Local", "Global" };
 static const char* cache_type_str[] = { none, "Read-Only", "Read/Write" };
 
@@ -403,8 +404,27 @@ printDeviceInfo(cl_uint d)
 
 	// device type
 	GET_PARAM(TYPE, devtype);
-	// FIXME this can be a combination of flags
-	STR_PRINT("Device Type", had_error ? strbuf : device_type_str[ffs(devtype)]);
+	if (!had_error) {
+		// iterate over device type strings
+		cl_uint i = device_type_str_count;
+		szval = 0;
+		// TODO check for extra bits/no bits
+		for (; i > 0; --i) {
+			// assemble CL_DEVICE_TYPE_* from index i
+			cl_device_type cur = (cl_device_type)(1) << (i-1);
+			if (devtype & cur) { // match
+				// add comma if it's not the first match
+				if (szval > 0) {
+					strncpy(strbuf + szval, ", ", bufsz - (szval + 1));
+					szval += 2;
+				}
+				strncpy(strbuf + szval, device_type_str[i], bufsz - (szval + 1));
+				szval += strlen(device_type_str[i]);
+			}
+		}
+		strbuf[szval] = 0;
+	}
+	STR_PRINT("Device Type", strbuf);
 
 	is_gpu = !!(devtype & CL_DEVICE_TYPE_GPU);
 	STR_PARAM(PROFILE, "Profile");
