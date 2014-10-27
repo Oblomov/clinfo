@@ -10,6 +10,11 @@
  */
 #include "fmtmacros.h"
 
+// Support for the horrible MS C compiler
+#ifdef _MSC_VER
+#include "ms_support.h"
+#endif
+
 #include "ext.h"
 #include "error.h"
 #include "memory.h"
