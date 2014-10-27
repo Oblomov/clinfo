@@ -2,21 +2,13 @@
  * on all available OpenCL platforms present in the system
  */
 
-/* cl_ulong is always a 64bit integer, so in a few places
-   we want to use its shadow type uint64_t, and print the
-   values using PRIu64. We'll similarly define one for
-   size_t, to make support for non-standard/older compiler
-   easier.
- */
-#define __STDC_FORMAT_MACROS
-#include <inttypes.h>
-
-#ifndef PRIuS
-#define PRIuS "zu" // size_t print spec
-#endif
-
 #include <time.h>
 #include <string.h>
+
+/* Load STDC format macros (PRI*), or define them
+ * for those crappy, non-standard compilers
+ */
+#include "fmtmacros.h"
 
 #include "ext.h"
 #include "error.h"
