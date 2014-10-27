@@ -7,6 +7,15 @@
 #include <CL/cl.h>
 #endif
 
+/* These two defines were introduced in the 1.2 headers
+ * on 2012-11-30, so earlier versions don't have (e.g. Debian wheezy)
+ */
+
+#ifndef CL_DEVICE_IMAGE_PITCH_ALIGNMENT
+#define CL_DEVICE_IMAGE_PITCH_ALIGNMENT                 0x104A
+#define CL_DEVICE_IMAGE_BASE_ADDRESS_ALIGNMENT          0x104B
+#endif
+
 /* 2.0 headers are not very common for the time being, so
  * let's copy the defines for the new CL_DEVICE_* properties
  * here.
