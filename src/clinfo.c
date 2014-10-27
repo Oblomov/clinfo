@@ -4,10 +4,16 @@
 
 /* cl_ulong is always a 64bit integer, so in a few places
    we want to use its shadow type uint64_t, and print the
-   values using PRIu64
+   values using PRIu64. We'll similarly define one for
+   size_t, to make support for non-standard/older compiler
+   easier.
  */
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
+
+#ifndef PRIuS
+#define PRIuS "zu" // size_t print spec
+#endif
 
 #include <time.h>
 #include <string.h>
@@ -73,6 +79,7 @@ void
 printPlatformInfo(cl_uint p)
 {
 	cl_platform_id pid = platform[p];
+	size_t len = 0;
 
 #define PARAM(param, str) \
 	SHOW_STRING(clGetPlatformInfo, CL_PLATFORM_##param, "Platform " str, pid)
@@ -80,7 +87,7 @@ printPlatformInfo(cl_uint p)
 	PARAM(NAME, "Name");
 
 	/* Store name for future reference */
-	size_t len = strlen(strbuf);
+	len = strlen(strbuf);
 	platform_name[p] = malloc(len + 1);
 	/* memcpy instead of strncpy since we already have the len
 	 * and memcpy is possibly more optimized */
@@ -166,7 +173,7 @@ getWGsizes(cl_platform_id pid, cl_device_id dev)
 		goto out;
 
 	for (cursor = 0; cursor < NUM_KERNELS; ++cursor) {
-		sprintf(strbuf, "sum%u", 1<<cursor);
+		snprintf(strbuf, bufsz, "sum%u", 1<<cursor);
 		if (cursor == 0)
 			strbuf[3] = 0; // scalar kernel is called 'sum'
 		krn = clCreateKernel(prg, strbuf, &error);
@@ -241,6 +248,7 @@ printDeviceInfo(cl_uint d)
 	size_t szval;
 	size_t *szvals = NULL;
 	cl_uint szels = 3;
+	size_t len;
 
 	char* extensions;
 
@@ -314,11 +322,11 @@ printDeviceInfo(cl_uint d)
 	if (had_error) { \
 		printf(I1_STR "%s\n", name, strbuf); \
 	} else { \
-		printf(I1_STR "%zu" sfx "\n", name, szval); \
+		printf(I1_STR "%" PRIuS sfx "\n", name, szval); \
 	} \
 } while (0)
 #define MEM_PARAM_STR(var, fmt, name) do { \
-	doubleval = var; \
+	doubleval = (double)var; \
 	if (var > KB) { \
 		snprintf(strbuf, bufsz, " (%.4lg%s)", \
 			MEM_SIZE(doubleval), \
@@ -363,7 +371,7 @@ printDeviceInfo(cl_uint d)
 
 	// we get the extensions information here, but only print it at the end
 	GET_STRING(clGetDeviceInfo, CL_DEVICE_EXTENSIONS, "CL_DEVICE_EXTENSIONS", dev);
-	size_t len = strlen(strbuf);
+	len = strlen(strbuf);
 	ALLOC(extensions, len+1, "extensions");
 	memcpy(extensions, strbuf, len);
 	extensions[len] = '\0';
@@ -429,11 +437,11 @@ printDeviceInfo(cl_uint d)
 	is_gpu = !!(devtype & CL_DEVICE_TYPE_GPU);
 	STR_PARAM(PROFILE, "Profile");
 	if (*has_amd) {
+		cl_device_topology_amd devtopo;
+
 		STR_PARAM(BOARD_NAME_AMD, "Board Name (AMD)");
 
-		cl_device_topology_amd devtopo;
 		GET_PARAM(TOPOLOGY_AMD, devtopo);
-
 		if (!had_error) {
 			switch (devtopo.raw.type) {
 			case 0:
@@ -529,8 +537,8 @@ printDeviceInfo(cl_uint d)
 		puts("");
 		GET_PARAM(PARTITION_AFFINITY_DOMAIN, partdom);
 		if (partdom) {
-			printf(I2_STR, "Supported affinity domains");
 			cl_bool comma = CL_FALSE;
+			printf(I2_STR, "Supported affinity domains");
 #define CHECK_AFFINITY_FLAG(flag, text) do { \
 	if (partdom & CL_DEVICE_AFFINITY_DOMAIN_##flag) { \
 		printf("%s%s", (comma ? ", ": ""), text); comma = CL_TRUE; \
@@ -608,13 +616,13 @@ printDeviceInfo(cl_uint d)
 	for (cursor = 0; cursor < uintval; ++cursor) {
 		snprintf(strbuf, bufsz, "Max work item size[%u]", cursor);
 		strbuf[bufsz-1] = '\0'; // this is probably never needed, but better safe than sorry
-		printf(I2_STR "%zu\n", strbuf , szvals[cursor]);
+		printf(I2_STR "%" PRIuS "\n", strbuf , szvals[cursor]);
 	}
 	SZ_PARAM(MAX_WORK_GROUP_SIZE, "Max work group size",);
 
 	GET_PARAM(PLATFORM, pid);
 	if (!getWGsizes(pid, dev))
-		printf(I1_STR "%zu\n", "Preferred work group size multiple", wgm[0]);
+		printf(I1_STR "%" PRIuS "\n", "Preferred work group size multiple", wgm[0]);
 	else
 		printf(I1_STR "%s\n", "Preferred work group size multiple", strbuf);
 
@@ -697,7 +705,7 @@ printDeviceInfo(cl_uint d)
 		GET_PARAM_ARRAY(GLOBAL_FREE_MEMORY_AMD, szvals, szval);
 		szels = szval/sizeof(*szvals);
 		for (cursor = 0; cursor < szels; ++cursor) {
-			MEM_PARAM_STR(szvals[cursor], "%zu", "Free global memory (AMD)");
+			MEM_PARAM_STR(szvals[cursor], "%" PRIuS, "Free global memory (AMD)");
 		}
 
 		INT_PARAM(GLOBAL_MEM_CHANNELS_AMD, "Global memory channels (AMD)",);
@@ -787,12 +795,12 @@ printDeviceInfo(cl_uint d)
 		}
 		GET_PARAM_PTR(IMAGE2D_MAX_HEIGHT, szvals, 1);
 		GET_PARAM_PTR(IMAGE2D_MAX_WIDTH, (szvals+1), 1);
-		printf(I2_STR "%zux%zu pixels\n", "Max 2D image size",
+		printf(I2_STR "%" PRIuS "x%" PRIuS " pixels\n", "Max 2D image size",
 			szvals[0], szvals[1]);
 		GET_PARAM_PTR(IMAGE3D_MAX_HEIGHT, szvals, 1);
 		GET_PARAM_PTR(IMAGE3D_MAX_WIDTH, (szvals+1), 1);
 		GET_PARAM_PTR(IMAGE3D_MAX_DEPTH, (szvals+2), 1);
-		printf(I2_STR "%zux%zux%zu pixels\n", "Max 3D image size",
+		printf(I2_STR "%" PRIuS "x%" PRIuS "x%" PRIuS " pixels\n", "Max 3D image size",
 			szvals[0], szvals[1], szvals[2]);
 		INT_PARAM(MAX_READ_IMAGE_ARGS, INDENT "Max number of read image args",);
 		INT_PARAM(MAX_WRITE_IMAGE_ARGS, INDENT "Max number of write image args",);
