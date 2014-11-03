@@ -90,20 +90,32 @@ platform_info_str(cl_platform_id pid, cl_platform_info param, const char* pname)
 	return had_error;
 }
 
+struct platform_info_checks {
+	int has_khr_icd;
+};
+
 struct platform_info_traits {
 	cl_platform_info param; // CL_PLATFORM_*
 	const char *sname; // "CL_PLATFORM_*"
 	const char *pname; // "Platform *"
+	/* pointer to function that checks if the parameter should be checked */
+	int (*check_func)(const struct platform_info_checks *);
 };
 
-#define PINFO(symbol, name) { symbol, #symbol, "Platform " name }
+int khr_icd_p(const struct platform_info_checks *chk)
+{
+	return chk->has_khr_icd;
+}
+
+#define PINFO_COND(symbol, name, funcptr) { symbol, #symbol, "Platform " name, &funcptr }
+#define PINFO(symbol, name) { symbol, #symbol, "Platform " name, NULL }
 struct platform_info_traits pinfo_traits[] = {
 	PINFO(CL_PLATFORM_NAME, "Name"),
 	PINFO(CL_PLATFORM_VENDOR, "Vendor"),
 	PINFO(CL_PLATFORM_VERSION, "Version"),
 	PINFO(CL_PLATFORM_PROFILE, "Profile"),
 	PINFO(CL_PLATFORM_EXTENSIONS, "Extensions"),
-	PINFO(CL_PLATFORM_ICD_SUFFIX_KHR, "Extensions function suffix")
+	PINFO_COND(CL_PLATFORM_ICD_SUFFIX_KHR, "Extensions function suffix", khr_icd_p)
 };
 
 /* Print platform info and prepare arrays for device info */
@@ -113,13 +125,17 @@ printPlatformInfo(cl_uint p)
 	cl_platform_id pid = platform[p];
 	size_t len = 0;
 	int had_error = 0;
-	int has_khr_icd = 0;
+
+	struct platform_info_checks pinfo_checks = { 0 };
 
 	current_function = __func__;
 
 	for (current_line = 0; current_line < ARRAY_SIZE(pinfo_traits); ++current_line) {
 		const struct platform_info_traits *traits = pinfo_traits + current_line;
 		current_param = traits->sname;
+
+		if (traits->check_func && !traits->check_func(&pinfo_checks))
+			continue;
 
 		had_error = platform_info_str(pid, traits->param, traits->pname);
 
@@ -139,7 +155,7 @@ printPlatformInfo(cl_uint p)
 			platform_name[p][len] = '\0';
 			break;
 		case CL_PLATFORM_EXTENSIONS:
-			has_khr_icd = !!strstr(strbuf, "cl_khr_icd");
+			pinfo_checks.has_khr_icd = !!strstr(strbuf, "cl_khr_icd");
 			break;
 		default:
 			/* do nothing */
