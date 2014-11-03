@@ -71,41 +71,88 @@ size_t wgm[NUM_KERNELS];
 	STR_PRINT(name, strbuf); \
 } while (0)
 
+int had_error = 0;
+
+int
+platform_info_str(cl_platform_id pid, cl_platform_info param, const char* pname)
+{
+	error = clGetPlatformInfo(pid, param, 0, NULL, &nusz);
+	if (nusz > bufsz) {
+		REALLOC(strbuf, nusz, current_param);
+		bufsz = nusz;
+	}
+	had_error = REPORT_ERROR2("get %s size");
+	if (!had_error) {
+		error = clGetPlatformInfo(pid, param, bufsz, strbuf, 0);
+		had_error = REPORT_ERROR2("get %s");
+	}
+	printf(I1_STR "%s\n", pname, skip_leading_ws(strbuf));
+	return had_error;
+}
+
+struct platform_info_traits {
+	cl_platform_info param; // CL_PLATFORM_*
+	const char *sname; // "CL_PLATFORM_*"
+	const char *pname; // "Platform *"
+};
+
+#define PINFO(symbol, name) { symbol, #symbol, "Platform " name }
+struct platform_info_traits pinfo_traits[] = {
+	PINFO(CL_PLATFORM_NAME, "Name"),
+	PINFO(CL_PLATFORM_VENDOR, "Vendor"),
+	PINFO(CL_PLATFORM_VERSION, "Version"),
+	PINFO(CL_PLATFORM_PROFILE, "Profile"),
+	PINFO(CL_PLATFORM_EXTENSIONS, "Extensions"),
+	PINFO(CL_PLATFORM_ICD_SUFFIX_KHR, "Extensions function suffix")
+};
+
 /* Print platform info and prepare arrays for device info */
 void
 printPlatformInfo(cl_uint p)
 {
 	cl_platform_id pid = platform[p];
 	size_t len = 0;
+	int had_error = 0;
+	int has_khr_icd = 0;
 
-#define PARAM(param, str) \
-	SHOW_STRING(clGetPlatformInfo, CL_PLATFORM_##param, "Platform " str, pid)
+	current_function = __func__;
 
-	PARAM(NAME, "Name");
+	for (current_line = 0; current_line < ARRAY_SIZE(pinfo_traits); ++current_line) {
+		const struct platform_info_traits *traits = pinfo_traits + current_line;
+		current_param = traits->sname;
 
-	/* Store name for future reference */
-	len = strlen(strbuf);
-	platform_name[p] = malloc(len + 1);
-	/* memcpy instead of strncpy since we already have the len
-	 * and memcpy is possibly more optimized */
-	memcpy(platform_name[p], strbuf, len);
-	platform_name[p][len] = '\0';
+		had_error = platform_info_str(pid, traits->param, traits->pname);
 
-	PARAM(VENDOR, "Vendor");
-	PARAM(VERSION, "Version");
-	PARAM(PROFILE, "Profile");
-	PARAM(EXTENSIONS, "Extensions");
-	if (strstr(strbuf, "cl_khr_icd"))
-		PARAM(ICD_SUFFIX_KHR, "Extensions function suffix");
-#undef PARAM
+		if (had_error)
+			continue;
+
+		/* post-processing */
+
+		switch (traits->param) {
+		case CL_PLATFORM_NAME:
+			/* Store name for future reference */
+			len = strlen(strbuf);
+			platform_name[p] = malloc(len + 1);
+			/* memcpy instead of strncpy since we already have the len
+			 * and memcpy is possibly more optimized */
+			memcpy(platform_name[p], strbuf, len);
+			platform_name[p][len] = '\0';
+			break;
+		case CL_PLATFORM_EXTENSIONS:
+			has_khr_icd = !!strstr(strbuf, "cl_khr_icd");
+			break;
+		default:
+			/* do nothing */
+			break;
+		}
+
+	}
 
 	error = clGetDeviceIDs(pid, CL_DEVICE_TYPE_ALL, 0, NULL, num_devs + p);
 	if (error != CL_DEVICE_NOT_FOUND)
 		CHECK_ERROR("number of devices");
 	num_devs_all += num_devs[p];
 }
-
-int had_error = 0;
 
 #define GET_PARAM(param, var) do { \
 	error = clGetDeviceInfo(dev, CL_DEVICE_##param, sizeof(var), &var, 0); \
