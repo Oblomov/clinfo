@@ -311,6 +311,40 @@ struct device_info_checks {
 	cl_uint dev_version;
 };
 
+void identify_device_extensions(const char *extensions, struct device_info_checks *chk)
+{
+#define _HAS_EXT(ext) (strstr(extensions, ext))
+#define HAS_EXT(ext) _HAS_EXT(#ext)
+#define CPY_EXT(what, ext) do { \
+	strncpy(chk->has_##what, has, sizeof(ext)); \
+	chk->has_##what[sizeof(ext)-1] = '\0'; \
+} while (0)
+#define CHECK_EXT(what, ext) do { \
+	has = _HAS_EXT(#ext); \
+	if (has) CPY_EXT(what, #ext); \
+} while(0)
+
+	char *has;
+	CHECK_EXT(half, cl_khr_fp16);
+	CHECK_EXT(double, cl_khr_fp64);
+	CHECK_EXT(spir, cl_khr_spir);
+	if (dev_has_double(&chk))
+		CHECK_EXT(double, cl_amd_fp64);
+	if (dev_has_double(&chk))
+		CHECK_EXT(double, cl_APPLE_fp64_basic_ops);
+		CHECK_EXT(nv, cl_nv_device_attribute_query);
+		CHECK_EXT(amd, cl_amd_device_attribute_query);
+		CHECK_EXT(svm_ext, cl_amd_svm);
+		CHECK_EXT(fission, cl_ext_device_fission);
+		CHECK_EXT(atomic_counters, cl_ext_atomic_counters_64);
+	if (dev_has_atomic_counters(&chk))
+		CHECK_EXT(atomic_counters, cl_ext_atomic_counters_32);
+		CHECK_EXT(image2d_buffer, cl_khr_image2d_from_buffer);
+		CHECK_EXT(intel_local_thread, cl_intel_exec_by_local_thread);
+		CHECK_EXT(altera_dev_temp, cl_altera_device_temperature);
+		CHECK_EXT(qcom_ext_host_ptr, cl_qcom_ext_host_ptr);
+}
+
 #define DEFINE_EXT_CHECK(ext) int dev_has_##ext(const struct device_info_checks *chk) \
 { \
 	return !!(chk->has_##ext[0]); \
@@ -393,7 +427,8 @@ int device_info_##how(cl_device_id dev, cl_device_info param, const char *pname,
 	SHOW_VAL(fmt); \
 }
 
-int device_info_str(cl_device_id dev, cl_device_info param, const char *pname,
+/* Get string-type info without showing it */
+int device_info_str_get(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
 	error = clGetDeviceInfo(dev, param, 0, NULL, &nusz);
@@ -406,6 +441,13 @@ int device_info_str(cl_device_id dev, cl_device_info param, const char *pname,
 		error = clGetDeviceInfo(dev, param, bufsz, strbuf, 0);
 		had_error = REPORT_ERROR2("get %s");
 	}
+	return had_error;
+}
+
+int device_info_str(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk)
+{
+	had_error = device_info_str_get(dev, param, pname, chk);
 	printf(I1_STR "%s\n", pname, skip_leading_ws(strbuf));
 	return had_error;
 }
@@ -452,7 +494,9 @@ struct device_info_traits dinfo_traits[] = {
 	DINFO(CL_DEVICE_VENDOR_ID, "Device Vendor ID", hex),
 	DINFO(CL_DEVICE_VERSION, "Device Version", str),
 	DINFO(CL_DRIVER_VERSION, "Driver Version", str),
-	DINFO(CL_DEVICE_OPENCL_C_VERSION, "Device OpenCL C Version", str)
+	DINFO(CL_DEVICE_OPENCL_C_VERSION, "Device OpenCL C Version", str),
+	/* extensions are only retrieved, not shown (until after the loop) */
+	DINFO(CL_DEVICE_EXTENSIONS, "Device Extensions", str_get)
 };
 
 void
@@ -571,6 +615,9 @@ printDeviceInfo(cl_uint d)
 
 	current_function = __func__;
 
+	/* pointer to the traits for CL_DEVICE_EXTENSIONS */
+	const struct device_info_traits *extensions_traits = NULL;
+
 	for (current_line = 0; current_line < ARRAY_SIZE(dinfo_traits); ++current_line) {
 		const struct device_info_traits *traits = dinfo_traits + current_line;
 		current_param = traits->sname;
@@ -583,58 +630,32 @@ printDeviceInfo(cl_uint d)
 			traits->pname : traits->sname,
 			&chk);
 
+		if (traits->param == CL_DEVICE_EXTENSIONS) {
+			/* make a backup of the extensions string, regardless of
+			 * errors */
+			extensions_traits = traits;
+			len = strlen(strbuf);
+			ALLOC(extensions, len+1, "extensions");
+			memcpy(extensions, strbuf, len);
+			extensions[len] = '\0';
+		}
+
 		if (had_error)
 			continue;
 
 		switch (traits->param) {
 		case CL_DEVICE_VERSION:
+			/* compute numeric value for OpenCL version */
 			chk.dev_version = getOpenCLVersion(strbuf + 7);
+			break;
+		case CL_DEVICE_EXTENSIONS:
+			identify_device_extensions(extensions, &chk);
+			break;
 		default:
 			/* do nothing */
 			break;
 		}
 	}
-
-	// we get the extensions information here, but only print it at the end
-	GET_STRING(clGetDeviceInfo, CL_DEVICE_EXTENSIONS, "CL_DEVICE_EXTENSIONS", dev);
-	len = strlen(strbuf);
-	ALLOC(extensions, len+1, "extensions");
-	memcpy(extensions, strbuf, len);
-	extensions[len] = '\0';
-
-#define _HAS_EXT(ext) (strstr(extensions, ext))
-#define HAS_EXT(ext) _HAS_EXT(#ext)
-#define CPY_EXT(what, ext) do { \
-	strncpy(chk.has_##what, has, sizeof(ext)); \
-	chk.has_##what[sizeof(ext)-1] = '\0'; \
-} while (0)
-#define CHECK_EXT(what, ext) do { \
-	has = _HAS_EXT(#ext); \
-	if (has) CPY_EXT(what, #ext); \
-} while(0)
-
-	{
-		char *has;
-		CHECK_EXT(half, cl_khr_fp16);
-		CHECK_EXT(double, cl_khr_fp64);
-		CHECK_EXT(spir, cl_khr_spir);
-		if (dev_has_double(&chk))
-			CHECK_EXT(double, cl_amd_fp64);
-		if (dev_has_double(&chk))
-			CHECK_EXT(double, cl_APPLE_fp64_basic_ops);
-		CHECK_EXT(nv, cl_nv_device_attribute_query);
-		CHECK_EXT(amd, cl_amd_device_attribute_query);
-		CHECK_EXT(svm_ext, cl_amd_svm);
-		CHECK_EXT(fission, cl_ext_device_fission);
-		CHECK_EXT(atomic_counters, cl_ext_atomic_counters_64);
-		if (dev_has_atomic_counters(&chk))
-			CHECK_EXT(atomic_counters, cl_ext_atomic_counters_32);
-		CHECK_EXT(image2d_buffer, cl_khr_image2d_from_buffer);
-		CHECK_EXT(intel_local_thread, cl_intel_exec_by_local_thread);
-		CHECK_EXT(altera_dev_temp, cl_altera_device_temperature);
-		CHECK_EXT(qcom_ext_host_ptr, cl_qcom_ext_host_ptr);
-	}
-
 
 	// device type
 	GET_PARAM(TYPE, devtype);
@@ -1150,7 +1171,9 @@ printDeviceInfo(cl_uint d)
 		BOOL_PARAM(LINKER_AVAILABLE, "Linker Available");
 
 	// and finally the extensions
-	printf(I1_STR "%s\n", "Device Extensions", extensions);
+	printf(I1_STR "%s\n", (output_mode == CLINFO_HUMAN ?
+			extensions_traits->pname :
+			extensions_traits->sname), extensions);
 	free(extensions);
 	extensions = NULL;
 }
