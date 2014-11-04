@@ -43,6 +43,10 @@ static const char fpsupp[] = "Floating-point support";
 static const char* bool_str[] = { "No", "Yes" };
 static const char* endian_str[] = { "Big-Endian", "Little-Endian" };
 static const char* device_type_str[] = { unk, "Default", "CPU", "GPU", "Accelerator", "Custom" };
+static const char* device_type_raw_str[] = { unk,
+	"CL_DEVICE_TYPE_DEFAULT", "CL_DEVICE_TYPE_CPU", "CL_DEVICE_TYPE_GPU",
+	"CL_DEVICE_TYPE_ACCELERATOR", "CL_DEVICE_TYPE_CUSTOM"
+};
 static const size_t device_type_str_count = sizeof(device_type_str)/sizeof(*device_type_str);
 static const char* local_mem_type_str[] = { none, "Local", "Global" };
 static const char* cache_type_str[] = { none, "Read-Only", "Read/Write" };
@@ -468,6 +472,42 @@ int device_info_bool(cl_device_id dev, cl_device_info param, const char *pname,
 		printf(I1_STR "%s%s\n", pname, bool_str[val], cur_sfx);
 }
 
+int device_info_devtype(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk)
+{
+	cl_device_type val;
+	GET_VAL;
+	if (!had_error) {
+		/* iterate over device type strings, appending their textual form
+		 * to strbuf. We use plain strcpy since we know that it's at least
+		 * 1024 so we are safe.
+		 * TODO: check for extra bits/no bits
+		 */
+		size_t szval = 0;
+		cl_uint i = device_type_str_count;
+		const char *sep = (output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
+		size_t sepsz = (output_mode == CLINFO_HUMAN ? 2 : 3);
+		const char * const *devstr = (output_mode == CLINFO_HUMAN ?
+			device_type_str : device_type_raw_str);
+		for (; i > 0; --i) {
+			/* assemble CL_DEVICE_TYPE_* from index i */
+			cl_device_type cur = (cl_device_type)(1) << (i-1);
+			if (val & cur) {
+				/* match: add separator if not first match */
+				if (szval > 0) {
+					strcpy(strbuf + szval, sep);
+					szval += sepsz;
+				}
+				strcpy(strbuf + szval, devstr[i]);
+				szval += strlen(devstr[i]);
+			}
+		}
+		strbuf[szval] = '\0';
+	}
+	printf(I1_STR "%s\n", pname, strbuf);
+	return had_error;
+}
+
 /*
  * Device info traits
  */
@@ -496,7 +536,9 @@ struct device_info_traits dinfo_traits[] = {
 	DINFO(CL_DRIVER_VERSION, "Driver Version", str),
 	DINFO(CL_DEVICE_OPENCL_C_VERSION, "Device OpenCL C Version", str),
 	/* extensions are only retrieved, not shown (until after the loop) */
-	DINFO(CL_DEVICE_EXTENSIONS, "Device Extensions", str_get)
+	DINFO(CL_DEVICE_EXTENSIONS, "Device Extensions", str_get),
+	DINFO(CL_DEVICE_TYPE, "Device Type", devtype),
+	DINFO(CL_DEVICE_PROFILE, "Device Profile", str)
 };
 
 void
@@ -651,37 +693,15 @@ printDeviceInfo(cl_uint d)
 		case CL_DEVICE_EXTENSIONS:
 			identify_device_extensions(extensions, &chk);
 			break;
+		case CL_DEVICE_TYPE:
+			/* TODO put device type in chk */
+			break;
 		default:
 			/* do nothing */
 			break;
 		}
 	}
 
-	// device type
-	GET_PARAM(TYPE, devtype);
-	if (!had_error) {
-		// iterate over device type strings
-		cl_uint i = device_type_str_count;
-		szval = 0;
-		// TODO check for extra bits/no bits
-		for (; i > 0; --i) {
-			// assemble CL_DEVICE_TYPE_* from index i
-			cl_device_type cur = (cl_device_type)(1) << (i-1);
-			if (devtype & cur) { // match
-				// add comma if it's not the first match
-				if (szval > 0) {
-					strncpy(strbuf + szval, ", ", bufsz - (szval + 1));
-					szval += 2;
-				}
-				strncpy(strbuf + szval, device_type_str[i], bufsz - (szval + 1));
-				szval += strlen(device_type_str[i]);
-			}
-		}
-		strbuf[szval] = 0;
-	}
-	STR_PRINT("Device Type", strbuf);
-
-	STR_PARAM(PROFILE, "Profile");
 	if (dev_has_amd(&chk)) {
 		cl_device_topology_amd devtopo;
 
