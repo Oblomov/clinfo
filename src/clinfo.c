@@ -505,6 +505,9 @@ int device_info_devtype(cl_device_id dev, cl_device_info param, const char *pnam
 		strbuf[szval] = '\0';
 	}
 	printf(I1_STR "%s\n", pname, strbuf);
+	/* we abuse global strbuf to pass the device type over to the caller */
+	if (!had_error)
+		memcpy(strbuf, &val, sizeof(val));
 	return had_error;
 }
 
@@ -694,7 +697,8 @@ printDeviceInfo(cl_uint d)
 			identify_device_extensions(extensions, &chk);
 			break;
 		case CL_DEVICE_TYPE:
-			/* TODO put device type in chk */
+			/* strbuf was abused to give us the dev type */
+			memcpy(&(chk.devtype), strbuf, sizeof(chk.devtype));
 			break;
 		default:
 			/* do nothing */
