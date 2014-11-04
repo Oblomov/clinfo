@@ -574,6 +574,24 @@ int device_info_devtopo_nv(cl_device_id dev, cl_device_info param, const char *p
 	printf(I1_STR "%s\n", pname, strbuf);
 }
 
+/* NVIDIA Compute Capability */
+int device_info_cc_nv(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk)
+{
+	cl_uint major, val;
+	GET_VAL; /* MAJOR */
+	if (!had_error) {
+		major = val;
+		param = CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV;
+		current_param = "CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV";
+		GET_VAL;
+		if (!had_error)
+			snprintf(strbuf, bufsz, "%u.%u", major, val);
+	}
+
+	printf(I1_STR "%s\n", pname, strbuf);
+}
+
 /*
  * Device info traits
  */
@@ -610,6 +628,20 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_HUMAN, DINFO(CL_DEVICE_PCI_BUS_ID_NV, "Device Topology (NV)", devtopo_nv), dev_has_nv },
 	{ CLINFO_RAW, DINFO(CL_DEVICE_PCI_BUS_ID_NV, "Device PCI bus (NV)", int), dev_has_nv },
 	{ CLINFO_RAW, DINFO(CL_DEVICE_PCI_SLOT_ID_NV, "Device PCI slot (NV)", int), dev_has_nv },
+
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_COMPUTE_UNITS, "Max compute units", int), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_SIMD_PER_COMPUTE_UNIT_AMD, "SIMD per compute unit (AMD)", int), dev_is_gpu_amd },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_SIMD_WIDTH_AMD, "SIMD width (AMD)", int), dev_is_gpu_amd },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_SIMD_INSTRUCTION_WIDTH_AMD, "SIMD instruction width (AMD)", int), dev_is_gpu_amd },
+	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_MAX_CLOCK_FREQUENCY, "Max clock frequency", "MHz", int), NULL },
+
+	/* Device Compute Capability (NV) is multipart, so different for HUMAN and RAW */
+	{ CLINFO_HUMAN, DINFO(CL_DEVICE_COMPUTE_CAPABILITY_MAJOR_NV, "NVIDIA Compute Capability", cc_nv), dev_has_nv },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_COMPUTE_CAPABILITY_MAJOR_NV, "NVIDIA Compute Capability Major", int), dev_has_nv },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV, "NVIDIA Compute Capability Minor", int), dev_has_nv },
+
+	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_CORE_TEMPERATURE_ALTERA, "Core Temperature (Altera)", " C", int), dev_has_altera_dev_temp },
+
 };
 
 void
@@ -742,6 +774,8 @@ printDeviceInfo(cl_uint d)
 		if (traits->check_func && !traits->check_func(&chk))
 			continue;
 
+		cur_sfx = traits->sfx ? traits->sfx : empty_str;
+
 		had_error = traits->show_func(dev, traits->param,
 			output_mode == CLINFO_HUMAN ?
 			traits->pname : traits->sname,
@@ -777,28 +811,6 @@ printDeviceInfo(cl_uint d)
 			break;
 		}
 	}
-
-	// compute units and clock
-	INT_PARAM(MAX_COMPUTE_UNITS, "Max compute units",);
-	if (dev_is_gpu_amd(&chk)) {
-		// these are GPU-only
-		INT_PARAM(SIMD_PER_COMPUTE_UNIT_AMD, "SIMD per compute units (AMD)",);
-		INT_PARAM(SIMD_WIDTH_AMD, "SIMD width (AMD)",);
-		INT_PARAM(SIMD_INSTRUCTION_WIDTH_AMD, "SIMD instruction width (AMD)",);
-	}
-	INT_PARAM(MAX_CLOCK_FREQUENCY, "Max clock frequency", "MHz");
-	if (dev_has_nv(&chk)) {
-		GET_PARAM(COMPUTE_CAPABILITY_MAJOR_NV, uintval);
-		if (!had_error)
-			GET_PARAM(COMPUTE_CAPABILITY_MINOR_NV, uintval2);
-		if (had_error) {
-			printf(I1_STR "%s\n", "NVIDIA Compute Capability", strbuf);
-		} else {
-			printf(I1_STR "%u.%u\n", "NVIDIA Compute Capability", uintval, uintval2);
-		}
-	}
-	if (dev_has_altera_dev_temp(&chk))
-		INT_PARAM(CORE_TEMPERATURE_ALTERA, "Core temperature (Altera)", " C");
 
 	/* device fission, two different ways: core in 1.2, extension previously
 	 * platforms that suppot both might expose different properties (e.g., partition
