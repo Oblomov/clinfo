@@ -487,7 +487,7 @@ printDeviceInfo(cl_uint d)
 	cl_uint szels = 3;
 	size_t len;
 
-	char* extensions;
+	char *extensions = NULL;
 
 	struct device_info_checks chk;
 	memset(&chk, 0, sizeof(chk));
@@ -1150,7 +1150,9 @@ printDeviceInfo(cl_uint d)
 		BOOL_PARAM(LINKER_AVAILABLE, "Linker Available");
 
 	// and finally the extensions
-	printf(I1_STR "%s\n", "Device Extensions", extensions); \
+	printf(I1_STR "%s\n", "Device Extensions", extensions);
+	free(extensions);
+	extensions = NULL;
 }
 
 int main(int argc, char *argv[])
