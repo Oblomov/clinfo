@@ -287,6 +287,68 @@ getOpenCLVersion(const char *version)
 	return ret;
 }
 
+struct device_info_checks {
+	cl_device_type devtype;
+	char has_half[12];
+	char has_double[24];
+	char has_nv[29];
+	char has_amd[30];
+	char has_svm_ext[11];
+	char has_fission[22];
+	char has_atomic_counters[26];
+	char has_image2d_buffer[27];
+	char has_intel_local_thread[30];
+	char has_altera_dev_temp[29];
+	char has_spir[12];
+	char has_qcom_ext_host_ptr[21];
+	cl_uint dev_version;
+};
+
+#define DEFINE_EXT_CHECK(ext) int dev_has_##ext(const struct device_info_checks *chk) \
+{ \
+	return !!(chk->has_##ext[0]); \
+}
+
+DEFINE_EXT_CHECK(half)
+DEFINE_EXT_CHECK(double)
+DEFINE_EXT_CHECK(nv)
+DEFINE_EXT_CHECK(amd)
+DEFINE_EXT_CHECK(svm_ext)
+DEFINE_EXT_CHECK(fission)
+DEFINE_EXT_CHECK(atomic_counters)
+DEFINE_EXT_CHECK(image2d_buffer)
+DEFINE_EXT_CHECK(intel_local_thread)
+DEFINE_EXT_CHECK(altera_dev_temp)
+DEFINE_EXT_CHECK(spir)
+DEFINE_EXT_CHECK(qcom_ext_host_ptr)
+
+// device supports 1.2
+int dev_is_12(const struct device_info_checks *chk)
+{
+	return !!(chk->dev_version >= 12);
+}
+
+// device supports 2.0
+int dev_is_20(const struct device_info_checks *chk)
+{
+	return !!(chk->dev_version >= 20);
+}
+
+int dev_is_gpu(const struct device_info_checks *chk)
+{
+	return !!(chk->devtype & CL_DEVICE_TYPE_GPU);
+}
+
+int dev_is_gpu_amd(const struct device_info_checks *chk)
+{
+	return dev_is_gpu(chk) && dev_has_amd(chk);
+}
+
+int dev_has_svm(const struct device_info_checks *chk)
+{
+	return dev_is_20(chk) || dev_has_svm_ext(chk);
+}
+
 void
 printDeviceInfo(cl_uint d)
 {
@@ -322,28 +384,8 @@ printDeviceInfo(cl_uint d)
 	char* extensions;
 
 	// these will hold the string from which we detected extension support
-	char has_half[12] = {0};
-	char has_double[24] = {0};
-	char has_nv[29] = {0};
-	char has_amd[30] = {0};
-	char has_svm[11] = {0};
-	char has_fission[22] = {0};
-	char has_atomic_counters[26] = {0};
-	char has_image2d_buffer[27] = {0};
-	char has_intel_local_thread[30] = {0};
-	char has_altera_dev_temp[29] = {0};
-	char has_spir[12] = {0};
-	char has_qcom_ext_host_ptr[21] = {0};
-
-	// OpenCL device version, as major*10 + minor
-	cl_uint dev_version = 10;
-
-	// device supports OpenCL 1.2
-	cl_bool is_12 = CL_FALSE;
-	// device supports OpenCL 2.0
-	cl_bool is_20 = CL_FALSE;
-	// device is a GPU
-	cl_bool is_gpu = CL_FALSE;
+	struct device_info_checks chk;
+	memset(&chk, 0, sizeof(chk));
 
 #define KB UINT64_C(1024)
 #define MB (KB*KB)
@@ -427,12 +469,10 @@ printDeviceInfo(cl_uint d)
 	HEX_PARAM(VENDOR_ID, "Device Vendor ID");
 	STR_PARAM(VERSION, "Version");
 	// skip "OpenCL "
-	dev_version = getOpenCLVersion(strbuf + 7);
-	is_12 = !!(dev_version >= 12);
-	is_20 = !!(dev_version >= 20);
+	chk.dev_version = getOpenCLVersion(strbuf + 7);
 #if 0 // debug OpenCL version detection
 	printf("==> CL%u (is_12: %s, is_20: %s)\n",
-		dev_version, bool_str[is_12], bool_str[is_20]);
+		dev_version, bool_str[dev_is_12(&chk)], bool_str[dev_is_20(&chk)]);
 #endif
 
 	SHOW_STRING(clGetDeviceInfo, CL_DRIVER_VERSION, "Driver Version", dev);
@@ -448,8 +488,8 @@ printDeviceInfo(cl_uint d)
 #define _HAS_EXT(ext) (strstr(extensions, ext))
 #define HAS_EXT(ext) _HAS_EXT(#ext)
 #define CPY_EXT(what, ext) do { \
-	strncpy(has_##what, has, sizeof(ext)); \
-	has_##what[sizeof(ext)-1] = '\0'; \
+	strncpy(chk.has_##what, has, sizeof(ext)); \
+	chk.has_##what[sizeof(ext)-1] = '\0'; \
 } while (0)
 #define CHECK_EXT(what, ext) do { \
 	has = _HAS_EXT(#ext); \
@@ -461,16 +501,16 @@ printDeviceInfo(cl_uint d)
 		CHECK_EXT(half, cl_khr_fp16);
 		CHECK_EXT(double, cl_khr_fp64);
 		CHECK_EXT(spir, cl_khr_spir);
-		if (!*has_double)
+		if (dev_has_double(&chk))
 			CHECK_EXT(double, cl_amd_fp64);
-		if (!*has_double)
+		if (dev_has_double(&chk))
 			CHECK_EXT(double, cl_APPLE_fp64_basic_ops);
 		CHECK_EXT(nv, cl_nv_device_attribute_query);
 		CHECK_EXT(amd, cl_amd_device_attribute_query);
-		CHECK_EXT(svm, cl_amd_svm);
+		CHECK_EXT(svm_ext, cl_amd_svm);
 		CHECK_EXT(fission, cl_ext_device_fission);
 		CHECK_EXT(atomic_counters, cl_ext_atomic_counters_64);
-		if (!*has_atomic_counters)
+		if (dev_has_atomic_counters(&chk))
 			CHECK_EXT(atomic_counters, cl_ext_atomic_counters_32);
 		CHECK_EXT(image2d_buffer, cl_khr_image2d_from_buffer);
 		CHECK_EXT(intel_local_thread, cl_intel_exec_by_local_thread);
@@ -503,9 +543,8 @@ printDeviceInfo(cl_uint d)
 	}
 	STR_PRINT("Device Type", strbuf);
 
-	is_gpu = !!(devtype & CL_DEVICE_TYPE_GPU);
 	STR_PARAM(PROFILE, "Profile");
-	if (*has_amd) {
+	if (dev_has_amd(&chk)) {
 		cl_device_topology_amd devtopo;
 
 		STR_PARAM(BOARD_NAME_AMD, "Board Name (AMD)");
@@ -528,7 +567,7 @@ printDeviceInfo(cl_uint d)
 		}
 		STR_PRINT("Device Topology (AMD)", strbuf);
 	}
-	if (*has_nv) {
+	if (dev_has_nv(&chk)) {
 		cl_uint bus, slot;
 		GET_PARAM(PCI_BUS_ID_NV, bus);
 		if (!had_error)
@@ -540,14 +579,14 @@ printDeviceInfo(cl_uint d)
 
 	// compute units and clock
 	INT_PARAM(MAX_COMPUTE_UNITS, "Max compute units",);
-	if (*has_amd && is_gpu) {
+	if (dev_is_gpu_amd(&chk)) {
 		// these are GPU-only
 		INT_PARAM(SIMD_PER_COMPUTE_UNIT_AMD, "SIMD per compute units (AMD)",);
 		INT_PARAM(SIMD_WIDTH_AMD, "SIMD width (AMD)",);
 		INT_PARAM(SIMD_INSTRUCTION_WIDTH_AMD, "SIMD instruction width (AMD)",);
 	}
 	INT_PARAM(MAX_CLOCK_FREQUENCY, "Max clock frequency", "MHz");
-	if (*has_nv) {
+	if (dev_has_nv(&chk)) {
 		GET_PARAM(COMPUTE_CAPABILITY_MAJOR_NV, uintval);
 		if (!had_error)
 			GET_PARAM(COMPUTE_CAPABILITY_MINOR_NV, uintval2);
@@ -557,7 +596,7 @@ printDeviceInfo(cl_uint d)
 			printf(I1_STR "%u.%u\n", "NVIDIA Compute Capability", uintval, uintval2);
 		}
 	}
-	if (*has_altera_dev_temp)
+	if (dev_has_altera_dev_temp(&chk))
 		INT_PARAM(CORE_TEMPERATURE_ALTERA, "Core temperature (Altera)", " C");
 
 	/* device fission, two different ways: core in 1.2, extension previously
@@ -565,19 +604,19 @@ printDeviceInfo(cl_uint d)
 	 * by name is not considered in OpenCL 1.2, but an option with the extension
 	 */
 	szval = 0;
-	if (is_12) {
-		strncpy(strbuf + szval, "core, ", *has_fission ? 6 : 4);
-		szval += (*has_fission ? 6 : 4);
+	if (dev_is_12(&chk)) {
+		strncpy(strbuf + szval, "core, ", chk.has_fission[0] ? 6 : 4);
+		szval += (chk.has_fission[0] ? 6 : 4);
 	}
-	if (*has_fission) {
-		strncpy(strbuf + szval, has_fission, bufsz - (szval + 1));
-		szval += strlen(has_fission);
+	if (dev_has_fission(&chk)) {
+		strncpy(strbuf + szval, chk.has_fission, bufsz - (szval + 1));
+		szval += strlen(chk.has_fission);
 	}
 	strbuf[szval] = 0;
 
 	printf(I1_STR "(%s)\n", "Device Partition",
 		szval ? strbuf : na);
-	if (is_12) {
+	if (dev_is_12(&chk)) {
 		INT_PARAM(PARTITION_MAX_SUB_DEVICES, INDENT "Max number of sub-devices",);
 		GET_PARAM_ARRAY(PARTITION_PROPERTIES, partprop, szval);
 		numpartprop = szval/sizeof(*partprop);
@@ -625,7 +664,7 @@ printDeviceInfo(cl_uint d)
 			puts("");
 		}
 	}
-	if (*has_fission) {
+	if (dev_has_fission(&chk)) {
 		GET_PARAM_ARRAY(PARTITION_TYPES_EXT, partprop_ext, szval);
 		numpartprop_ext = szval/sizeof(*partprop_ext);
 		printf(I2_STR, "Supported partition types (ext)");
@@ -695,10 +734,10 @@ printDeviceInfo(cl_uint d)
 	else
 		printf(I1_STR "%s\n", "Preferred work group size multiple", strbuf);
 
-	if (*has_nv) {
+	if (dev_has_nv(&chk)) {
 		INT_PARAM(WARP_SIZE_NV, "Warp size (NVIDIA)",);
 	}
-	if (*has_amd && is_gpu) {
+	if (dev_is_gpu_amd(&chk)) {
 		INT_PARAM(WAVEFRONT_WIDTH_AMD, "Wavefront width (AMD)",);
 	}
 
@@ -723,9 +762,9 @@ printDeviceInfo(cl_uint d)
 	PRINT_VEC(SHORT, short);
 	PRINT_VEC(INT, int);
 	PRINT_VEC(LONG, long); // this is actually optional in EMBED profiles
-	PRINT_VEC_OPT(HALF, half, has_half);
+	PRINT_VEC_OPT(HALF, half, chk.has_half);
 	PRINT_VEC(FLOAT, float);
-	PRINT_VEC_OPT(DOUBLE, double, has_double);
+	PRINT_VEC_OPT(DOUBLE, double, chk.has_double);
 	puts("");
 
 	// FP configurations
@@ -750,14 +789,14 @@ printDeviceInfo(cl_uint d)
 #define FPSUPP_STR(str, opt) \
 	"  %-17s%-29s " opt "\n", #str "-precision", fpsupp
 	printf(FPSUPP_STR(Half, " (%s)"),
-		*has_half ? has_half : na);
-	if (*has_half)
+		chk.has_half[0] ? chk.has_half : na);
+	if (dev_has_half(&chk))
 		SHOW_FP_SUPPORT(HALF);
 	printf(FPSUPP_STR(Single, " (core)"));
 	SHOW_FP_SUPPORT(SINGLE);
 	printf(FPSUPP_STR(Double, " (%s)"),
-		*has_double ? has_double : na);
-	if (*has_double)
+		chk.has_double[0] ? chk.has_double : na);
+	if (dev_has_double(&chk))
 		SHOW_FP_SUPPORT(DOUBLE);
 
 	// arch bits and endianness
@@ -769,7 +808,7 @@ printDeviceInfo(cl_uint d)
 
 	// global
 	MEM_PARAM(GLOBAL_MEM_SIZE, "Global memory size");
-	if (*has_amd && is_gpu) {
+	if (dev_is_gpu_amd(&chk)) {
 		// FIXME seek better documentation about this. what does it mean?
 		GET_PARAM_ARRAY(GLOBAL_FREE_MEMORY_AMD, szvals, szval);
 		szels = szval/sizeof(*szvals);
@@ -786,24 +825,24 @@ printDeviceInfo(cl_uint d)
 	MEM_PARAM(MAX_MEM_ALLOC_SIZE, "Max memory allocation");
 
 	BOOL_PARAM(HOST_UNIFIED_MEMORY, "Unified memory for Host and Device");
-	if (*has_nv) {
+	if (dev_has_nv(&chk)) {
 		BOOL_PARAM(INTEGRATED_MEMORY_NV, "NVIDIA integrated memory");
 	}
 
-	// SVM TODO might also be supported by extensions on 1.2
-	if (is_20 || *has_svm) {
+	// SVM
+	if (dev_has_svm(&chk)) {
 		cl_device_svm_capabilities svm_cap;
 		GET_PARAM(SVM_CAPABILITIES, svm_cap);
 		if (!had_error) {
 			szval = 0;
 			strbuf[szval++] = '(';
-			if (is_20) {
-				strncpy(strbuf + szval, "core, ", *has_svm ? 6 : 4);
-				szval += (*has_svm ? 6 : 4);
+			if (dev_is_20(&chk)) {
+				strncpy(strbuf + szval, "core, ", chk.has_svm_ext[0] ? 6 : 4);
+				szval += (chk.has_svm_ext[0] ? 6 : 4);
 			}
-			if (*has_svm) {
-				strncpy(strbuf + szval, has_svm, bufsz - (szval + 2));
-				szval += strlen(has_svm);
+			if (dev_has_svm_ext(&chk)) {
+				strncpy(strbuf + szval, chk.has_svm_ext, bufsz - (szval + 2));
+				szval += strlen(chk.has_svm_ext);
 			}
 			strbuf[szval++] = ')';
 			strbuf[szval++] = 0;
@@ -823,7 +862,7 @@ printDeviceInfo(cl_uint d)
 		"Alignment of base address", uintval, uintval/8);
 
 	// atomics alignment
-	if (is_20) {
+	if (dev_is_20(&chk)) {
 		printf(I1_STR "\n", "Preferred alignment for atomics");
 		INT_PARAM(PREFERRED_PLATFORM_ATOMIC_ALIGNMENT, INDENT "SVM", "");
 		INT_PARAM(PREFERRED_GLOBAL_ATOMIC_ALIGNMENT, INDENT "Global", "");
@@ -831,13 +870,13 @@ printDeviceInfo(cl_uint d)
 
 	}
 
-	if (*has_qcom_ext_host_ptr) {
+	if (dev_has_qcom_ext_host_ptr(&chk)) {
 		SZ_PARAM(PAGE_SIZE_QCOM, "Page size (QUALCOMM)", " bytes");
 		SZ_PARAM(EXT_MEM_PADDING_IN_BYTES_QCOM, "Externa memory padding (QUALCOMM)", " bytes");
 	}
 
 	// global variables
-	if (is_20) { // TODO some 1.2 devices respond to this too ...
+	if (dev_is_20(&chk)) { // TODO some 1.2 devices respond to this too ...
 		MEM_PARAM(MAX_GLOBAL_VARIABLE_SIZE, "Max size for global variable");
 		MEM_PARAM(GLOBAL_VARIABLE_PREFERRED_TOTAL_SIZE, "Preferred total size of global vars");
 	}
@@ -854,11 +893,11 @@ printDeviceInfo(cl_uint d)
 	BOOL_PARAM(IMAGE_SUPPORT, "Image support");
 	if (boolval) {
 		INT_PARAM(MAX_SAMPLERS, INDENT "Max number of samplers per kernel",);
-		if (is_12) {
+		if (dev_is_12(&chk)) {
 			SZ_PARAM(IMAGE_MAX_BUFFER_SIZE, INDENT "Max 1D image size", " pixels");
 			SZ_PARAM(IMAGE_MAX_ARRAY_SIZE, INDENT "Max 1D or 2D image array size", " images");
 		}
-		if (*has_image2d_buffer) {
+		if (dev_has_image2d_buffer(&chk)) {
 			SZ_PARAM(IMAGE_BASE_ADDRESS_ALIGNMENT, INDENT "Base address alignment for 2D image buffers",);
 			SZ_PARAM(IMAGE_PITCH_ALIGNMENT, INDENT "Pitch alignment for 2D image buffers",);
 		}
@@ -873,13 +912,13 @@ printDeviceInfo(cl_uint d)
 			szvals[0], szvals[1], szvals[2]);
 		INT_PARAM(MAX_READ_IMAGE_ARGS, INDENT "Max number of read image args",);
 		INT_PARAM(MAX_WRITE_IMAGE_ARGS, INDENT "Max number of write image args",);
-		if (is_20) {
+		if (dev_is_20(&chk)) {
 			INT_PARAM(MAX_READ_WRITE_IMAGE_ARGS, INDENT "Max number of read/write image args",);
 		}
 	}
 
 	// pipes
-	if (is_20) {
+	if (dev_is_20(&chk)) {
 		INT_PARAM(MAX_PIPE_ARGS, "Max number of pipe args", "");
 		INT_PARAM(PIPE_MAX_ACTIVE_RESERVATIONS, "Max active pipe reservations", "");
 		GET_PARAM(PIPE_MAX_PACKET_SIZE, uintval);
@@ -895,13 +934,13 @@ printDeviceInfo(cl_uint d)
 	STR_PRINT("Local memory type", local_mem_type_str[lmemtype]);
 	if (lmemtype != CL_NONE)
 		MEM_PARAM(LOCAL_MEM_SIZE, "Local memory size");
-	if (*has_amd && is_gpu) {
+	if (dev_is_gpu_amd(&chk)) {
 		MEM_PARAM(LOCAL_MEM_SIZE_PER_COMPUTE_UNIT_AMD, "Local memory size per CU (AMD)");
 		INT_PARAM(LOCAL_MEM_BANKS_AMD, "Local memory banks (AMD)",);
 	}
 
 	// nv: registers/CU
-	if (*has_nv) {
+	if (dev_has_nv(&chk)) {
 		INT_PARAM(REGISTERS_PER_BLOCK_NV, "NVIDIA registers per CU",);
 	}
 
@@ -911,25 +950,25 @@ printDeviceInfo(cl_uint d)
 	INT_PARAM(MAX_CONSTANT_ARGS, "Max number of constant args",);
 
 	MEM_PARAM(MAX_PARAMETER_SIZE, "Max size of kernel argument");
-	if (*has_atomic_counters)
+	if (dev_has_atomic_counters(&chk))
 		INT_PARAM(MAX_ATOMIC_COUNTERS_EXT, "Max number of atomic counters",);
 
 	// queue and kernel capabilities
 
 	GET_PARAM(QUEUE_PROPERTIES, queueprop);
 	printf(I1_STR "%s\n",
-		(is_20 ? "Queue properties (on host)" : "Queue properties"),
+		(dev_is_20(&chk) ? "Queue properties (on host)" : "Queue properties"),
 		had_error ? strbuf : "");
 	if (!had_error) {
 		STR_PRINT(INDENT "Out-of-order execution", bool_str[!!(queueprop & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE)]);
 		STR_PRINT(INDENT "Profiling", bool_str[!!(queueprop & CL_QUEUE_PROFILING_ENABLE)]);
 	}
-	if (*has_intel_local_thread) {
+	if (dev_has_intel_local_thread(&chk)) {
 		printf(I1_STR "%s\n", INDENT "Intel local thread execution", bool_str[1]);
 	}
 
 	// queues on device
-	if (is_20) {
+	if (dev_is_20(&chk)) {
 		GET_PARAM(QUEUE_ON_DEVICE_PROPERTIES, queueprop);
 		printf(I1_STR "%s\n", "Queue properties (on device)",
 			had_error ? strbuf : "");
@@ -955,7 +994,7 @@ printDeviceInfo(cl_uint d)
 
 
 	SZ_PARAM(PROFILING_TIMER_RESOLUTION, "Profiling timer resolution", "ns");
-	if (*has_amd) {
+	if (dev_has_amd(&chk)) {
 		time_t time;
 		char *nl;
 		GET_PARAM(PROFILING_TIMER_OFFSET_AMD, ulongval);
@@ -972,16 +1011,16 @@ printDeviceInfo(cl_uint d)
 	GET_PARAM(EXECUTION_CAPABILITIES, execap);
 	STR_PRINT(INDENT "Run OpenCL kernels", bool_str[!!(execap & CL_EXEC_KERNEL)]);
 	STR_PRINT(INDENT "Run native kernels", bool_str[!!(execap & CL_EXEC_NATIVE_KERNEL)]);
-	if (*has_nv) {
+	if (dev_has_nv(&chk)) {
 		BOOL_PARAM(KERNEL_EXEC_TIMEOUT_NV, INDENT "NVIDIA kernel execution timeout");
 		BOOL_PARAM(GPU_OVERLAP_NV, "NVIDIA concurrent copy and kernel execution");
 		INT_PARAM(ATTRIBUTE_ASYNC_ENGINE_COUNT_NV, INDENT "Number of copy engines",);
 	}
-	if (*has_spir) {
+	if (dev_has_spir(&chk)) {
 		SHOW_STRING(clGetDeviceInfo, CL_DEVICE_SPIR_VERSIONS, INDENT "SPIR versions", dev);
 	}
 
-	if (is_12) {
+	if (dev_is_12(&chk)) {
 		BOOL_PARAM(PREFERRED_INTEROP_USER_SYNC, "Prefer user sync for interops");
 		MEM_PARAM(PRINTF_BUFFER_SIZE, "printf() buffer size");
 		STR_PARAM(BUILT_IN_KERNELS, "Built-in kernels");
@@ -990,7 +1029,7 @@ printDeviceInfo(cl_uint d)
 	// misc. availability
 	BOOL_PARAM(AVAILABLE, "Device Available");
 	BOOL_PARAM(COMPILER_AVAILABLE, "Compiler Available");
-	if (is_12)
+	if (dev_is_12(&chk))
 		BOOL_PARAM(LINKER_AVAILABLE, "Linker Available");
 
 	// and finally the extensions
