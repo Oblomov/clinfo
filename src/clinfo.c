@@ -511,6 +511,31 @@ int device_info_devtype(cl_device_id dev, cl_device_info param, const char *pnam
 	return had_error;
 }
 
+int device_info_devtopo_amd(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk)
+{
+	cl_device_topology_amd val;
+	GET_VAL;
+	/* TODO how to do this in CLINFO_RAW mode */
+	if (!had_error) {
+		switch (val.raw.type) {
+		case 0:
+			snprintf(strbuf, bufsz, "(%s)", na);
+			break;
+		case CL_DEVICE_TOPOLOGY_TYPE_PCIE_AMD:
+			snprintf(strbuf, bufsz, "PCI-E, %02x:%02x.%u",
+				(cl_uchar)val.pcie.bus, val.pcie.device, val.pcie.function);
+			break;
+		default:
+			snprintf(strbuf, bufsz, "<unknown (%u): %u %u %u %u %u>", val.raw.type,
+				val.raw.data[0], val.raw.data[1], val.raw.data[2],
+				val.raw.data[3], val.raw.data[4]);
+		}
+	}
+	printf(I1_STR "%s\n", pname, strbuf);
+
+}
+
 /*
  * Device info traits
  */
@@ -541,7 +566,9 @@ struct device_info_traits dinfo_traits[] = {
 	/* extensions are only retrieved, not shown (until after the loop) */
 	DINFO(CL_DEVICE_EXTENSIONS, "Device Extensions", str_get),
 	DINFO(CL_DEVICE_TYPE, "Device Type", devtype),
-	DINFO(CL_DEVICE_PROFILE, "Device Profile", str)
+	DINFO(CL_DEVICE_PROFILE, "Device Profile", str),
+	DINFO_COND(CL_DEVICE_BOARD_NAME_AMD, "Device Board Name (AMD)", str, dev_has_amd),
+	DINFO_COND(CL_DEVICE_TOPOLOGY_AMD, "Device Topology (AMD)", devtopo_amd, dev_has_amd),
 };
 
 void
@@ -706,29 +733,6 @@ printDeviceInfo(cl_uint d)
 		}
 	}
 
-	if (dev_has_amd(&chk)) {
-		cl_device_topology_amd devtopo;
-
-		STR_PARAM(BOARD_NAME_AMD, "Board Name (AMD)");
-
-		GET_PARAM(TOPOLOGY_AMD, devtopo);
-		if (!had_error) {
-			switch (devtopo.raw.type) {
-			case 0:
-				snprintf(strbuf, bufsz, "(%s)", na);
-				break;
-			case CL_DEVICE_TOPOLOGY_TYPE_PCIE_AMD:
-				snprintf(strbuf, bufsz, "PCI-E, %02x:%02x.%u",
-					(cl_uchar)devtopo.pcie.bus, devtopo.pcie.device, devtopo.pcie.function);
-				break;
-			default:
-				snprintf(strbuf, bufsz, "<unknown (%u): %u %u %u %u %u>", devtopo.raw.type,
-					devtopo.raw.data[0], devtopo.raw.data[1], devtopo.raw.data[2],
-					devtopo.raw.data[3], devtopo.raw.data[4]);
-			}
-		}
-		STR_PRINT("Device Topology (AMD)", strbuf);
-	}
 	if (dev_has_nv(&chk)) {
 		cl_uint bus, slot;
 		GET_PARAM(PCI_BUS_ID_NV, bus);
