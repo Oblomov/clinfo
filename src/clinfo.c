@@ -29,8 +29,9 @@ cl_device_id *all_devices;
 cl_device_id *device;
 
 enum output_modes {
-	CLINFO_HUMAN, /* more human readable */
-	CLINFO_RAW /* property-by-property */
+	CLINFO_HUMAN = 1, /* more human readable */
+	CLINFO_RAW = 2, /* property-by-property */
+	CLINFO_BOTH = CLINFO_HUMAN | CLINFO_RAW
 };
 
 enum output_modes output_mode = CLINFO_HUMAN;
@@ -541,6 +542,7 @@ int device_info_devtopo_amd(cl_device_id dev, cl_device_info param, const char *
  */
 
 struct device_info_traits {
+	enum output_modes output_mode;
 	cl_device_info param; // CL_DEVICE_*
 	const char *sname; // "CL_DEVICE_*"
 	const char *pname; // "Device *"
@@ -551,24 +553,21 @@ struct device_info_traits {
 	int (*check_func)(const struct device_info_checks *);
 };
 
-#define DINFO_SFX_COND(symbol, name, sfx, typ, cond) { symbol, #symbol, name, sfx, device_info_##typ, cond }
-#define DINFO_SFX(symbol, name, sfx, typ) { symbol, #symbol, name, sfx, device_info_##typ, NULL }
-#define DINFO_COND(symbol, name, typ, cond) { symbol, #symbol, name, NULL, device_info_##typ, cond }
-#define DINFO(symbol, name, typ) { symbol, #symbol, name, NULL, device_info_##typ, NULL }
+#define DINFO_SFX(symbol, name, sfx, typ) symbol, #symbol, name, sfx, device_info_##typ
+#define DINFO(symbol, name, typ) symbol, #symbol, name, NULL, device_info_##typ
 
 struct device_info_traits dinfo_traits[] = {
-	DINFO(CL_DEVICE_NAME, "Device Name", str),
-	DINFO(CL_DEVICE_VENDOR, "Device Vendor", str),
-	DINFO(CL_DEVICE_VENDOR_ID, "Device Vendor ID", hex),
-	DINFO(CL_DEVICE_VERSION, "Device Version", str),
-	DINFO(CL_DRIVER_VERSION, "Driver Version", str),
-	DINFO(CL_DEVICE_OPENCL_C_VERSION, "Device OpenCL C Version", str),
-	/* extensions are only retrieved, not shown (until after the loop) */
-	DINFO(CL_DEVICE_EXTENSIONS, "Device Extensions", str_get),
-	DINFO(CL_DEVICE_TYPE, "Device Type", devtype),
-	DINFO(CL_DEVICE_PROFILE, "Device Profile", str),
-	DINFO_COND(CL_DEVICE_BOARD_NAME_AMD, "Device Board Name (AMD)", str, dev_has_amd),
-	DINFO_COND(CL_DEVICE_TOPOLOGY_AMD, "Device Topology (AMD)", devtopo_amd, dev_has_amd),
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_NAME, "Device Name", str), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_VENDOR, "Device Vendor", str), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_VENDOR_ID, "Device Vendor ID", hex), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_VERSION, "Device Version", str), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DRIVER_VERSION, "Driver Version", str), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_OPENCL_C_VERSION, "Device OpenCL C Version", str), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_EXTENSIONS, "Device Extensions", str_get), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_TYPE, "Device Type", devtype), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_PROFILE, "Device Profile", str), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_BOARD_NAME_AMD, "Device Board Name (AMD)", str), dev_has_amd },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_TOPOLOGY_AMD, "Device Topology (AMD)", devtopo_amd), dev_has_amd }
 };
 
 void
@@ -693,6 +692,10 @@ printDeviceInfo(cl_uint d)
 	for (current_line = 0; current_line < ARRAY_SIZE(dinfo_traits); ++current_line) {
 		const struct device_info_traits *traits = dinfo_traits + current_line;
 		current_param = traits->sname;
+
+		/* skip if it's not for this output mode */
+		if (!(output_mode & traits->output_mode))
+			continue;
 
 		if (traits->check_func && !traits->check_func(&chk))
 			continue;
