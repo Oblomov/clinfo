@@ -28,6 +28,13 @@ cl_uint num_devs_all;
 cl_device_id *all_devices;
 cl_device_id *device;
 
+enum output_modes {
+	CLINFO_HUMAN, /* more human readable */
+	CLINFO_RAW /* property-by-property */
+};
+
+enum output_modes output_mode = CLINFO_HUMAN;
+
 static const char unk[] = "Unknown";
 static const char none[] = "None";
 static const char na[] = "n/a"; // not available
@@ -137,7 +144,9 @@ printPlatformInfo(cl_uint p)
 		if (traits->check_func && !traits->check_func(&pinfo_checks))
 			continue;
 
-		had_error = platform_info_str(pid, traits->param, traits->pname);
+		had_error = platform_info_str(pid, traits->param,
+			output_mode == CLINFO_HUMAN ?
+			traits->pname : traits->sname);
 
 		if (had_error)
 			continue;
@@ -988,9 +997,13 @@ printDeviceInfo(cl_uint d)
 	printf(I1_STR "%s\n", "Device Extensions", extensions); \
 }
 
-int main(void)
+int main(int argc, char *argv[])
 {
 	cl_uint p, d;
+
+	/* if there's a 'raw' in the program name, switch to raw output mode */
+	if (strstr(argv[0], "raw"))
+		output_mode = CLINFO_RAW;
 
 	ALLOC(strbuf, 1024, "general string buffer");
 	bufsz = 1024;
