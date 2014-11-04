@@ -512,6 +512,27 @@ int device_info_devtype(cl_device_id dev, cl_device_info param, const char *pnam
 	return had_error;
 }
 
+/* stringify a cl_device_topology_amd */
+int devtopo_str(const cl_device_topology_amd *devtopo)
+{
+	switch (devtopo->raw.type) {
+	case 0:
+		snprintf(strbuf, bufsz, "(%s)", na);
+		break;
+	case CL_DEVICE_TOPOLOGY_TYPE_PCIE_AMD:
+		snprintf(strbuf, bufsz, "PCI-E, %02x:%02x.%u",
+			(cl_uchar)(devtopo->pcie.bus),
+			devtopo->pcie.device, devtopo->pcie.function);
+		break;
+	default:
+		snprintf(strbuf, bufsz, "<unknown (%u): %u %u %u %u %u>",
+			devtopo->raw.type,
+			devtopo->raw.data[0], devtopo->raw.data[1],
+			devtopo->raw.data[2],
+			devtopo->raw.data[3], devtopo->raw.data[4]);
+	}
+}
+
 int device_info_devtopo_amd(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
@@ -519,22 +540,38 @@ int device_info_devtopo_amd(cl_device_id dev, cl_device_info param, const char *
 	GET_VAL;
 	/* TODO how to do this in CLINFO_RAW mode */
 	if (!had_error) {
-		switch (val.raw.type) {
-		case 0:
-			snprintf(strbuf, bufsz, "(%s)", na);
-			break;
-		case CL_DEVICE_TOPOLOGY_TYPE_PCIE_AMD:
-			snprintf(strbuf, bufsz, "PCI-E, %02x:%02x.%u",
-				(cl_uchar)val.pcie.bus, val.pcie.device, val.pcie.function);
-			break;
-		default:
-			snprintf(strbuf, bufsz, "<unknown (%u): %u %u %u %u %u>", val.raw.type,
-				val.raw.data[0], val.raw.data[1], val.raw.data[2],
-				val.raw.data[3], val.raw.data[4]);
-		}
+		devtopo_str(&val);
 	}
 	printf(I1_STR "%s\n", pname, strbuf);
+}
 
+/* we assemble a cl_device_topology_amd struct from the NVIDIA info */
+int device_info_devtopo_nv(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk)
+{
+	cl_device_topology_amd devtopo;
+	cl_uint val;
+
+	devtopo.raw.type = CL_DEVICE_TOPOLOGY_TYPE_PCIE_AMD;
+
+	GET_VAL; /* CL_DEVICE_PCI_BUS_ID_NV */
+
+	if (!had_error) {
+		devtopo.pcie.bus = val & 0xff;
+
+		param = CL_DEVICE_PCI_SLOT_ID_NV;
+		current_param = "CL_DEVICE_PCI_SLOT_ID_NV";
+
+		GET_VAL;
+
+		if (!had_error) {
+			devtopo.pcie.device = val >> 3;
+			devtopo.pcie.function = val & 7;
+			devtopo_str(&devtopo);
+		}
+	}
+
+	printf(I1_STR "%s\n", pname, strbuf);
 }
 
 /*
@@ -567,7 +604,12 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_TYPE, "Device Type", devtype), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_PROFILE, "Device Profile", str), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_BOARD_NAME_AMD, "Device Board Name (AMD)", str), dev_has_amd },
-	{ CLINFO_BOTH, DINFO(CL_DEVICE_TOPOLOGY_AMD, "Device Topology (AMD)", devtopo_amd), dev_has_amd }
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_TOPOLOGY_AMD, "Device Topology (AMD)", devtopo_amd), dev_has_amd },
+
+	/* Device Topology (NV) is multipart, so different for HUMAN and RAW */
+	{ CLINFO_HUMAN, DINFO(CL_DEVICE_PCI_BUS_ID_NV, "Device Topology (NV)", devtopo_nv), dev_has_nv },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_PCI_BUS_ID_NV, "Device PCI bus (NV)", int), dev_has_nv },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_PCI_SLOT_ID_NV, "Device PCI slot (NV)", int), dev_has_nv },
 };
 
 void
@@ -734,16 +776,6 @@ printDeviceInfo(cl_uint d)
 			/* do nothing */
 			break;
 		}
-	}
-
-	if (dev_has_nv(&chk)) {
-		cl_uint bus, slot;
-		GET_PARAM(PCI_BUS_ID_NV, bus);
-		if (!had_error)
-			GET_PARAM(PCI_SLOT_ID_NV, slot);
-		if (!had_error)
-			snprintf(strbuf, bufsz, "PCI-E, %02x:%02x.%x", bus, slot >> 3, slot & 7);
-		STR_PRINT("Device Topology (NV)", strbuf);
 	}
 
 	// compute units and clock
