@@ -56,6 +56,10 @@ static const char* sources[] = {
 	"KRN()\n/* KRN(2)\nKRN(4)\nKRN(8)\nKRN(16) */\n",
 };
 
+static const char empty_str[] = "";
+static const char comma_str[] = ", ";
+static const char vbar_str[] = " | ";
+
 /* preferred workgroup size multiple for each kernel
  * have not found a platform where the WG multiple changes,
  * but keep this flexible (this can grow up to 5)
@@ -131,7 +135,6 @@ printPlatformInfo(cl_uint p)
 {
 	cl_platform_id pid = platform[p];
 	size_t len = 0;
-	int had_error = 0;
 
 	struct platform_info_checks pinfo_checks = { 0 };
 
@@ -287,6 +290,10 @@ getOpenCLVersion(const char *version)
 	return ret;
 }
 
+/*
+ * Device properties/extensions used in traits checks, and relevant functions
+ */
+
 struct device_info_checks {
 	cl_device_type devtype;
 	char has_half[12];
@@ -349,6 +356,105 @@ int dev_has_svm(const struct device_info_checks *chk)
 	return dev_is_20(chk) || dev_has_svm_ext(chk);
 }
 
+/*
+ * Device info print functions
+ */
+
+const char *cur_sfx = empty_str;
+
+#define _GET_VAL \
+	error = clGetDeviceInfo(dev, param, sizeof(val), &val, 0); \
+	had_error = REPORT_ERROR2("get %s");
+
+#define GET_VAL do { \
+	_GET_VAL \
+} while (0)
+
+#define _FMT_VAL(fmt) \
+	if (had_error) \
+		printf(I1_STR "%s\n", pname, strbuf); \
+	else \
+		printf(I1_STR fmt "%s\n", pname, val, cur_sfx);
+
+#define FMT_VAL(fmt) do { \
+	_FMT_VAL(fmt) \
+} while (0)
+
+#define SHOW_VAL(fmt) do { \
+	_GET_VAL \
+	_FMT_VAL(fmt) \
+} while (0)
+
+#define DEFINE_DEVINFO_SHOW(how, type, fmt) \
+int device_info_##how(cl_device_id dev, cl_device_info param, const char *pname, \
+	const struct device_info_checks *chk) \
+{ \
+	type val; \
+	SHOW_VAL(fmt); \
+}
+
+int device_info_str(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk)
+{
+	error = clGetDeviceInfo(dev, param, 0, NULL, &nusz);
+	if (nusz > bufsz) {
+		REALLOC(strbuf, nusz, current_param);
+		bufsz = nusz;
+	}
+	had_error = REPORT_ERROR2("get %s size");
+	if (!had_error) {
+		error = clGetDeviceInfo(dev, param, bufsz, strbuf, 0);
+		had_error = REPORT_ERROR2("get %s");
+	}
+	printf(I1_STR "%s\n", pname, skip_leading_ws(strbuf));
+	return had_error;
+}
+
+DEFINE_DEVINFO_SHOW(int, cl_uint, "%u")
+DEFINE_DEVINFO_SHOW(hex, cl_uint, "0x%x")
+DEFINE_DEVINFO_SHOW(long, cl_ulong, "%lu")
+DEFINE_DEVINFO_SHOW(sz, size_t, "%" PRIuS)
+
+int device_info_bool(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk)
+{
+	cl_bool val;
+	GET_VAL;
+	if (had_error)
+		printf(I1_STR "%s\n", pname, strbuf);
+	else
+		printf(I1_STR "%s%s\n", pname, bool_str[val], cur_sfx);
+}
+
+/*
+ * Device info traits
+ */
+
+struct device_info_traits {
+	cl_device_info param; // CL_DEVICE_*
+	const char *sname; // "CL_DEVICE_*"
+	const char *pname; // "Device *"
+	const char *sfx; // suffix for the output in non-raw mode
+	/* pointer to function that shows the parameter */
+	int (*show_func)(cl_device_id dev, cl_device_info param, const char *pname, const struct device_info_checks *);
+	/* pointer to function that checks if the parameter should be checked */
+	int (*check_func)(const struct device_info_checks *);
+};
+
+#define DINFO_SFX_COND(symbol, name, sfx, typ, cond) { symbol, #symbol, name, sfx, device_info_##typ, cond }
+#define DINFO_SFX(symbol, name, sfx, typ) { symbol, #symbol, name, sfx, device_info_##typ, NULL }
+#define DINFO_COND(symbol, name, typ, cond) { symbol, #symbol, name, NULL, device_info_##typ, cond }
+#define DINFO(symbol, name, typ) { symbol, #symbol, name, NULL, device_info_##typ, NULL }
+
+struct device_info_traits dinfo_traits[] = {
+	DINFO(CL_DEVICE_NAME, "Device Name", str),
+	DINFO(CL_DEVICE_VENDOR, "Device Vendor", str),
+	DINFO(CL_DEVICE_VENDOR_ID, "Device Vendor ID", hex),
+	DINFO(CL_DEVICE_VERSION, "Device Version", str),
+	DINFO(CL_DRIVER_VERSION, "Driver Version", str),
+	DINFO(CL_DEVICE_OPENCL_C_VERSION, "Device OpenCL C Version", str)
+};
+
 void
 printDeviceInfo(cl_uint d)
 {
@@ -383,9 +489,9 @@ printDeviceInfo(cl_uint d)
 
 	char* extensions;
 
-	// these will hold the string from which we detected extension support
 	struct device_info_checks chk;
 	memset(&chk, 0, sizeof(chk));
+	chk.dev_version = 10;
 
 #define KB UINT64_C(1024)
 #define MB (KB*KB)
@@ -463,20 +569,31 @@ printDeviceInfo(cl_uint d)
 	} \
 } while (0)
 
-	// device name
-	STR_PARAM(NAME, "Name");
-	STR_PARAM(VENDOR, "Vendor");
-	HEX_PARAM(VENDOR_ID, "Device Vendor ID");
-	STR_PARAM(VERSION, "Version");
-	// skip "OpenCL "
-	chk.dev_version = getOpenCLVersion(strbuf + 7);
-#if 0 // debug OpenCL version detection
-	printf("==> CL%u (is_12: %s, is_20: %s)\n",
-		dev_version, bool_str[dev_is_12(&chk)], bool_str[dev_is_20(&chk)]);
-#endif
+	current_function = __func__;
 
-	SHOW_STRING(clGetDeviceInfo, CL_DRIVER_VERSION, "Driver Version", dev);
-	STR_PARAM(OPENCL_C_VERSION, "OpenCL C Version");
+	for (current_line = 0; current_line < ARRAY_SIZE(dinfo_traits); ++current_line) {
+		const struct device_info_traits *traits = dinfo_traits + current_line;
+		current_param = traits->sname;
+
+		if (traits->check_func && !traits->check_func(&chk))
+			continue;
+
+		had_error = traits->show_func(dev, traits->param,
+			output_mode == CLINFO_HUMAN ?
+			traits->pname : traits->sname,
+			&chk);
+
+		if (had_error)
+			continue;
+
+		switch (traits->param) {
+		case CL_DEVICE_VERSION:
+			chk.dev_version = getOpenCLVersion(strbuf + 7);
+		default:
+			/* do nothing */
+			break;
+		}
+	}
 
 	// we get the extensions information here, but only print it at the end
 	GET_STRING(clGetDeviceInfo, CL_DEVICE_EXTENSIONS, "CL_DEVICE_EXTENSIONS", dev);
