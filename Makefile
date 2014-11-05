@@ -12,6 +12,8 @@ else
   LDLIBS=-lOpenCL
 endif
 
+CFLAGS=-g -Wall
+
 clinfo:
 
 clinfo.o: clinfo.c $(HDR)
