@@ -20,6 +20,8 @@
 #include "memory.h"
 #include "strbuf.h"
 
+#define ARRAY_SIZE(ar) (sizeof(ar)/sizeof(*ar))
+
 cl_uint num_platforms;
 cl_platform_id *platform;
 char **platform_name;
@@ -43,12 +45,51 @@ static const char fpsupp[] = "Floating-point support";
 
 static const char* bool_str[] = { "No", "Yes" };
 static const char* endian_str[] = { "Big-Endian", "Little-Endian" };
+
 static const char* device_type_str[] = { unk, "Default", "CPU", "GPU", "Accelerator", "Custom" };
 static const char* device_type_raw_str[] = { unk,
 	"CL_DEVICE_TYPE_DEFAULT", "CL_DEVICE_TYPE_CPU", "CL_DEVICE_TYPE_GPU",
 	"CL_DEVICE_TYPE_ACCELERATOR", "CL_DEVICE_TYPE_CUSTOM"
 };
-static const size_t device_type_str_count = sizeof(device_type_str)/sizeof(*device_type_str);
+static const size_t device_type_str_count = ARRAY_SIZE(device_type_str);
+
+static const char* partition_type_str[] = {
+	"none specified", "none", "equally", "by counts", "by affinity domain", "by names (Intel)"
+};
+static const char* partition_type_raw_str[] = {
+	"NONE SPECIFIED",
+	"NONE",
+	"CL_DEVICE_PARTITION_EQUALLY_EXT",
+	"CL_DEVICE_PARTITION_BY_COUNTS_EXT",
+	"CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN_EXT",
+	"CL_DEVICE_PARTITION_BY_NAMES_INTEL_EXT"
+};
+
+static const char* affinity_domain_str[] = {
+	"NUMA", "L4 cache", "L3 cache", "L2 cache", "L1 cache", "next partitionalbe"
+};
+
+static const char* affinity_domain_raw_str[] = {
+	"CL_DEVICE_AFFINITY_DOMAIN_NUMA",
+	"CL_DEVICE_AFFINITY_DOMAIN_L4_CACHE",
+	"CL_DEVICE_AFFINITY_DOMAIN_L3_CACHE",
+	"CL_DEVICE_AFFINITY_DOMAIN_L2_CACHE",
+	"CL_DEVICE_AFFINITY_DOMAIN_L1_CACHE",
+	"CL_DEVICE_AFFINITY_DOMAIN_NEXT_PARTITIONABLE"
+};
+
+static const char* affinity_domain_raw_ext_str[] = {
+	"CL_AFFINITY_DOMAIN_NUMA_EXT",
+	"CL_AFFINITY_DOMAIN_L4_CACHE_EXT",
+	"CL_AFFINITY_DOMAIN_L3_CACHE_EXT",
+	"CL_AFFINITY_DOMAIN_L2_CACHE_EXT",
+	"CL_AFFINITY_DOMAIN_L1_CACHE_EXT",
+	"CL_AFFINITY_DOMAIN_NEXT_FISSIONABLE_EXT"
+};
+
+
+const size_t affinity_domain_count = ARRAY_SIZE(affinity_domain_str);
+
 static const char* local_mem_type_str[] = { none, "Local", "Global" };
 static const char* cache_type_str[] = { none, "Read-Only", "Read/Write" };
 
@@ -71,8 +112,6 @@ static const char vbar_str[] = " | ";
  */
 #define NUM_KERNELS 1
 size_t wgm[NUM_KERNELS];
-
-#define ARRAY_SIZE(ar) (sizeof(ar)/sizeof(*ar))
 
 #define INDENT "  "
 #define I0_STR "%-48s  "
@@ -316,40 +355,6 @@ struct device_info_checks {
 	cl_uint dev_version;
 };
 
-void identify_device_extensions(const char *extensions, struct device_info_checks *chk)
-{
-#define _HAS_EXT(ext) (strstr(extensions, ext))
-#define HAS_EXT(ext) _HAS_EXT(#ext)
-#define CPY_EXT(what, ext) do { \
-	strncpy(chk->has_##what, has, sizeof(ext)); \
-	chk->has_##what[sizeof(ext)-1] = '\0'; \
-} while (0)
-#define CHECK_EXT(what, ext) do { \
-	has = _HAS_EXT(#ext); \
-	if (has) CPY_EXT(what, #ext); \
-} while(0)
-
-	char *has;
-	CHECK_EXT(half, cl_khr_fp16);
-	CHECK_EXT(double, cl_khr_fp64);
-	CHECK_EXT(spir, cl_khr_spir);
-	if (dev_has_double(&chk))
-		CHECK_EXT(double, cl_amd_fp64);
-	if (dev_has_double(&chk))
-		CHECK_EXT(double, cl_APPLE_fp64_basic_ops);
-		CHECK_EXT(nv, cl_nv_device_attribute_query);
-		CHECK_EXT(amd, cl_amd_device_attribute_query);
-		CHECK_EXT(svm_ext, cl_amd_svm);
-		CHECK_EXT(fission, cl_ext_device_fission);
-		CHECK_EXT(atomic_counters, cl_ext_atomic_counters_64);
-	if (dev_has_atomic_counters(&chk))
-		CHECK_EXT(atomic_counters, cl_ext_atomic_counters_32);
-		CHECK_EXT(image2d_buffer, cl_khr_image2d_from_buffer);
-		CHECK_EXT(intel_local_thread, cl_intel_exec_by_local_thread);
-		CHECK_EXT(altera_dev_temp, cl_altera_device_temperature);
-		CHECK_EXT(qcom_ext_host_ptr, cl_qcom_ext_host_ptr);
-}
-
 #define DEFINE_EXT_CHECK(ext) int dev_has_##ext(const struct device_info_checks *chk) \
 { \
 	return !!(chk->has_##ext[0]); \
@@ -395,6 +400,42 @@ int dev_has_svm(const struct device_info_checks *chk)
 	return dev_is_20(chk) || dev_has_svm_ext(chk);
 }
 
+void identify_device_extensions(const char *extensions, struct device_info_checks *chk)
+{
+#define _HAS_EXT(ext) (strstr(extensions, ext))
+#define HAS_EXT(ext) _HAS_EXT(#ext)
+#define CPY_EXT(what, ext) do { \
+	strncpy(chk->has_##what, has, sizeof(ext)); \
+	chk->has_##what[sizeof(ext)-1] = '\0'; \
+} while (0)
+#define CHECK_EXT(what, ext) do { \
+	has = _HAS_EXT(#ext); \
+	if (has) CPY_EXT(what, #ext); \
+} while(0)
+
+	char *has;
+	CHECK_EXT(half, cl_khr_fp16);
+	CHECK_EXT(double, cl_khr_fp64);
+	CHECK_EXT(spir, cl_khr_spir);
+	if (dev_has_double(chk))
+		CHECK_EXT(double, cl_amd_fp64);
+	if (dev_has_double(chk))
+		CHECK_EXT(double, cl_APPLE_fp64_basic_ops);
+	CHECK_EXT(nv, cl_nv_device_attribute_query);
+	CHECK_EXT(amd, cl_amd_device_attribute_query);
+	CHECK_EXT(svm_ext, cl_amd_svm);
+	CHECK_EXT(fission, cl_ext_device_fission);
+	CHECK_EXT(atomic_counters, cl_ext_atomic_counters_64);
+	if (dev_has_atomic_counters(chk))
+		CHECK_EXT(atomic_counters, cl_ext_atomic_counters_32);
+	CHECK_EXT(image2d_buffer, cl_khr_image2d_from_buffer);
+	CHECK_EXT(intel_local_thread, cl_intel_exec_by_local_thread);
+	CHECK_EXT(altera_dev_temp, cl_altera_device_temperature);
+	CHECK_EXT(qcom_ext_host_ptr, cl_qcom_ext_host_ptr);
+}
+
+
+
 /*
  * Device info print functions
  */
@@ -405,8 +446,22 @@ const char *cur_sfx = empty_str;
 	error = clGetDeviceInfo(dev, param, sizeof(val), &val, 0); \
 	had_error = REPORT_ERROR2("get %s");
 
+#define _GET_VAL_ARRAY \
+	error = clGetDeviceInfo(dev, param, 0, NULL, &szval); \
+	had_error = REPORT_ERROR2("get number of %s"); \
+	numval = szval/sizeof(val); \
+	if (!had_error) { \
+		REALLOC(val, numval, current_param); \
+		error = clGetDeviceInfo(dev, param, szval, val, NULL); \
+		had_error = REPORT_ERROR("get %s"); \
+	}
+
 #define GET_VAL do { \
 	_GET_VAL \
+} while (0)
+
+#define GET_VAL_ARRAY do { \
+	_GET_VAL_ARRAY \
 } while (0)
 
 #define _FMT_VAL(fmt) \
@@ -430,6 +485,7 @@ int device_info_##how(cl_device_id dev, cl_device_info param, const char *pname,
 { \
 	type val; \
 	SHOW_VAL(fmt); \
+	return had_error; \
 }
 
 /* Get string-type info without showing it */
@@ -471,6 +527,7 @@ int device_info_bool(cl_device_id dev, cl_device_info param, const char *pname,
 		printf(I1_STR "%s\n", pname, strbuf);
 	else
 		printf(I1_STR "%s%s\n", pname, bool_str[val], cur_sfx);
+	return had_error;
 }
 
 int device_info_devtype(cl_device_id dev, cl_device_info param, const char *pname,
@@ -513,7 +570,7 @@ int device_info_devtype(cl_device_id dev, cl_device_info param, const char *pnam
 }
 
 /* stringify a cl_device_topology_amd */
-int devtopo_str(const cl_device_topology_amd *devtopo)
+void devtopo_str(const cl_device_topology_amd *devtopo)
 {
 	switch (devtopo->raw.type) {
 	case 0:
@@ -543,6 +600,7 @@ int device_info_devtopo_amd(cl_device_id dev, cl_device_info param, const char *
 		devtopo_str(&val);
 	}
 	printf(I1_STR "%s\n", pname, strbuf);
+	return had_error;
 }
 
 /* we assemble a cl_device_topology_amd struct from the NVIDIA info */
@@ -572,6 +630,7 @@ int device_info_devtopo_nv(cl_device_id dev, cl_device_info param, const char *p
 	}
 
 	printf(I1_STR "%s\n", pname, strbuf);
+	return had_error;
 }
 
 /* NVIDIA Compute Capability */
@@ -590,6 +649,229 @@ int device_info_cc_nv(cl_device_id dev, cl_device_info param, const char *pname,
 	}
 
 	printf(I1_STR "%s\n", pname, strbuf);
+	return had_error;
+}
+
+/* Device Parition, CLINFO_HUMAN header */
+int device_info_partition_header(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk)
+{
+	size_t szval = 0;
+	if (dev_is_12(chk)) {
+		/* include the comma only if the device also supports fission */
+		size_t corelen = chk->has_fission[0] ? 6 : 4;
+		strncpy(strbuf + szval, "core, ", corelen);
+		szval += corelen;
+	}
+	if (dev_has_fission(chk)) {
+		strcpy(strbuf + szval, chk->has_fission);
+		szval += strlen(chk->has_fission);
+	}
+	strbuf[szval] = 0;
+
+	printf(I1_STR "(%s)\n", pname, szval ? strbuf : na);
+	had_error = CL_SUCCESS;
+	return had_error;
+}
+
+/* Device partition properties */
+int device_info_partition_types(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk)
+{
+	size_t numval, szval, cursor, slen;
+	cl_device_partition_property *val = NULL;
+
+	const char *sep = (output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
+	size_t sepsz = (output_mode == CLINFO_HUMAN ? 2 : 3);
+	const char * const *ptstr = (output_mode == CLINFO_HUMAN ?
+		partition_type_str : partition_type_raw_str);
+
+	GET_VAL_ARRAY;
+
+	szval = 0;
+	if (!had_error) {
+		for (cursor = 0; cursor < numval; ++cursor) {
+			int str_idx = -1;
+
+			/* add separator for values past the first */
+			if (szval > 0) {
+				strcpy(strbuf + szval, sep);
+				szval += sepsz;
+			}
+
+			switch (val[cursor]) {
+			case 0: str_idx = 1; break;
+			case CL_DEVICE_PARTITION_EQUALLY: str_idx = 2; break;
+			case CL_DEVICE_PARTITION_BY_COUNTS: str_idx = 3; break;
+			case CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN: str_idx = 4; break;
+			case CL_DEVICE_PARTITION_BY_NAMES_INTEL: str_idx = 5; break;
+			default:
+				szval += sprintf(strbuf + szval, "by <unknown> (0x%" PRIXPTR ")", val[cursor]);
+				break;
+			}
+			if (str_idx > 0) {
+				/* string length, minus _EXT */
+				slen = strlen(ptstr[str_idx]);
+				if (output_mode == CLINFO_RAW && str_idx > 1)
+					slen -= 4;
+				strncpy(strbuf + szval, ptstr[str_idx], slen);
+				szval += slen;
+			}
+		}
+		if (szval == 0) {
+			slen = strlen(ptstr[0]);
+			strcpy(strbuf, ptstr[0]);
+			szval += slen;
+		}
+		strbuf[szval] = '\0';
+	}
+
+	printf(I1_STR "%s\n", pname, strbuf);
+
+	free(val);
+	return had_error;
+}
+
+int device_info_partition_types_ext(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk)
+{
+	size_t numval, szval, cursor, slen;
+	cl_device_partition_property_ext *val = NULL;
+
+	const char *sep = (output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
+	size_t sepsz = (output_mode == CLINFO_HUMAN ? 2 : 3);
+	const char * const *ptstr = (output_mode == CLINFO_HUMAN ?
+		partition_type_str : partition_type_raw_str);
+
+	GET_VAL_ARRAY;
+
+	szval = 0;
+	if (!had_error) {
+		for (cursor = 0; cursor < numval; ++cursor) {
+			int str_idx = -1;
+
+			/* add separator for values past the first */
+			if (szval > 0) {
+				strcpy(strbuf + szval, sep);
+				szval += sepsz;
+			}
+
+			switch (val[cursor]) {
+			case 0: str_idx = 1; break;
+			case CL_DEVICE_PARTITION_EQUALLY_EXT: str_idx = 2; break;
+			case CL_DEVICE_PARTITION_BY_COUNTS_EXT: str_idx = 3; break;
+			case CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN_EXT: str_idx = 4; break;
+			case CL_DEVICE_PARTITION_BY_NAMES_EXT: str_idx = 5; break;
+			default:
+				szval += sprintf(strbuf + szval, "by <unknown> (0x%" PRIXPTR ")", val[cursor]);
+				break;
+			}
+			if (str_idx > 0) {
+				/* string length */
+				slen = strlen(ptstr[str_idx]);
+				strncpy(strbuf + szval, ptstr[str_idx], slen);
+				szval += slen;
+			}
+		}
+		if (szval == 0) {
+			slen = strlen(ptstr[0]);
+			strcpy(strbuf, ptstr[0]);
+			szval += slen;
+		}
+		strbuf[szval] = '\0';
+	}
+
+	printf(I1_STR "%s\n", pname, strbuf);
+
+	free(val);
+	return had_error;
+}
+
+
+/* Device partition affinity domains */
+int device_info_partition_affinities(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk)
+{
+	cl_device_affinity_domain val;
+	GET_VAL;
+	if (!had_error && val) {
+		/* iterate over affinity domain strings appending their textual form
+		 * to strbuf
+		 * TODO: check for extra bits/no bits
+		 */
+		size_t szval = 0;
+		cl_uint i = 0;
+		const char *sep = (output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
+		size_t sepsz = (output_mode == CLINFO_HUMAN ? 2 : 3);
+		const char * const *affstr = (output_mode == CLINFO_HUMAN ?
+			affinity_domain_str : affinity_domain_raw_str);
+		for (i = 0; i < affinity_domain_count; ++i) {
+			cl_device_affinity_domain cur = (cl_device_affinity_domain)(1) << i;
+			if (val & cur) {
+				/* match: add separator if not first match */
+				if (szval > 0) {
+					strcpy(strbuf + szval, sep);
+					szval += sepsz;
+				}
+				strcpy(strbuf + szval, affstr[i]);
+				szval += strlen(affstr[i]);
+			}
+		}
+	}
+	if (val || had_error)
+		printf(I1_STR "%s\n", pname, strbuf);
+	return had_error;
+}
+
+int device_info_partition_affinities_ext(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk)
+{
+	size_t numval, szval, cursor, slen;
+	cl_device_partition_property_ext *val = NULL;
+
+	const char *sep = (output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
+	size_t sepsz = (output_mode == CLINFO_HUMAN ? 2 : 3);
+	const char * const *ptstr = (output_mode == CLINFO_HUMAN ?
+		affinity_domain_str : affinity_domain_raw_ext_str);
+
+	GET_VAL_ARRAY;
+
+	szval = 0;
+	if (!had_error) {
+		for (cursor = 0; cursor < numval; ++cursor) {
+			int str_idx = -1;
+
+			/* add separator for values past the first */
+			if (szval > 0) {
+				strcpy(strbuf + szval, sep);
+				szval += sepsz;
+			}
+
+			switch (val[cursor]) {
+			case CL_AFFINITY_DOMAIN_NUMA_EXT: str_idx = 0; break;
+			case CL_AFFINITY_DOMAIN_L4_CACHE_EXT: str_idx = 1; break;
+			case CL_AFFINITY_DOMAIN_L3_CACHE_EXT: str_idx = 2; break;
+			case CL_AFFINITY_DOMAIN_L2_CACHE_EXT: str_idx = 3; break;
+			case CL_AFFINITY_DOMAIN_L1_CACHE_EXT: str_idx = 4; break;
+			case CL_AFFINITY_DOMAIN_NEXT_FISSIONABLE_EXT: str_idx = 5; break;
+			default:
+				szval += sprintf(strbuf + szval, "<unknown> (0x%" PRIX64 ")", val[cursor]);
+				break;
+			}
+			if (str_idx >= 0) {
+				/* string length */
+				slen = strlen(ptstr[str_idx]);
+				strncpy(strbuf + szval, ptstr[str_idx], slen);
+				szval += slen;
+			}
+		}
+		strbuf[szval] = '\0';
+	}
+
+	printf(I1_STR "%s\n", pname, strbuf);
+
+	free(val);
+	return had_error;
 }
 
 /*
@@ -642,13 +924,20 @@ struct device_info_traits dinfo_traits[] = {
 
 	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_CORE_TEMPERATURE_ALTERA, "Core Temperature (Altera)", " C", int), dev_has_altera_dev_temp },
 
+	/* Device partition support: summary is only presented in HUMAN case */
+	{ CLINFO_HUMAN, DINFO(CL_DEVICE_PARTITION_MAX_SUB_DEVICES, "Device Partition", partition_header), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_PARTITION_MAX_SUB_DEVICES, INDENT "Max number of sub-devices", int), dev_is_12 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_PARTITION_PROPERTIES, INDENT "Supported partition types", partition_types), dev_is_12 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_PARTITION_AFFINITY_DOMAIN, INDENT "Supported affinity domains", partition_affinities), dev_is_12 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_PARTITION_TYPES_EXT, INDENT "Supported partition types (ext)", partition_types_ext), dev_has_fission },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_AFFINITY_DOMAINS_EXT, INDENT "Supported affinity domains (ext)", partition_affinities_ext), dev_has_fission },
+
 };
 
 void
 printDeviceInfo(cl_uint d)
 {
 	cl_device_id dev = device[d];
-	cl_device_type devtype;
 	cl_device_local_mem_type lmemtype;
 	cl_device_mem_cache_type cachetype;
 	cl_device_exec_capabilities execap;
@@ -656,15 +945,6 @@ printDeviceInfo(cl_uint d)
 	cl_platform_id pid;
 
 	cl_command_queue_properties queueprop;
-
-	cl_device_partition_property *partprop = NULL;
-	size_t numpartprop = 0;
-	cl_device_affinity_domain partdom;
-
-	cl_device_partition_property_ext *partprop_ext = NULL;
-	size_t numpartprop_ext = 0;
-	cl_device_partition_property_ext *partdom_ext = NULL;
-	size_t numpartdom_ext = 0;
 
 	cl_uint uintval, uintval2;
 	cl_uint cursor;
@@ -809,122 +1089,6 @@ printDeviceInfo(cl_uint d)
 		default:
 			/* do nothing */
 			break;
-		}
-	}
-
-	/* device fission, two different ways: core in 1.2, extension previously
-	 * platforms that suppot both might expose different properties (e.g., partition
-	 * by name is not considered in OpenCL 1.2, but an option with the extension
-	 */
-	szval = 0;
-	if (dev_is_12(&chk)) {
-		strncpy(strbuf + szval, "core, ", chk.has_fission[0] ? 6 : 4);
-		szval += (chk.has_fission[0] ? 6 : 4);
-	}
-	if (dev_has_fission(&chk)) {
-		strncpy(strbuf + szval, chk.has_fission, bufsz - (szval + 1));
-		szval += strlen(chk.has_fission);
-	}
-	strbuf[szval] = 0;
-
-	printf(I1_STR "(%s)\n", "Device Partition",
-		szval ? strbuf : na);
-	if (dev_is_12(&chk)) {
-		INT_PARAM(PARTITION_MAX_SUB_DEVICES, INDENT "Max number of sub-devices",);
-		GET_PARAM_ARRAY(PARTITION_PROPERTIES, partprop, szval);
-		numpartprop = szval/sizeof(*partprop);
-		printf(I2_STR, "Supported partition types");
-		for (cursor = 0; cursor < numpartprop ; ++cursor) {
-			switch(partprop[cursor]) {
-			case 0:
-				printf("none"); break;
-			case CL_DEVICE_PARTITION_EQUALLY:
-				printf("equally"); break;
-			case CL_DEVICE_PARTITION_BY_COUNTS:
-				printf("by counts"); break;
-			case CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN:
-				printf("by affinity domain"); break;
-			case CL_DEVICE_PARTITION_BY_NAMES_INTEL:
-				printf("by name (Intel extension)"); break;
-			default:
-				printf("by <unknown> (0x%" PRIXPTR ")", partprop[cursor]); break;
-			}
-			if (cursor < numpartprop - 1)
-				printf(", ");
-		}
-		if (numpartprop == 0) {
-			printf("none specified"); // different from none
-		}
-		puts("");
-		GET_PARAM(PARTITION_AFFINITY_DOMAIN, partdom);
-		if (partdom) {
-			cl_bool comma = CL_FALSE;
-			printf(I2_STR, "Supported affinity domains");
-#define CHECK_AFFINITY_FLAG(flag, text) do { \
-	if (partdom & CL_DEVICE_AFFINITY_DOMAIN_##flag) { \
-		printf("%s%s", (comma ? ", ": ""), text); comma = CL_TRUE; \
-	} \
-} while (0)
-#define CHECK_AFFINITY_CACHE(level) \
-	CHECK_AFFINITY_FLAG(level##_CACHE, #level " cache")
-
-			CHECK_AFFINITY_FLAG(NUMA, "NUMA");
-			CHECK_AFFINITY_CACHE(L1);
-			CHECK_AFFINITY_CACHE(L2);
-			CHECK_AFFINITY_CACHE(L3);
-			CHECK_AFFINITY_CACHE(L4);
-			CHECK_AFFINITY_FLAG(NEXT_PARTITIONABLE, "next partitionable");
-			puts("");
-		}
-	}
-	if (dev_has_fission(&chk)) {
-		GET_PARAM_ARRAY(PARTITION_TYPES_EXT, partprop_ext, szval);
-		numpartprop_ext = szval/sizeof(*partprop_ext);
-		printf(I2_STR, "Supported partition types (ext)");
-		for (cursor = 0; cursor < numpartprop_ext ; ++cursor) {
-			switch(partprop_ext[cursor]) {
-			case 0:
-				printf("none"); break;
-			case CL_DEVICE_PARTITION_EQUALLY_EXT:
-				printf("equally"); break;
-			case CL_DEVICE_PARTITION_BY_COUNTS_EXT:
-				printf("by counts"); break;
-			case CL_DEVICE_PARTITION_BY_NAMES_EXT:
-				printf("by names"); break;
-			case CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN_EXT:
-				printf("by affinity domain"); break;
-			default:
-				printf("by <unknown> (0x%" PRIX64 ")", partprop_ext[cursor]); break;
-			}
-			if (cursor < numpartprop_ext - 1)
-				printf(", ");
-		}
-		puts("");
-		GET_PARAM_ARRAY(AFFINITY_DOMAINS_EXT, partdom_ext, szval);
-		numpartdom_ext = szval/sizeof(*partdom_ext);
-		if (numpartdom_ext) {
-			printf(I2_STR, "Supported affinity domains (ext)");
-#define CASE_CACHE(level) \
-	case CL_AFFINITY_DOMAIN_##level##_CACHE_EXT: \
-		printf(#level " cache")
-			for (cursor = 0; cursor < numpartdom_ext ; ++cursor) {
-				switch(partdom_ext[cursor]) {
-				CASE_CACHE(L1); break;
-				CASE_CACHE(L2); break;
-				CASE_CACHE(L3); break;
-				CASE_CACHE(L4); break;
-				case CL_AFFINITY_DOMAIN_NUMA_EXT:
-					printf("NUMA"); break;
-				case CL_AFFINITY_DOMAIN_NEXT_FISSIONABLE_EXT:
-					printf("next fissionable"); break;
-				default:
-					printf("<unknown> (0x%" PRIX64 ")", partdom_ext[cursor]);
-					break;
-				}
-				if (cursor < numpartdom_ext - 1)
-					printf(", ");
-			}
-			puts("");
 		}
 	}
 
@@ -1306,4 +1470,5 @@ int main(int argc, char *argv[])
 		if (p < num_platforms - 1)
 			puts("");
 	}
+	return 0;
 }
