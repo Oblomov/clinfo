@@ -417,11 +417,11 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 
 	char *has;
 	CHECK_EXT(half, cl_khr_fp16);
-	CHECK_EXT(double, cl_khr_fp64);
 	CHECK_EXT(spir, cl_khr_spir);
-	if (dev_has_double(chk))
+	CHECK_EXT(double, cl_khr_fp64);
+	if (!dev_has_double(chk))
 		CHECK_EXT(double, cl_amd_fp64);
-	if (dev_has_double(chk))
+	if (!dev_has_double(chk))
 		CHECK_EXT(double, cl_APPLE_fp64_basic_ops);
 	CHECK_EXT(nv, cl_nv_device_attribute_query);
 	CHECK_EXT(amd, cl_amd_device_attribute_query);
