@@ -1043,6 +1043,29 @@ int device_info_fpconf(cl_device_id dev, cl_device_info param, const char *pname
 	return had_error;
 }
 
+/* Arch bits and endianness (HUMAN) */
+int device_info_arch(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk)
+{
+	cl_uint bits;
+	{
+		cl_uint val;
+		GET_VAL;
+		if (!had_error)
+			bits = val;
+	}
+	if (!had_error) {
+		cl_bool val;
+		param = CL_DEVICE_ENDIAN_LITTLE;
+		current_param = "CL_DEVICE_ENDIAN_LITTLE";
+		GET_VAL;
+		if (!had_error)
+			sprintf(strbuf, "%u, %s", bits, endian_str[val]);
+	}
+	show_strbuf(pname, 0);
+	return had_error;
+}
+
 /*
  * Device info traits
  */
@@ -1132,7 +1155,12 @@ struct device_info_traits dinfo_traits[] = {
 
 	DINFO_FPCONF(HALF, Half, dev_has_half),
 	DINFO_FPCONF(SINGLE, Single, NULL),
-	DINFO_FPCONF(DOUBLE, Double, dev_has_double)
+	DINFO_FPCONF(DOUBLE, Double, dev_has_double),
+
+	/* Address bits and endianness are written together for HUMAN, separate for RAW */
+	{ CLINFO_HUMAN, DINFO(CL_DEVICE_ADDRESS_BITS, "Address bits", arch), NULL },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_ADDRESS_BITS, "Address bits", int), NULL },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_ENDIAN_LITTLE, "Little Endian", bool), NULL },
 
 };
 
@@ -1301,11 +1329,6 @@ printDeviceInfo(cl_uint d)
 			break;
 		}
 	}
-
-	// arch bits and endianness
-	GET_PARAM(ADDRESS_BITS, uintval);
-	GET_PARAM(ENDIAN_LITTLE, boolval);
-	printf(I1_STR "%u, %s\n", "Address bits", uintval, endian_str[boolval]);
 
 	// memory size and alignment
 
