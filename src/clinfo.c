@@ -103,6 +103,8 @@ static const char* sources[] = {
 };
 
 static const char empty_str[] = "";
+static const char spc_str[] = " ";
+static const char times_str[] = "x";
 static const char comma_str[] = ", ";
 static const char vbar_str[] = " | ";
 
@@ -530,6 +532,56 @@ int device_info_bool(cl_device_id dev, cl_device_info param, const char *pname,
 	return had_error;
 }
 
+int device_info_szptr(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk)
+{
+	size_t *val = NULL;
+	size_t szval, numval;
+	GET_VAL_ARRAY;
+	if (!had_error) {
+		const char *sep = (output_mode == CLINFO_HUMAN ? times_str : spc_str);
+		size_t sepsz = 1;
+		int counter = 0;
+		szval = 0;
+		for (counter = 0; counter < numval; ++counter) {
+			if (szval > 0) {
+				strcpy(strbuf + szval, sep);
+				szval += sepsz;
+			}
+			szval += snprintf(strbuf + szval, bufsz - szval - 1, "%zu", val[counter]);
+			/* check for overflow, clip with ... */
+			if (szval >= bufsz) {
+				sprintf(strbuf + bufsz - 4, "...");
+				szval = bufsz - 1;
+				break;
+			}
+		}
+	}
+	printf(I1_STR "%s\n", pname, strbuf);
+	free(val);
+	return had_error;
+}
+
+int device_info_wg(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk)
+{
+	cl_platform_id val;
+	{
+		/* shadow */
+		cl_device_info param = CL_DEVICE_PLATFORM;
+		current_param = "CL_DEVICE_PLATFORM";
+		GET_VAL;
+	}
+	current_param = "CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE";
+	if (!had_error)
+		had_error = getWGsizes(val, dev);
+	if (!had_error) {
+		sprintf(strbuf, "%" PRIuS, wgm[0]);
+	}
+	printf(I1_STR "%s\n", pname, strbuf);
+	return had_error;
+}
+
 int device_info_devtype(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
@@ -932,6 +984,13 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_PARTITION_TYPES_EXT, INDENT "Supported partition types (ext)", partition_types_ext), dev_has_fission },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_AFFINITY_DOMAINS_EXT, INDENT "Supported affinity domains (ext)", partition_affinities_ext), dev_has_fission },
 
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, "Max work item dimensions", int), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_WORK_ITEM_SIZES, "Max work item sizes", szptr), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_WORK_GROUP_SIZE, "Max work group size", sz), NULL },
+	{ CLINFO_BOTH, DINFO(CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, "Preferred work group size multiple", wg), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_WARP_SIZE_NV, "Warp size (NV)", int), dev_has_nv },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_WAVEFRONT_WIDTH_AMD, "Wavefront width (AMD)", int), dev_is_gpu_amd },
+
 };
 
 void
@@ -952,7 +1011,7 @@ printDeviceInfo(cl_uint d)
 	double doubleval;
 	cl_bool boolval;
 	size_t szval;
-	size_t *szvals = NULL;
+	size_t *szvals = calloc(3, sizeof(size_t));
 	cl_uint szels = 3;
 	size_t len;
 
@@ -1090,32 +1149,6 @@ printDeviceInfo(cl_uint d)
 			/* do nothing */
 			break;
 		}
-	}
-
-	// workgroup sizes
-	INT_PARAM(MAX_WORK_ITEM_DIMENSIONS, "Max work item dimensions",);
-	if (uintval > szels)
-		szels = uintval;
-	REALLOC(szvals, szels, "work item sizes");
-	GET_PARAM_PTR(MAX_WORK_ITEM_SIZES, szvals, uintval);
-	for (cursor = 0; cursor < uintval; ++cursor) {
-		snprintf(strbuf, bufsz, "Max work item size[%u]", cursor);
-		strbuf[bufsz-1] = '\0'; // this is probably never needed, but better safe than sorry
-		printf(I2_STR "%" PRIuS "\n", strbuf , szvals[cursor]);
-	}
-	SZ_PARAM(MAX_WORK_GROUP_SIZE, "Max work group size",);
-
-	GET_PARAM(PLATFORM, pid);
-	if (!getWGsizes(pid, dev))
-		printf(I1_STR "%" PRIuS "\n", "Preferred work group size multiple", wgm[0]);
-	else
-		printf(I1_STR "%s\n", "Preferred work group size multiple", strbuf);
-
-	if (dev_has_nv(&chk)) {
-		INT_PARAM(WARP_SIZE_NV, "Warp size (NVIDIA)",);
-	}
-	if (dev_is_gpu_amd(&chk)) {
-		INT_PARAM(WAVEFRONT_WIDTH_AMD, "Wavefront width (AMD)",);
 	}
 
 	// preferred/native vector widths
