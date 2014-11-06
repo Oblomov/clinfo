@@ -44,6 +44,8 @@ static const char na[] = "n/a"; // not available
 static const char fpsupp[] = "Floating-point support";
 
 static const char* bool_str[] = { "No", "Yes" };
+static const char* bool_raw_str[] = { "CL_FALSE", "CL_TRUE" };
+
 static const char* endian_str[] = { "Big-Endian", "Little-Endian" };
 
 static const char* device_type_str[] = { unk, "Default", "CPU", "GPU", "Accelerator", "Custom" };
@@ -128,7 +130,20 @@ size_t wgm[NUM_KERNELS];
 	STR_PRINT(name, strbuf); \
 } while (0)
 
+
 int had_error = 0;
+const char *cur_sfx = empty_str;
+
+/* print strbuf, prefixed by pname, skipping leading whitespace if skip is nonzero,
+ * affixing cur_sfx */
+static inline
+void show_strbuf(const char *pname, int skip)
+{
+	if (skip)
+		printf(I1_STR "%s%s\n", pname, skip_leading_ws(strbuf), cur_sfx);
+	else
+		printf(I1_STR "%s%s\n", pname, strbuf, cur_sfx);
+}
 
 int
 platform_info_str(cl_platform_id pid, cl_platform_info param, const char* pname)
@@ -143,7 +158,7 @@ platform_info_str(cl_platform_id pid, cl_platform_info param, const char* pname)
 		error = clGetPlatformInfo(pid, param, bufsz, strbuf, 0);
 		had_error = REPORT_ERROR2("get %s");
 	}
-	printf(I1_STR "%s\n", pname, skip_leading_ws(strbuf));
+	show_strbuf(pname, 1);
 	return had_error;
 }
 
@@ -442,8 +457,6 @@ void identify_device_extensions(const char *extensions, struct device_info_check
  * Device info print functions
  */
 
-const char *cur_sfx = empty_str;
-
 #define _GET_VAL \
 	error = clGetDeviceInfo(dev, param, sizeof(val), &val, 0); \
 	had_error = REPORT_ERROR2("get %s");
@@ -468,7 +481,7 @@ const char *cur_sfx = empty_str;
 
 #define _FMT_VAL(fmt) \
 	if (had_error) \
-		printf(I1_STR "%s\n", pname, strbuf); \
+		show_strbuf(pname, 0); \
 	else \
 		printf(I1_STR fmt "%s\n", pname, val, cur_sfx);
 
@@ -511,7 +524,7 @@ int device_info_str(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
 	had_error = device_info_str_get(dev, param, pname, chk);
-	printf(I1_STR "%s\n", pname, skip_leading_ws(strbuf));
+	show_strbuf(pname, 1);
 	return had_error;
 }
 
@@ -524,11 +537,13 @@ int device_info_bool(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
 	cl_bool val;
+	const char * const * str = (output_mode == CLINFO_HUMAN ?
+		bool_str : bool_raw_str);
 	GET_VAL;
 	if (had_error)
-		printf(I1_STR "%s\n", pname, strbuf);
+		show_strbuf(pname, 0);
 	else
-		printf(I1_STR "%s%s\n", pname, bool_str[val], cur_sfx);
+		printf(I1_STR "%s%s\n", pname, str[val], cur_sfx);
 	return had_error;
 }
 
@@ -557,7 +572,7 @@ int device_info_szptr(cl_device_id dev, cl_device_info param, const char *pname,
 			}
 		}
 	}
-	printf(I1_STR "%s\n", pname, strbuf);
+	show_strbuf(pname, 0);
 	free(val);
 	return had_error;
 }
@@ -578,7 +593,7 @@ int device_info_wg(cl_device_id dev, cl_device_info param, const char *pname,
 	if (!had_error) {
 		sprintf(strbuf, "%" PRIuS, wgm[0]);
 	}
-	printf(I1_STR "%s\n", pname, strbuf);
+	show_strbuf(pname, 0);
 	return had_error;
 }
 
@@ -614,7 +629,7 @@ int device_info_devtype(cl_device_id dev, cl_device_info param, const char *pnam
 		}
 		strbuf[szval] = '\0';
 	}
-	printf(I1_STR "%s\n", pname, strbuf);
+	show_strbuf(pname, 0);
 	/* we abuse global strbuf to pass the device type over to the caller */
 	if (!had_error)
 		memcpy(strbuf, &val, sizeof(val));
@@ -651,7 +666,7 @@ int device_info_devtopo_amd(cl_device_id dev, cl_device_info param, const char *
 	if (!had_error) {
 		devtopo_str(&val);
 	}
-	printf(I1_STR "%s\n", pname, strbuf);
+	show_strbuf(pname, 0);
 	return had_error;
 }
 
@@ -681,7 +696,7 @@ int device_info_devtopo_nv(cl_device_id dev, cl_device_info param, const char *p
 		}
 	}
 
-	printf(I1_STR "%s\n", pname, strbuf);
+	show_strbuf(pname, 0);
 	return had_error;
 }
 
@@ -700,7 +715,7 @@ int device_info_cc_nv(cl_device_id dev, cl_device_info param, const char *pname,
 			snprintf(strbuf, bufsz, "%u.%u", major, val);
 	}
 
-	printf(I1_STR "%s\n", pname, strbuf);
+	show_strbuf(pname, 0);
 	return had_error;
 }
 
@@ -778,7 +793,7 @@ int device_info_partition_types(cl_device_id dev, cl_device_info param, const ch
 		strbuf[szval] = '\0';
 	}
 
-	printf(I1_STR "%s\n", pname, strbuf);
+	show_strbuf(pname, 0);
 
 	free(val);
 	return had_error;
@@ -833,7 +848,7 @@ int device_info_partition_types_ext(cl_device_id dev, cl_device_info param, cons
 		strbuf[szval] = '\0';
 	}
 
-	printf(I1_STR "%s\n", pname, strbuf);
+	show_strbuf(pname, 0);
 
 	free(val);
 	return had_error;
@@ -871,7 +886,7 @@ int device_info_partition_affinities(cl_device_id dev, cl_device_info param, con
 		}
 	}
 	if (val || had_error)
-		printf(I1_STR "%s\n", pname, strbuf);
+		show_strbuf(pname, 0);
 	return had_error;
 }
 
@@ -920,15 +935,46 @@ int device_info_partition_affinities_ext(cl_device_id dev, cl_device_info param,
 		strbuf[szval] = '\0';
 	}
 
-	printf(I1_STR "%s\n", pname, strbuf);
+	show_strbuf(pname, 0);
 
 	free(val);
 	return had_error;
 }
 
+int device_info_vecwidth(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk)
+{
+	cl_uint preferred, val;
+	GET_VAL;
+	if (!had_error) {
+		preferred = val;
+
+		/* we get called with PREFERRED, NATIVE is at +0x30 offset, except for HALF,
+		 * which is at +0x08 */
+		param += (param == CL_DEVICE_PREFERRED_VECTOR_WIDTH_HALF ? 0x08 : 0x30);
+		/* TODO update current_param */
+		GET_VAL;
+
+		if (!had_error) {
+			size_t szval = 0;
+			const char *ext = (param == CL_DEVICE_NATIVE_VECTOR_WIDTH_HALF ?
+				chk->has_half : (param == CL_DEVICE_NATIVE_VECTOR_WIDTH_DOUBLE ?
+				chk->has_double : NULL));
+			szval = sprintf(strbuf, "%8u / %-8u", preferred, val);
+			if (ext)
+				sprintf(strbuf + szval, " (%s)", *ext ? ext : na);
+		}
+	}
+	show_strbuf(pname, 0);
+	return had_error;
+}
+
+
 /*
  * Device info traits
  */
+
+/* A CL_FALSE param means "just print pname" */
 
 struct device_info_traits {
 	enum output_modes output_mode;
@@ -991,6 +1037,21 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_WARP_SIZE_NV, "Warp size (NV)", int), dev_has_nv },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_WAVEFRONT_WIDTH_AMD, "Wavefront width (AMD)", int), dev_is_gpu_amd },
 
+	/* Preferred/native vector widths: header is only presented in HUMAN case, that also pairs
+	 * PREFERRED and NATIVE in a single line */
+#define DINFO_VECWIDTH(Type, type) \
+	{ CLINFO_HUMAN, DINFO(CL_DEVICE_PREFERRED_VECTOR_WIDTH_##Type, INDENT #type, vecwidth), NULL }, \
+	{ CLINFO_RAW, DINFO(CL_DEVICE_PREFERRED_VECTOR_WIDTH_##Type, INDENT #type, int), NULL }, \
+	{ CLINFO_RAW, DINFO(CL_DEVICE_NATIVE_VECTOR_WIDTH_##Type, INDENT #type, int), NULL }
+
+	{ CLINFO_HUMAN, DINFO(CL_FALSE, "Preferred / native vector sizes", str), NULL },
+	DINFO_VECWIDTH(CHAR, char),
+	DINFO_VECWIDTH(SHORT, short),
+	DINFO_VECWIDTH(INT, int),
+	DINFO_VECWIDTH(LONG, long),
+	DINFO_VECWIDTH(HALF, half),
+	DINFO_VECWIDTH(FLOAT, float),
+	DINFO_VECWIDTH(DOUBLE, double),
 };
 
 void
@@ -1001,7 +1062,6 @@ printDeviceInfo(cl_uint d)
 	cl_device_mem_cache_type cachetype;
 	cl_device_exec_capabilities execap;
 	cl_device_fp_config fpconfig;
-	cl_platform_id pid;
 
 	cl_command_queue_properties queueprop;
 
@@ -1103,7 +1163,11 @@ printDeviceInfo(cl_uint d)
 	const struct device_info_traits *extensions_traits = NULL;
 
 	for (current_line = 0; current_line < ARRAY_SIZE(dinfo_traits); ++current_line) {
+
 		const struct device_info_traits *traits = dinfo_traits + current_line;
+		const char *pname = (output_mode == CLINFO_HUMAN ?
+			traits->pname : traits->sname);
+
 		current_param = traits->sname;
 
 		/* skip if it's not for this output mode */
@@ -1115,10 +1179,16 @@ printDeviceInfo(cl_uint d)
 
 		cur_sfx = traits->sfx ? traits->sfx : empty_str;
 
+		/* Handle headers */
+		if (traits->param == CL_FALSE) {
+			strbuf[0] = '\0';
+			show_strbuf(pname, 0);
+			had_error = CL_FALSE;
+			continue;
+		}
+
 		had_error = traits->show_func(dev, traits->param,
-			output_mode == CLINFO_HUMAN ?
-			traits->pname : traits->sname,
-			&chk);
+			pname, &chk);
 
 		if (traits->param == CL_DEVICE_EXTENSIONS) {
 			/* make a backup of the extensions string, regardless of
@@ -1150,32 +1220,6 @@ printDeviceInfo(cl_uint d)
 			break;
 		}
 	}
-
-	// preferred/native vector widths
-	printf(I1_STR, "Preferred / native vector sizes");
-#define _PRINT_VEC(UCtype, type, optional, ext) do { \
-	GET_PARAM(PREFERRED_VECTOR_WIDTH_##UCtype, uintval); \
-	if (!had_error) \
-		GET_PARAM(NATIVE_VECTOR_WIDTH_##UCtype, uintval2); \
-	if (had_error) { \
-		printf("\n" I2_STR "%s", #type, strbuf); \
-	} else { \
-		printf("\n" I2_STR "%8u / %-8u", #type, uintval, uintval2); \
-		if (optional) \
-		printf(" (%s)", *ext ? ext : na); \
-	} \
-} while (0)
-#define PRINT_VEC(UCtype, type) _PRINT_VEC(UCtype, type, 0, "")
-#define PRINT_VEC_OPT(UCtype, type, ext) _PRINT_VEC(UCtype, type, 1, ext)
-
-	PRINT_VEC(CHAR, char);
-	PRINT_VEC(SHORT, short);
-	PRINT_VEC(INT, int);
-	PRINT_VEC(LONG, long); // this is actually optional in EMBED profiles
-	PRINT_VEC_OPT(HALF, half, chk.has_half);
-	PRINT_VEC(FLOAT, float);
-	PRINT_VEC_OPT(DOUBLE, double, chk.has_double);
-	puts("");
 
 	// FP configurations
 #define SHOW_FP_FLAG(str, flag) \
