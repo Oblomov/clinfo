@@ -90,7 +90,6 @@ static const char* affinity_domain_raw_ext_str[] = {
 	"CL_AFFINITY_DOMAIN_NEXT_FISSIONABLE_EXT"
 };
 
-
 const size_t affinity_domain_count = ARRAY_SIZE(affinity_domain_str);
 
 static const char* fp_conf_str[] = {
@@ -113,6 +112,11 @@ static const char* fp_conf_raw_str[] = {
 
 const size_t fp_conf_count = ARRAY_SIZE(fp_conf_str);
 
+static const char* memsfx[] = {
+	"B", "KiB", "MiB", "GiB", "TiB"
+};
+
+const size_t memsfx_count = ARRAY_SIZE(memsfx);
 
 static const char* local_mem_type_str[] = { none, "Local", "Global" };
 static const char* cache_type_str[] = { none, "Read-Only", "Read/Write" };
@@ -569,6 +573,57 @@ int device_info_bool(cl_device_id dev, cl_device_info param, const char *pname,
 		printf(I1_STR "%s%s\n", pname, str[val], cur_sfx);
 	return had_error;
 }
+
+size_t strbuf_mem(cl_ulong val, size_t szval)
+{
+	double dbl = val;
+	int sfx = 0;
+	while (dbl > 1024 && sfx < memsfx_count) {
+		dbl /= 1024;
+		++sfx;
+	}
+	return sprintf(strbuf + szval, " (%.4lg%s)",
+		dbl, memsfx[sfx]);
+}
+
+int device_info_mem(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk)
+{
+	cl_ulong val;
+	size_t szval = 0;
+	GET_VAL;
+	if (!had_error) {
+		szval += sprintf(strbuf, "%" PRIu64, val);
+		if (output_mode == CLINFO_HUMAN && val > 1024)
+			szval += strbuf_mem(val, szval);
+	}
+	show_strbuf(pname, 0);
+	return had_error;
+}
+
+int device_info_free_mem_amd(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk)
+{
+	size_t *val = NULL;
+	size_t szval = 0, numval = 0;
+	GET_VAL;
+	if (!had_error) {
+		size_t cursor = 0;
+		szval = 0;
+		for (cursor = 0; cursor < numval; ++cursor) {
+			if (szval > 0) {
+				strbuf[szval] = ' ';
+				++szval;
+			}
+			szval += sprintf(strbuf, "%" PRIuS, val[cursor]);
+			if (output_mode == CLINFO_HUMAN)
+				szval += strbuf_mem(val[cursor], szval);
+		}
+	}
+	show_strbuf(pname, 0);
+	return had_error;
+}
+
 
 int device_info_szptr(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
@@ -1162,6 +1217,15 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_RAW, DINFO(CL_DEVICE_ADDRESS_BITS, "Address bits", int), NULL },
 	{ CLINFO_RAW, DINFO(CL_DEVICE_ENDIAN_LITTLE, "Little Endian", bool), NULL },
 
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_MEM_SIZE, "Global memory size", mem), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_FREE_MEMORY_AMD, "Global free memory (AMD)", free_mem_amd), dev_is_gpu_amd },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_MEM_CHANNELS_AMD, "Global memory channels (AMD)", int), dev_is_gpu_amd },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_MEM_CHANNEL_BANKS_AMD, "Global memory banks per channel (AMD)", int), dev_is_gpu_amd },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_MEM_CHANNEL_BANK_WIDTH_AMD, "Global memory bank width (AMD)", int), dev_is_gpu_amd },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_ERROR_CORRECTION_SUPPORT, "Error Correction support", bool), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_MEM_ALLOC_SIZE, "Max memory allocation", mem), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_HOST_UNIFIED_MEMORY, "Unified memory for Host and Device", bool), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_INTEGRATED_MEMORY_NV, "Integrated memory (NV)", bool), dev_has_nv },
 };
 
 void
@@ -1175,13 +1239,11 @@ printDeviceInfo(cl_uint d)
 	cl_command_queue_properties queueprop;
 
 	cl_uint uintval;
-	cl_uint cursor;
 	cl_ulong ulongval;
 	double doubleval;
 	cl_bool boolval;
 	size_t szval;
 	size_t *szvals = calloc(3, sizeof(size_t));
-	cl_uint szels = 3;
 	size_t len;
 
 	char *extensions = NULL;
@@ -1328,31 +1390,6 @@ printDeviceInfo(cl_uint d)
 			/* do nothing */
 			break;
 		}
-	}
-
-	// memory size and alignment
-
-	// global
-	MEM_PARAM(GLOBAL_MEM_SIZE, "Global memory size");
-	if (dev_is_gpu_amd(&chk)) {
-		// FIXME seek better documentation about this. what does it mean?
-		GET_PARAM_ARRAY(GLOBAL_FREE_MEMORY_AMD, szvals, szval);
-		szels = szval/sizeof(*szvals);
-		for (cursor = 0; cursor < szels; ++cursor) {
-			MEM_PARAM_STR(szvals[cursor], "%" PRIuS, "Free global memory (AMD)");
-		}
-
-		INT_PARAM(GLOBAL_MEM_CHANNELS_AMD, "Global memory channels (AMD)",);
-		INT_PARAM(GLOBAL_MEM_CHANNEL_BANKS_AMD, "Global memory banks per channel (AMD)",);
-		INT_PARAM(GLOBAL_MEM_CHANNEL_BANK_WIDTH_AMD, "Global memory bank width (AMD)", " bytes");
-	}
-
-	BOOL_PARAM(ERROR_CORRECTION_SUPPORT, "Error Correction support");
-	MEM_PARAM(MAX_MEM_ALLOC_SIZE, "Max memory allocation");
-
-	BOOL_PARAM(HOST_UNIFIED_MEMORY, "Unified memory for Host and Device");
-	if (dev_has_nv(&chk)) {
-		BOOL_PARAM(INTEGRATED_MEMORY_NV, "NVIDIA integrated memory");
 	}
 
 	// SVM
