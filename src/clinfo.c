@@ -41,6 +41,7 @@ enum output_modes output_mode = CLINFO_HUMAN;
 static const char unk[] = "Unknown";
 static const char none[] = "None";
 static const char na[] = "n/a"; // not available
+static const char core[] = "core"; // not available
 static const char fpsupp[] = "Floating-point support";
 
 static const char* bool_str[] = { "No", "Yes" };
@@ -92,6 +93,27 @@ static const char* affinity_domain_raw_ext_str[] = {
 
 const size_t affinity_domain_count = ARRAY_SIZE(affinity_domain_str);
 
+static const char* fp_conf_str[] = {
+	"Denormals", "Infinity and NANs", "Round to nearest", "Round to zero",
+	"Round to infinity", "IEEE754-2008 fused multiply-add",
+	"Support is emulated in software",
+	"Correctly-rounded divide and sqrt operations"
+};
+
+static const char* fp_conf_raw_str[] = {
+	"CL_FP_DENORM",
+	"CL_FP_INF_NAN",
+	"CL_FP_ROUND_TO_NEAREST",
+	"CL_FP_ROUND_TO_ZERO",
+	"CL_FP_ROUND_TO_INF",
+	"CL_FP_FMA",
+	"CL_FP_SOFT_FLOAT",
+	"CL_FP_CORRECTLY_ROUNDED_DIVIDE_SQRT"
+};
+
+const size_t fp_conf_count = ARRAY_SIZE(fp_conf_str);
+
+
 static const char* local_mem_type_str[] = { none, "Local", "Global" };
 static const char* cache_type_str[] = { none, "Read-Only", "Read/Write" };
 
@@ -104,12 +126,6 @@ static const char* sources[] = {
 	"KRN()\n/* KRN(2)\nKRN(4)\nKRN(8)\nKRN(16) */\n",
 };
 
-static const char empty_str[] = "";
-static const char spc_str[] = " ";
-static const char times_str[] = "x";
-static const char comma_str[] = ", ";
-static const char vbar_str[] = " | ";
-
 /* preferred workgroup size multiple for each kernel
  * have not found a platform where the WG multiple changes,
  * but keep this flexible (this can grow up to 5)
@@ -121,6 +137,13 @@ size_t wgm[NUM_KERNELS];
 #define I0_STR "%-48s  "
 #define I1_STR "  %-46s  "
 #define I2_STR "    %-44s  "
+
+static const char empty_str[] = "";
+static const char spc_str[] = " ";
+static const char times_str[] = "x";
+static const char comma_str[] = ", ";
+static const char vbar_str[] = " | ";
+
 
 #define STR_PRINT(name, str) \
 	printf(I1_STR "%s\n", name, skip_leading_ws(str))
@@ -564,10 +587,8 @@ int device_info_szptr(cl_device_id dev, cl_device_info param, const char *pname,
 				szval += sepsz;
 			}
 			szval += snprintf(strbuf + szval, bufsz - szval - 1, "%zu", val[counter]);
-			/* check for overflow, clip with ... */
 			if (szval >= bufsz) {
-				sprintf(strbuf + bufsz - 4, "...");
-				szval = bufsz - 1;
+				trunc_strbuf();
 				break;
 			}
 		}
@@ -723,20 +744,16 @@ int device_info_cc_nv(cl_device_id dev, cl_device_info param, const char *pname,
 int device_info_partition_header(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
-	size_t szval = 0;
-	if (dev_is_12(chk)) {
-		/* include the comma only if the device also supports fission */
-		size_t corelen = chk->has_fission[0] ? 6 : 4;
-		strncpy(strbuf + szval, "core, ", corelen);
-		szval += corelen;
-	}
-	if (dev_has_fission(chk)) {
-		strcpy(strbuf + szval, chk->has_fission);
-		szval += strlen(chk->has_fission);
-	}
-	strbuf[szval] = 0;
+	int is_12 = dev_is_12(chk);
+	int has_fission = dev_has_fission(chk);
+	size_t szval = snprintf(strbuf, bufsz, "(%s%s%s)",
+		(is_12 ? core : empty_str),
+		(is_12 && has_fission ? comma_str : empty_str),
+		chk->has_fission);
+	if (szval >= bufsz)
+		trunc_strbuf();
 
-	printf(I1_STR "(%s)\n", pname, szval ? strbuf : na);
+	show_strbuf(pname, 0);
 	had_error = CL_SUCCESS;
 	return had_error;
 }
@@ -941,6 +958,7 @@ int device_info_partition_affinities_ext(cl_device_id dev, cl_device_info param,
 	return had_error;
 }
 
+/* Preferred / native vector widths */
 int device_info_vecwidth(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
@@ -969,6 +987,61 @@ int device_info_vecwidth(cl_device_id dev, cl_device_info param, const char *pna
 	return had_error;
 }
 
+/* Floating-point configurations */
+int device_info_fpconf(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk)
+{
+	cl_device_fp_config val;
+	int get_it = (
+		(param == CL_DEVICE_SINGLE_FP_CONFIG) ||
+		(param == CL_DEVICE_HALF_FP_CONFIG && dev_has_half(chk)) ||
+		(param == CL_DEVICE_DOUBLE_FP_CONFIG && dev_has_double(chk)));
+	if (get_it)
+		GET_VAL;
+	else
+		had_error = CL_SUCCESS;
+
+	if (!had_error) {
+		size_t szval = 0;
+		cl_uint i = 0;
+		const char *sep = vbar_str;
+		const char * const *fpstr = (output_mode == CLINFO_HUMAN ?
+			fp_conf_str : fp_conf_raw_str);
+		if (output_mode == CLINFO_HUMAN) {
+			const char *why;
+			switch (param) {
+			case CL_DEVICE_HALF_FP_CONFIG:
+				why = get_it ? chk->has_half : na;
+				break;
+			case CL_DEVICE_SINGLE_FP_CONFIG:
+				why = core;
+				break;
+			case CL_DEVICE_DOUBLE_FP_CONFIG:
+				why = get_it ? chk->has_double : na;
+			}
+			/* show 'why' it's being shown */
+			szval += sprintf(strbuf, "(%s)", why);
+		}
+		if (get_it) {
+			for (i = 0; i < fp_conf_count; ++i) {
+				cl_device_fp_config cur = (cl_device_fp_config)(1) << i;
+				if (output_mode == CLINFO_HUMAN) {
+					szval += sprintf(strbuf + szval, "\n" I2_STR "%s",
+						fpstr[i], bool_str[!!(val & cur)]);
+				} else if (val & cur) {
+					if (szval > 0)
+						szval += sprintf(strbuf + szval, sep);
+					szval += sprintf(strbuf + szval, fpstr[i]);
+				}
+			}
+		}
+	}
+
+	/* only print this for HUMAN output or if we actually got the value */
+	if (output_mode == CLINFO_HUMAN || get_it)
+		show_strbuf(pname, 0);
+	return had_error;
+}
 
 /*
  * Device info traits
@@ -1052,6 +1125,15 @@ struct device_info_traits dinfo_traits[] = {
 	DINFO_VECWIDTH(HALF, half),
 	DINFO_VECWIDTH(FLOAT, float),
 	DINFO_VECWIDTH(DOUBLE, double),
+
+	/* Floating point configurations */
+#define DINFO_FPCONF(Type, type, cond) \
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_##Type##_FP_CONFIG, #type "-precision", fpconf), NULL }
+
+	DINFO_FPCONF(HALF, Half, dev_has_half),
+	DINFO_FPCONF(SINGLE, Single, NULL),
+	DINFO_FPCONF(DOUBLE, Double, dev_has_double)
+
 };
 
 void
@@ -1061,11 +1143,10 @@ printDeviceInfo(cl_uint d)
 	cl_device_local_mem_type lmemtype;
 	cl_device_mem_cache_type cachetype;
 	cl_device_exec_capabilities execap;
-	cl_device_fp_config fpconfig;
 
 	cl_command_queue_properties queueprop;
 
-	cl_uint uintval, uintval2;
+	cl_uint uintval;
 	cl_uint cursor;
 	cl_ulong ulongval;
 	double doubleval;
@@ -1220,38 +1301,6 @@ printDeviceInfo(cl_uint d)
 			break;
 		}
 	}
-
-	// FP configurations
-#define SHOW_FP_FLAG(str, flag) \
-	printf(I2_STR "%s\n", str, bool_str[!!(fpconfig & CL_FP_##flag)])
-#define SHOW_FP_SUPPORT(type) do { \
-	GET_PARAM(type##_FP_CONFIG, fpconfig); \
-	if (had_error) { \
-		printf(I2_STR "%s\n", "Error", strbuf); \
-	} else { \
-		SHOW_FP_FLAG("Denormals", DENORM); \
-		SHOW_FP_FLAG("Infinity and NANs", INF_NAN); \
-		SHOW_FP_FLAG("Round to nearest", ROUND_TO_NEAREST); \
-		SHOW_FP_FLAG("Round to zero", ROUND_TO_ZERO); \
-		SHOW_FP_FLAG("Round to infinity", ROUND_TO_INF); \
-		SHOW_FP_FLAG("IEEE754-2008 fused multiply-add", FMA); \
-		SHOW_FP_FLAG("Correctly-rounded divide and sqrt operations", CORRECTLY_ROUNDED_DIVIDE_SQRT); \
-		SHOW_FP_FLAG("Support is emulated in software", SOFT_FLOAT); \
-	} \
-} while (0)
-
-#define FPSUPP_STR(str, opt) \
-	"  %-17s%-29s " opt "\n", #str "-precision", fpsupp
-	printf(FPSUPP_STR(Half, " (%s)"),
-		chk.has_half[0] ? chk.has_half : na);
-	if (dev_has_half(&chk))
-		SHOW_FP_SUPPORT(HALF);
-	printf(FPSUPP_STR(Single, " (core)"));
-	SHOW_FP_SUPPORT(SINGLE);
-	printf(FPSUPP_STR(Double, " (%s)"),
-		chk.has_double[0] ? chk.has_double : na);
-	if (dev_has_double(&chk))
-		SHOW_FP_SUPPORT(DOUBLE);
 
 	// arch bits and endianness
 	GET_PARAM(ADDRESS_BITS, uintval);

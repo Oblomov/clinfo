@@ -26,3 +26,11 @@ static inline const char* skip_leading_ws(const char *str)
 	return ret;
 }
 
+/* replace last 3 chars in strbuf with ... */
+static const char ellip[] = "...";
+
+static void trunc_strbuf(void)
+{
+	sprintf(strbuf + bufsz - 4, ellip);
+}
+
