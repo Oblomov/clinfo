@@ -44,6 +44,8 @@ static const char na[] = "n/a"; // not available
 static const char core[] = "core"; // not available
 static const char fpsupp[] = "Floating-point support";
 
+static const char bytes_str[] = " bytes";
+
 static const char* bool_str[] = { "No", "Yes" };
 static const char* bool_raw_str[] = { "CL_FALSE", "CL_TRUE" };
 
@@ -599,6 +601,18 @@ int device_info_bool(cl_device_id dev, cl_device_info param, const char *pname,
 		printf(I1_STR "%s%s\n", pname, str[val], cur_sfx);
 	return had_error;
 }
+
+int device_info_bits(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk)
+{
+	cl_uint val;
+	GET_VAL;
+	if (!had_error)
+		sprintf(strbuf, "%u bits (%u bytes)\n", val, val/8);
+	show_strbuf(pname, 0);
+	return had_error;
+}
+
 
 size_t strbuf_mem(cl_ulong val, size_t szval)
 {
@@ -1286,17 +1300,35 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_RAW, DINFO(CL_DEVICE_ADDRESS_BITS, "Address bits", int), NULL },
 	{ CLINFO_RAW, DINFO(CL_DEVICE_ENDIAN_LITTLE, "Little Endian", bool), NULL },
 
+	/* Global memory */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_MEM_SIZE, "Global memory size", mem), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_FREE_MEMORY_AMD, "Global free memory (AMD)", free_mem_amd), dev_is_gpu_amd },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_MEM_CHANNELS_AMD, "Global memory channels (AMD)", int), dev_is_gpu_amd },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_MEM_CHANNEL_BANKS_AMD, "Global memory banks per channel (AMD)", int), dev_is_gpu_amd },
-	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_GLOBAL_MEM_CHANNEL_BANK_WIDTH_AMD, "Global memory bank width (AMD)", " bytes", int), dev_is_gpu_amd },
+	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_GLOBAL_MEM_CHANNEL_BANK_WIDTH_AMD, "Global memory bank width (AMD)", bytes_str, int), dev_is_gpu_amd },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_ERROR_CORRECTION_SUPPORT, "Error Correction support", bool), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_MEM_ALLOC_SIZE, "Max memory allocation", mem), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_HOST_UNIFIED_MEMORY, "Unified memory for Host and Device", bool), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_INTEGRATED_MEMORY_NV, "Integrated memory (NV)", bool), dev_has_nv },
 
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SVM_CAPABILITIES, "Shared Virtual Memory (SVM) capabilities", svm_cap), dev_has_svm },
+
+	/* Alignment */
+	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_MIN_DATA_TYPE_ALIGN_SIZE, "Minimum alignment for any data type", bytes_str, int), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_MEM_BASE_ADDR_ALIGN, "Alignment of base address", bits), NULL },
+
+	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_PAGE_SIZE_QCOM, "Page size (QCOM)", bytes_str, sz), dev_has_qcom_ext_host_ptr },
+	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_EXT_MEM_PADDING_IN_BYTES_QCOM, "Externa memory padding (QCOM)", bytes_str, sz), dev_has_qcom_ext_host_ptr },
+
+	/* Atomics alignment, with HUMAN-only header */
+	{ CLINFO_HUMAN, DINFO(CL_FALSE, "Preferred alignment for atomics", str), dev_is_20 },
+	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_PREFERRED_PLATFORM_ATOMIC_ALIGNMENT, INDENT "SVM", bytes_str, int), dev_is_20 },
+	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_PREFERRED_GLOBAL_ATOMIC_ALIGNMENT, INDENT "Global", bytes_str, int), dev_is_20 },
+	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_PREFERRED_LOCAL_ATOMIC_ALIGNMENT, INDENT "Local", bytes_str, int), dev_is_20 },
+
+	/* Global variables. TODO some 1.2 devices respond to this too */
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_GLOBAL_VARIABLE_SIZE, "Max size for global variable", mem), dev_is_20 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_VARIABLE_PREFERRED_TOTAL_SIZE, "Preferred total size of global vars", mem), dev_is_20 },
 };
 
 void
@@ -1461,31 +1493,6 @@ printDeviceInfo(cl_uint d)
 			/* do nothing */
 			break;
 		}
-	}
-
-	INT_PARAM(MIN_DATA_TYPE_ALIGN_SIZE, "Minimum alignment for any data type", " bytes");
-	GET_PARAM(MEM_BASE_ADDR_ALIGN, uintval);
-	printf(I1_STR "%u bits (%u bytes)\n",
-		"Alignment of base address", uintval, uintval/8);
-
-	// atomics alignment
-	if (dev_is_20(&chk)) {
-		printf(I1_STR "\n", "Preferred alignment for atomics");
-		INT_PARAM(PREFERRED_PLATFORM_ATOMIC_ALIGNMENT, INDENT "SVM", "");
-		INT_PARAM(PREFERRED_GLOBAL_ATOMIC_ALIGNMENT, INDENT "Global", "");
-		INT_PARAM(PREFERRED_LOCAL_ATOMIC_ALIGNMENT, INDENT "Local", "");
-
-	}
-
-	if (dev_has_qcom_ext_host_ptr(&chk)) {
-		SZ_PARAM(PAGE_SIZE_QCOM, "Page size (QUALCOMM)", " bytes");
-		SZ_PARAM(EXT_MEM_PADDING_IN_BYTES_QCOM, "Externa memory padding (QUALCOMM)", " bytes");
-	}
-
-	// global variables
-	if (dev_is_20(&chk)) { // TODO some 1.2 devices respond to this too ...
-		MEM_PARAM(MAX_GLOBAL_VARIABLE_SIZE, "Max size for global variable");
-		MEM_PARAM(GLOBAL_VARIABLE_PREFERRED_TOTAL_SIZE, "Preferred total size of global vars");
 	}
 
 	// cache
