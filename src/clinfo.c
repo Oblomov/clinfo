@@ -1822,7 +1822,7 @@ printDeviceInfo(cl_uint d)
 
 void version()
 {
-	puts("clinfo version 2.0.14.10.26");
+	puts("clinfo version 2.0.14.11.07");
 }
 
 void usage()
