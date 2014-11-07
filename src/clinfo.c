@@ -148,6 +148,23 @@ static const char* lmem_type_raw_str[] = { none_raw, "CL_LOCAL", "CL_GLOBAL" };
 static const char* cache_type_str[] = { none, "Read-Only", "Read/Write" };
 static const char* cache_type_raw_str[] = { none_raw, "CL_READ_ONLY_CACHE", "CL_READ_WRITE_CACHE" };
 
+static const char* queue_prop_str[] = { "Out-of-order execution", "Profiling" };
+static const char* queue_prop_raw_str[] = {
+	"CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE",
+	"CL_QUEUE_PROFILING_ENABLE"
+};
+
+const size_t queue_prop_count = ARRAY_SIZE(queue_prop_str);
+
+static const char* execap_str[] = { "Run OpenCL kernels", "Run native kernels" };
+static const char* execap_raw_str[] = {
+	"CL_EXEC_KERNEL",
+	"CL_EXEC_NATIVE_KERNEL"
+};
+
+const size_t execap_count = ARRAY_SIZE(execap_str);
+
+
 static const char* sources[] = {
 	"#define GWO(type) global type* restrict\n",
 	"#define GRO(type) global const type* restrict\n",
@@ -446,17 +463,28 @@ DEFINE_EXT_CHECK(altera_dev_temp)
 DEFINE_EXT_CHECK(spir)
 DEFINE_EXT_CHECK(qcom_ext_host_ptr)
 
+/* In the version checks we negate the opposite conditions
+ * instead of double-negating the actual condition
+ */
+
 // device supports 1.2
 int dev_is_12(const struct device_info_checks *chk)
 {
-	return !!(chk->dev_version >= 12);
+	return !(chk->dev_version < 12);
 }
 
 // device supports 2.0
 int dev_is_20(const struct device_info_checks *chk)
 {
-	return !!(chk->dev_version >= 20);
+	return !(chk->dev_version < 20);
 }
+
+// device does not support 2.0
+int dev_not_20(const struct device_info_checks *chk)
+{
+	return !(chk->dev_version >= 20);
+}
+
 
 int dev_is_gpu(const struct device_info_checks *chk)
 {
@@ -717,6 +745,23 @@ int device_info_free_mem_amd(cl_device_id dev, cl_device_info param, const char 
 	return had_error;
 }
 
+int device_info_time_offset(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk)
+{
+	cl_ulong val;
+	GET_VAL;
+	if (!had_error) {
+		int szval = 0;
+		time_t time = val/UINT64_C(1000000000);
+		szval += sprintf(strbuf, "%" PRIu64 "ns (", val);
+		strcpy(strbuf + szval, ctime(&time));
+		szval = strlen(strbuf) - 1;
+		strbuf[szval++] = ')';
+		strbuf[szval++] = '\0';
+	}
+	show_strbuf(pname, 0);
+	return had_error;
+}
 
 int device_info_szptr(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
@@ -1274,6 +1319,66 @@ int device_info_fpconf(cl_device_id dev, cl_device_info param, const char *pname
 	return had_error;
 }
 
+/* Queue properties */
+int device_info_qprop(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk)
+{
+	cl_command_queue_properties val;
+	GET_VAL;
+	if (!had_error) {
+		size_t szval = 0;
+		cl_uint i = 0;
+		const char *sep = vbar_str;
+		const char * const *qpstr = (output_mode == CLINFO_HUMAN ?
+			queue_prop_str : queue_prop_raw_str);
+		for (i = 0; i < queue_prop_count; ++i) {
+			cl_command_queue_properties cur = (cl_command_queue_properties)(1) << i;
+			if (output_mode == CLINFO_HUMAN) {
+				szval += sprintf(strbuf + szval, "\n" I2_STR "%s",
+					qpstr[i], bool_str[!!(val & cur)]);
+			} else if (val & cur) {
+				if (szval > 0)
+					szval += sprintf(strbuf + szval, sep);
+				szval += sprintf(strbuf + szval, qpstr[i]);
+			}
+		}
+		if (output_mode == CLINFO_HUMAN && param == CL_DEVICE_QUEUE_PROPERTIES &&
+			dev_has_intel_local_thread(chk))
+			szval += sprintf(strbuf + szval, "\n" I2_STR "%s",
+				"Local thread execution (Intel)", bool_str[CL_TRUE]);
+	}
+	show_strbuf(pname, 0);
+	return had_error;
+}
+
+/* Execution capbilities */
+int device_info_execap(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk)
+{
+	cl_device_exec_capabilities val;
+	GET_VAL;
+	if (!had_error) {
+		size_t szval = 0;
+		cl_uint i = 0;
+		const char *sep = vbar_str;
+		const char * const *qpstr = (output_mode == CLINFO_HUMAN ?
+			execap_str : execap_raw_str);
+		for (i = 0; i < execap_count; ++i) {
+			cl_device_exec_capabilities cur = (cl_device_exec_capabilities)(1) << i;
+			if (output_mode == CLINFO_HUMAN) {
+				szval += sprintf(strbuf + szval, "\n" I2_STR "%s",
+					qpstr[i], bool_str[!!(val & cur)]);
+			} else if (val & cur) {
+				if (szval > 0)
+					szval += sprintf(strbuf + szval, sep);
+				szval += sprintf(strbuf + szval, qpstr[i]);
+			}
+		}
+	}
+	show_strbuf(pname, 0);
+	return had_error;
+}
+
 /* Arch bits and endianness (HUMAN) */
 int device_info_arch(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
@@ -1507,22 +1612,40 @@ struct device_info_traits dinfo_traits[] = {
 
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_PARAMETER_SIZE, "Max size of kernel argument", mem), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_ATOMIC_COUNTERS_EXT, "Max number of atomic counters", sz), dev_has_atomic_counters },
+
+	/* Queue properties */
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_QUEUE_PROPERTIES, "Queue properties", qprop), dev_not_20 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_QUEUE_PROPERTIES, "Queue properties (on host)", qprop), dev_is_20 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_QUEUE_ON_DEVICE_PROPERTIES, "Queue properties (on device)", qprop), dev_is_20 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_QUEUE_ON_DEVICE_PREFERRED_SIZE, INDENT "Preferred size", mem), dev_is_20 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_QUEUE_ON_DEVICE_MAX_SIZE, INDENT "Max size", mem), dev_is_20 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_ON_DEVICE_QUEUES, "Max queues on device", int), dev_is_20 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_ON_DEVICE_EVENTS, "Max events on device", int), dev_is_20 },
+
+	/* Profiling resolution */
+	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_PROFILING_TIMER_RESOLUTION, "Profiling timer resolution", "ns", long), NULL },
+	{ CLINFO_HUMAN, DINFO(CL_DEVICE_PROFILING_TIMER_OFFSET_AMD, "Profiling timer offset since Epoch (AMD)", time_offset), dev_has_amd },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_PROFILING_TIMER_OFFSET_AMD, "Profiling timer offset since Epoch (AMD)", long), dev_has_amd },
+
+	/* Kernel execution capabilities */
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_EXECUTION_CAPABILITIES, "Execution capabilities", execap), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_KERNEL_EXEC_TIMEOUT_NV, INDENT "Kernel execution timeout (NV)", bool), dev_has_nv },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_GPU_OVERLAP_NV, INDENT "Concurrent copy and kernel execution (NV)", bool), dev_has_nv },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_ATTRIBUTE_ASYNC_ENGINE_COUNT_NV, INDENT "Number of async copy engines (NV)", int), dev_has_nv },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_SPIR_VERSIONS, INDENT "SPIR versions", str), dev_has_spir },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_PREFERRED_INTEROP_USER_SYNC, "Prefer user sync for interop", bool), dev_is_12 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_PRINTF_BUFFER_SIZE, "printf() buffer size", mem), dev_is_12 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_BUILT_IN_KERNELS, "Built-in kernels", str), dev_is_12 },
+
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_AVAILABLE, "Device Available", bool), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_COMPILER_AVAILABLE, "Compiler Available", bool), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_LINKER_AVAILABLE, "Linker Available", bool), dev_is_12 },
 };
 
 void
 printDeviceInfo(cl_uint d)
 {
 	cl_device_id dev = device[d];
-	cl_device_exec_capabilities execap;
-
-	cl_command_queue_properties queueprop;
-
-	cl_uint uintval;
-	cl_ulong ulongval;
-	double doubleval;
-	cl_bool boolval;
-	size_t szval;
-	size_t len;
 
 	char *extensions = NULL;
 
@@ -1642,8 +1765,8 @@ printDeviceInfo(cl_uint d)
 		if (traits->param == CL_DEVICE_EXTENSIONS) {
 			/* make a backup of the extensions string, regardless of
 			 * errors */
+			size_t len = strlen(strbuf);
 			extensions_traits = traits;
-			len = strlen(strbuf);
 			ALLOC(extensions, len+1, "extensions");
 			memcpy(extensions, strbuf, len);
 			extensions[len] = '\0';
@@ -1681,85 +1804,6 @@ printDeviceInfo(cl_uint d)
 			break;
 		}
 	}
-
-	// queue and kernel capabilities
-
-	GET_PARAM(QUEUE_PROPERTIES, queueprop);
-	printf(I1_STR "%s\n",
-		(dev_is_20(&chk) ? "Queue properties (on host)" : "Queue properties"),
-		had_error ? strbuf : "");
-	if (!had_error) {
-		STR_PRINT(INDENT "Out-of-order execution", bool_str[!!(queueprop & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE)]);
-		STR_PRINT(INDENT "Profiling", bool_str[!!(queueprop & CL_QUEUE_PROFILING_ENABLE)]);
-	}
-	if (dev_has_intel_local_thread(&chk)) {
-		printf(I1_STR "%s\n", INDENT "Intel local thread execution", bool_str[1]);
-	}
-
-	// queues on device
-	if (dev_is_20(&chk)) {
-		GET_PARAM(QUEUE_ON_DEVICE_PROPERTIES, queueprop);
-		printf(I1_STR "%s\n", "Queue properties (on device)",
-			had_error ? strbuf : "");
-		if (!had_error) {
-			STR_PRINT(INDENT "Out-of-order execution", bool_str[!!(queueprop & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE)]);
-			STR_PRINT(INDENT "Profiling", bool_str[!!(queueprop & CL_QUEUE_PROFILING_ENABLE)]);
-		}
-
-		GET_PARAM(QUEUE_ON_DEVICE_PREFERRED_SIZE, uintval);
-		if (had_error)
-			printf(I2_STR "%s\n", "Preferred size", strbuf); \
-		else
-			MEM_PARAM_STR(uintval, "%u", INDENT "Preferred size");
-		GET_PARAM(QUEUE_ON_DEVICE_MAX_SIZE, uintval);
-		if (had_error)
-			printf(I2_STR "%s\n", "Max size", strbuf); \
-		else
-			MEM_PARAM_STR(uintval, "%u", INDENT "Max size");
-
-		INT_PARAM(MAX_ON_DEVICE_QUEUES, "Max queues on device", "");
-		INT_PARAM(MAX_ON_DEVICE_EVENTS, "Max events on device", "");
-	}
-
-
-	SZ_PARAM(PROFILING_TIMER_RESOLUTION, "Profiling timer resolution", "ns");
-	if (dev_has_amd(&chk)) {
-		time_t time;
-		char *nl;
-		GET_PARAM(PROFILING_TIMER_OFFSET_AMD, ulongval);
-		time = ulongval/UINT64_C(1000000000);
-		strncpy(strbuf, ctime(&time), bufsz);
-		nl = strstr(strbuf, "\n");
-		if (nl) *nl = '\0'; // kill the newline generated by ctime
-
-		printf(I1_STR "%" PRIu64 "ns (%s)\n", "Profiling timer offset since Epoch (AMD)",
-			ulongval, strbuf);
-	}
-
-	printf(I1_STR "\n", "Execution capabilities");
-	GET_PARAM(EXECUTION_CAPABILITIES, execap);
-	STR_PRINT(INDENT "Run OpenCL kernels", bool_str[!!(execap & CL_EXEC_KERNEL)]);
-	STR_PRINT(INDENT "Run native kernels", bool_str[!!(execap & CL_EXEC_NATIVE_KERNEL)]);
-	if (dev_has_nv(&chk)) {
-		BOOL_PARAM(KERNEL_EXEC_TIMEOUT_NV, INDENT "NVIDIA kernel execution timeout");
-		BOOL_PARAM(GPU_OVERLAP_NV, "NVIDIA concurrent copy and kernel execution");
-		INT_PARAM(ATTRIBUTE_ASYNC_ENGINE_COUNT_NV, INDENT "Number of copy engines",);
-	}
-	if (dev_has_spir(&chk)) {
-		SHOW_STRING(clGetDeviceInfo, CL_DEVICE_SPIR_VERSIONS, INDENT "SPIR versions", dev);
-	}
-
-	if (dev_is_12(&chk)) {
-		BOOL_PARAM(PREFERRED_INTEROP_USER_SYNC, "Prefer user sync for interops");
-		MEM_PARAM(PRINTF_BUFFER_SIZE, "printf() buffer size");
-		STR_PARAM(BUILT_IN_KERNELS, "Built-in kernels");
-	}
-
-	// misc. availability
-	BOOL_PARAM(AVAILABLE, "Device Available");
-	BOOL_PARAM(COMPILER_AVAILABLE, "Compiler Available");
-	if (dev_is_12(&chk))
-		BOOL_PARAM(LINKER_AVAILABLE, "Linker Available");
 
 	// and finally the extensions
 	printf(I1_STR "%s\n", (output_mode == CLINFO_HUMAN ?
