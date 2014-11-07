@@ -632,7 +632,7 @@ int device_info_free_mem_amd(cl_device_id dev, cl_device_info param, const char 
 {
 	size_t *val = NULL;
 	size_t szval = 0, numval = 0;
-	GET_VAL;
+	GET_VAL_ARRAY;
 	if (!had_error) {
 		size_t cursor = 0;
 		szval = 0;
@@ -641,9 +641,9 @@ int device_info_free_mem_amd(cl_device_id dev, cl_device_info param, const char 
 				strbuf[szval] = ' ';
 				++szval;
 			}
-			szval += sprintf(strbuf, "%" PRIuS, val[cursor]);
+			szval += sprintf(strbuf + szval, "%" PRIuS, val[cursor]);
 			if (output_mode == CLINFO_HUMAN)
-				szval += strbuf_mem(val[cursor], szval);
+				szval += strbuf_mem(val[cursor]*UINT64_C(1024), szval);
 		}
 	}
 	show_strbuf(pname, 0);
@@ -1290,7 +1290,7 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_FREE_MEMORY_AMD, "Global free memory (AMD)", free_mem_amd), dev_is_gpu_amd },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_MEM_CHANNELS_AMD, "Global memory channels (AMD)", int), dev_is_gpu_amd },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_MEM_CHANNEL_BANKS_AMD, "Global memory banks per channel (AMD)", int), dev_is_gpu_amd },
-	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_MEM_CHANNEL_BANK_WIDTH_AMD, "Global memory bank width (AMD)", int), dev_is_gpu_amd },
+	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_GLOBAL_MEM_CHANNEL_BANK_WIDTH_AMD, "Global memory bank width (AMD)", " bytes", int), dev_is_gpu_amd },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_ERROR_CORRECTION_SUPPORT, "Error Correction support", bool), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_MEM_ALLOC_SIZE, "Max memory allocation", mem), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_HOST_UNIFIED_MEMORY, "Unified memory for Host and Device", bool), NULL },
