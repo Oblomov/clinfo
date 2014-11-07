@@ -460,6 +460,11 @@ int dev_has_svm(const struct device_info_checks *chk)
 	return dev_is_20(chk) || dev_has_svm_ext(chk);
 }
 
+int dev_has_partition(const struct device_info_checks *chk)
+{
+	return dev_is_12(chk) || dev_has_fission(chk);
+}
+
 void identify_device_extensions(const char *extensions, struct device_info_checks *chk)
 {
 #define _HAS_EXT(ext) (strstr(extensions, ext))
@@ -1230,7 +1235,7 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_CORE_TEMPERATURE_ALTERA, "Core Temperature (Altera)", " C", int), dev_has_altera_dev_temp },
 
 	/* Device partition support: summary is only presented in HUMAN case */
-	{ CLINFO_HUMAN, DINFO(CL_DEVICE_PARTITION_MAX_SUB_DEVICES, "Device Partition", partition_header), NULL },
+	{ CLINFO_HUMAN, DINFO(CL_DEVICE_PARTITION_MAX_SUB_DEVICES, "Device Partition", partition_header), dev_has_partition },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_PARTITION_MAX_SUB_DEVICES, INDENT "Max number of sub-devices", int), dev_is_12 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_PARTITION_PROPERTIES, INDENT "Supported partition types", partition_types), dev_is_12 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_PARTITION_AFFINITY_DOMAIN, INDENT "Supported affinity domains", partition_affinities), dev_is_12 },
