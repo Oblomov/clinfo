@@ -1267,7 +1267,7 @@ struct device_info_traits dinfo_traits[] = {
 
 	/* Floating point configurations */
 #define DINFO_FPCONF(Type, type, cond) \
-	{ CLINFO_BOTH, DINFO(CL_DEVICE_##Type##_FP_CONFIG, #type "-precision", fpconf), NULL }
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_##Type##_FP_CONFIG, #type "-precision Floating-point support", fpconf), NULL }
 
 	DINFO_FPCONF(HALF, Half, dev_has_half),
 	DINFO_FPCONF(SINGLE, Single, NULL),
