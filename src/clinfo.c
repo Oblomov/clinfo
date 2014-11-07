@@ -72,6 +72,11 @@ static const char* affinity_domain_str[] = {
 	"NUMA", "L4 cache", "L3 cache", "L2 cache", "L1 cache", "next partitionalbe"
 };
 
+/* only the overrides */
+static const char* affinity_domain_ext_str[] = {
+	NULL, NULL, NULL, NULL, NULL, "next fissionable"
+};
+
 static const char* affinity_domain_raw_str[] = {
 	"CL_DEVICE_AFFINITY_DOMAIN_NUMA",
 	"CL_DEVICE_AFFINITY_DOMAIN_L4_CACHE",
@@ -992,7 +997,7 @@ int device_info_partition_affinities_ext(cl_device_id dev, cl_device_info param,
 	const char *sep = (output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
 	size_t sepsz = (output_mode == CLINFO_HUMAN ? 2 : 3);
 	const char * const *ptstr = (output_mode == CLINFO_HUMAN ?
-		affinity_domain_str : affinity_domain_raw_ext_str);
+		affinity_domain_ext_str : affinity_domain_raw_ext_str);
 
 	GET_VAL_ARRAY;
 
@@ -1020,8 +1025,11 @@ int device_info_partition_affinities_ext(cl_device_id dev, cl_device_info param,
 			}
 			if (str_idx >= 0) {
 				/* string length */
-				slen = strlen(ptstr[str_idx]);
-				strncpy(strbuf + szval, ptstr[str_idx], slen);
+				const char *str = ptstr[str_idx];
+				if (!str)
+					str = affinity_domain_str[str_idx];
+				slen = strlen(str);
+				strncpy(strbuf + szval, str, slen);
 				szval += slen;
 			}
 		}
