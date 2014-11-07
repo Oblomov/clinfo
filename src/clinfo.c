@@ -1820,13 +1820,50 @@ printDeviceInfo(cl_uint d)
 	extensions = NULL;
 }
 
+void version()
+{
+	puts("clinfo version 2.0.14.10.26");
+}
+
+void usage()
+{
+	version();
+	puts("Display properties of all available OpenCL platforms and devices");
+	puts("Usage: clinfo [options ...]\n");
+	puts("Options:");
+	puts("\t--human\t\thuman-friendly output (default)");
+	puts("\t--raw\t\traw output");
+	puts("\t-h, -?\t\tshow usage");
+	puts("\t--version, -v\tshow version\n");
+	puts("Defaults to raw mode if invoked with");
+	puts("a name that contains the string \"raw\"");
+}
+
 int main(int argc, char *argv[])
 {
 	cl_uint p, d;
+	int a = 0;
 
 	/* if there's a 'raw' in the program name, switch to raw output mode */
 	if (strstr(argv[0], "raw"))
 		output_mode = CLINFO_RAW;
+
+	/* process command-line arguments */
+	while (a < argc) {
+		++a;
+		if (!strcmp(argv[a], "--raw"))
+			output_mode = CLINFO_RAW;
+		else if (!strcmp(argv[a], "--human"))
+			output_mode = CLINFO_HUMAN;
+		else if (!strcmp(argv[a], "-?") || !strcmp(argv[a], "-h")) {
+			usage();
+			return 0;
+		} else if (!strcmp(argv[a], "--version") || !strcmp(argv[a], "-v")) {
+			version();
+			return 0;
+		}
+	}
+
 
 	ALLOC(strbuf, 1024, "general string buffer");
 	bufsz = 1024;

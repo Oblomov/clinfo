@@ -6,6 +6,7 @@ clinfo \- show OpenCL platforms and devices
 
 .SH SYNOPSIS
 .B clinfo
+.RI [ "options ..." ]
 
 .SH DESCRIPTION
 .B clinfo
@@ -13,7 +14,24 @@ prints all available information about all OpenCL platforms
 available on the system and the devices they expose.
 
 .SH OPTIONS
-This program accepts no options.
+.B clinfo
+accepts the following options:
+.TP 2
+.B --human
+produce human-friendly output; this is the default (except
+as noted below);
+.TP
+.B --raw
+produce machine-friendly output; this is the default if
+.B clinfo
+is invoked with a name that contains the string
+.RI \*(lq raw \*(rq;
+.TP
+.BR -h ", " -?
+show usage;
+.TP
+.BR --version ", " -v
+show program version.
 
 .SH CONFORMING TO
 
@@ -86,6 +104,10 @@ is only relevant for single precision in OpenCL 1.2 devices.
 
 .P
 Support for OpenCL 2.0 properties is not fully tested.
+
+.P
+Raw (machine-parseable) output is an experimental feature, the output
+format might undergo changes.
 
 .SH BUGS
 The results of the following undocumented properties might be
