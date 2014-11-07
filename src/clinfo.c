@@ -40,11 +40,13 @@ enum output_modes output_mode = CLINFO_HUMAN;
 
 static const char unk[] = "Unknown";
 static const char none[] = "None";
+static const char none_raw[] = "CL_NONE";
 static const char na[] = "n/a"; // not available
 static const char core[] = "core"; // not available
-static const char fpsupp[] = "Floating-point support";
 
 static const char bytes_str[] = " bytes";
+static const char pixels_str[] = " pixels";
+static const char images_str[] = " images";
 
 static const char* bool_str[] = { "No", "Yes" };
 static const char* bool_raw_str[] = { "CL_FALSE", "CL_TRUE" };
@@ -59,11 +61,11 @@ static const char* device_type_raw_str[] = { unk,
 static const size_t device_type_str_count = ARRAY_SIZE(device_type_str);
 
 static const char* partition_type_str[] = {
-	"none specified", "none", "equally", "by counts", "by affinity domain", "by names (Intel)"
+	"none specified", none, "equally", "by counts", "by affinity domain", "by names (Intel)"
 };
 static const char* partition_type_raw_str[] = {
 	"NONE SPECIFIED",
-	"NONE",
+	none,
 	"CL_DEVICE_PARTITION_EQUALLY_EXT",
 	"CL_DEVICE_PARTITION_BY_COUNTS_EXT",
 	"CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN_EXT",
@@ -141,8 +143,10 @@ static const char* memsfx[] = {
 
 const size_t memsfx_count = ARRAY_SIZE(memsfx);
 
-static const char* local_mem_type_str[] = { none, "Local", "Global" };
+static const char* lmem_type_str[] = { none, "Local", "Global" };
+static const char* lmem_type_raw_str[] = { none_raw, "CL_LOCAL", "CL_GLOBAL" };
 static const char* cache_type_str[] = { none, "Read-Only", "Read/Write" };
+static const char* cache_type_raw_str[] = { none_raw, "CL_READ_ONLY_CACHE", "CL_READ_WRITE_CACHE" };
 
 static const char* sources[] = {
 	"#define GWO(type) global type* restrict\n",
@@ -189,10 +193,9 @@ const char *cur_sfx = empty_str;
 static inline
 void show_strbuf(const char *pname, int skip)
 {
-	if (skip)
-		printf(I1_STR "%s%s\n", pname, skip_leading_ws(strbuf), cur_sfx);
-	else
-		printf(I1_STR "%s%s\n", pname, strbuf, cur_sfx);
+	printf(I1_STR "%s%s\n", pname,
+		(skip ? skip_leading_ws(strbuf) : strbuf),
+		had_error ? empty_str : cur_sfx);
 }
 
 int
@@ -407,6 +410,9 @@ getOpenCLVersion(const char *version)
 
 struct device_info_checks {
 	cl_device_type devtype;
+	cl_device_mem_cache_type cachetype;
+	cl_device_local_mem_type lmemtype;
+	cl_bool image_support;
 	char has_half[12];
 	char has_double[24];
 	char has_nv[29];
@@ -471,6 +477,32 @@ int dev_has_partition(const struct device_info_checks *chk)
 {
 	return dev_is_12(chk) || dev_has_fission(chk);
 }
+
+int dev_has_cache(const struct device_info_checks *chk)
+{
+	return chk->cachetype != CL_NONE;
+}
+
+int dev_has_lmem(const struct device_info_checks *chk)
+{
+	return chk->lmemtype != CL_NONE;
+}
+
+int dev_has_images(const struct device_info_checks *chk)
+{
+	return chk->image_support;
+}
+
+int dev_has_images_12(const struct device_info_checks *chk)
+{
+	return dev_has_images(chk) && dev_is_12(chk);
+}
+
+int dev_has_images_20(const struct device_info_checks *chk)
+{
+	return dev_has_images(chk) && dev_is_20(chk);
+}
+
 
 void identify_device_extensions(const char *extensions, struct device_info_checks *chk)
 {
@@ -597,8 +629,13 @@ int device_info_bool(cl_device_id dev, cl_device_info param, const char *pname,
 	GET_VAL;
 	if (had_error)
 		show_strbuf(pname, 0);
-	else
+	else {
 		printf(I1_STR "%s%s\n", pname, str[val], cur_sfx);
+		/* abuse strbuf to pass the bool value up to the caller,
+		 * this is used e.g. by CL_DEVICE_IMAGE_SUPPORT
+		 */
+		memcpy(strbuf, &val, sizeof(val));
+	}
 	return had_error;
 }
 
@@ -608,7 +645,7 @@ int device_info_bits(cl_device_id dev, cl_device_info param, const char *pname,
 	cl_uint val;
 	GET_VAL;
 	if (!had_error)
-		sprintf(strbuf, "%u bits (%u bytes)\n", val, val/8);
+		sprintf(strbuf, "%u bits (%u bytes)", val, val/8);
 	show_strbuf(pname, 0);
 	return had_error;
 }
@@ -641,6 +678,21 @@ int device_info_mem(cl_device_id dev, cl_device_info param, const char *pname,
 	return had_error;
 }
 
+int device_info_mem_int(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk)
+{
+	cl_uint val;
+	size_t szval = 0;
+	GET_VAL;
+	if (!had_error) {
+		szval += sprintf(strbuf, "%u", val);
+		if (output_mode == CLINFO_HUMAN && val > 1024)
+			szval += strbuf_mem(val, szval);
+	}
+	show_strbuf(pname, 0);
+	return had_error;
+}
+
 int device_info_free_mem_amd(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
@@ -661,6 +713,7 @@ int device_info_free_mem_amd(cl_device_id dev, cl_device_info param, const char 
 		}
 	}
 	show_strbuf(pname, 0);
+	free(val);
 	return had_error;
 }
 
@@ -713,6 +766,52 @@ int device_info_wg(cl_device_id dev, cl_device_info param, const char *pname,
 	return had_error;
 }
 
+int device_info_img_sz_2d(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk)
+{
+	size_t width, height, val;
+	GET_VAL; /* HEIGHT */
+	if (!had_error) {
+		height = val;
+		param = CL_DEVICE_IMAGE2D_MAX_WIDTH;
+		current_param = "CL_DEVICE_IMAGE2D_MAX_WIDTH";
+		GET_VAL;
+		if (!had_error) {
+			width = val;
+			sprintf(strbuf, "%" PRIuS "x%" PRIuS, width, height);
+		}
+	}
+	show_strbuf(pname, 0);
+	return had_error;
+}
+
+int device_info_img_sz_3d(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk)
+{
+	size_t width, height, depth, val;
+	GET_VAL; /* HEIGHT */
+	if (!had_error) {
+		height = val;
+		param = CL_DEVICE_IMAGE3D_MAX_WIDTH;
+		current_param = "CL_DEVICE_IMAGE3D_MAX_WIDTH";
+		GET_VAL;
+		if (!had_error) {
+			width = val;
+			param = CL_DEVICE_IMAGE3D_MAX_DEPTH;
+			current_param = "CL_DEVICE_IMAGE3D_MAX_DEPTH";
+			GET_VAL;
+			if (!had_error) {
+				depth = val;
+				sprintf(strbuf, "%" PRIuS "x%" PRIuS "x%" PRIuS,
+					width, height, depth);
+			}
+		}
+	}
+	show_strbuf(pname, 0);
+	return had_error;
+}
+
+
 int device_info_devtype(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
@@ -747,6 +846,40 @@ int device_info_devtype(cl_device_id dev, cl_device_info param, const char *pnam
 	}
 	show_strbuf(pname, 0);
 	/* we abuse global strbuf to pass the device type over to the caller */
+	if (!had_error)
+		memcpy(strbuf, &val, sizeof(val));
+	return had_error;
+}
+
+int device_info_cachetype(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk)
+{
+	cl_device_mem_cache_type val;
+	GET_VAL;
+	if (!had_error) {
+		const char * const *ar = (output_mode == CLINFO_HUMAN ?
+			cache_type_str : cache_type_raw_str);
+		sprintf(strbuf, ar[val]);
+	}
+	show_strbuf(pname, 0);
+	/* we abuse global strbuf to pass the cache type over to the caller */
+	if (!had_error)
+		memcpy(strbuf, &val, sizeof(val));
+	return had_error;
+}
+
+int device_info_lmemtype(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk)
+{
+	cl_device_local_mem_type val;
+	GET_VAL;
+	if (!had_error) {
+		const char * const *ar = (output_mode == CLINFO_HUMAN ?
+			lmem_type_str : lmem_type_raw_str);
+		sprintf(strbuf, ar[val]);
+	}
+	show_strbuf(pname, 0);
+	/* we abuse global strbuf to pass the lmem type over to the caller */
 	if (!had_error)
 		memcpy(strbuf, &val, sizeof(val));
 	return had_error;
@@ -1329,14 +1462,57 @@ struct device_info_traits dinfo_traits[] = {
 	/* Global variables. TODO some 1.2 devices respond to this too */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_GLOBAL_VARIABLE_SIZE, "Max size for global variable", mem), dev_is_20 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_VARIABLE_PREFERRED_TOTAL_SIZE, "Preferred total size of global vars", mem), dev_is_20 },
+
+	/* Global memory cache */
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_MEM_CACHE_TYPE, "Global Memory cache type", cachetype), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_MEM_CACHE_SIZE, "Global Memory cache size", sz), dev_has_cache },
+	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE, "Global Memory cache line", " bytes", int), dev_has_cache },
+
+	/* Image support */
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_IMAGE_SUPPORT, "Image support", bool), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_SAMPLERS, INDENT "Max number of samplers per kernel", int), dev_has_images },
+	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_IMAGE_MAX_BUFFER_SIZE, INDENT "Max size for 1D images from buffer", pixels_str, sz), dev_has_images_12 },
+	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_IMAGE_MAX_ARRAY_SIZE, INDENT "Max 1D or 2D image array size", images_str, sz), dev_has_images_12 },
+	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_IMAGE_BASE_ADDRESS_ALIGNMENT, INDENT "Base address alignment for 2D image buffers", bytes_str, sz), dev_has_image2d_buffer },
+	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_IMAGE_PITCH_ALIGNMENT, INDENT "Pitch alignment for 2D image buffers", bytes_str, sz), dev_has_image2d_buffer },
+
+	/* Image dimensions are split for RAW, combined for HUMAN */
+	{ CLINFO_HUMAN, DINFO_SFX(CL_DEVICE_IMAGE2D_MAX_HEIGHT, INDENT "Max 2D image size",  pixels_str, img_sz_2d), dev_has_images },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_IMAGE2D_MAX_HEIGHT, INDENT "Max 2D image height",  sz), dev_has_images },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_IMAGE2D_MAX_WIDTH, INDENT "Max 2D image width",  sz), dev_has_images },
+	{ CLINFO_HUMAN, DINFO_SFX(CL_DEVICE_IMAGE3D_MAX_HEIGHT, INDENT "Max 3D image size",  pixels_str, img_sz_3d), dev_has_images },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_IMAGE3D_MAX_HEIGHT, INDENT "Max 3D image height",  sz), dev_has_images },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_IMAGE3D_MAX_WIDTH, INDENT "Max 3D image width",  sz), dev_has_images },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_IMAGE3D_MAX_DEPTH, INDENT "Max 3D image depth",  sz), dev_has_images },
+
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_READ_IMAGE_ARGS, INDENT "Max number of read image args", int), dev_has_images },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_WRITE_IMAGE_ARGS, INDENT "Max number of write image args", int), dev_has_images },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_READ_WRITE_IMAGE_ARGS, INDENT "Max number of read/write image args", int), dev_has_images_20 },
+
+	/* Pipes */
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_PIPE_ARGS, "Max number of pipe args", int), dev_is_20 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_PIPE_MAX_ACTIVE_RESERVATIONS, "Max active pipe reservations", int), dev_is_20 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_PIPE_MAX_PACKET_SIZE, "Max pipe packet size", mem_int), dev_is_20 },
+
+	/* Local memory */
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_LOCAL_MEM_TYPE, "Local memory type", lmemtype), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_LOCAL_MEM_SIZE, "Local memory syze", mem), dev_has_lmem },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_LOCAL_MEM_SIZE_PER_COMPUTE_UNIT_AMD, "Local memory syze per CU (AMD)", mem), dev_is_gpu_amd },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_LOCAL_MEM_BANKS_AMD, "Local memory banks (AMD)", int), dev_is_gpu_amd },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_REGISTERS_PER_BLOCK_NV, "Registers per block (NV)", int), dev_has_nv },
+
+	/* Constant memory */
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE, "Max constant buffer size", mem), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_CONSTANT_ARGS, "Max number of constant args", int), NULL },
+
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_PARAMETER_SIZE, "Max size of kernel argument", mem), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_ATOMIC_COUNTERS_EXT, "Max number of atomic counters", sz), dev_has_atomic_counters },
 };
 
 void
 printDeviceInfo(cl_uint d)
 {
 	cl_device_id dev = device[d];
-	cl_device_local_mem_type lmemtype;
-	cl_device_mem_cache_type cachetype;
 	cl_device_exec_capabilities execap;
 
 	cl_command_queue_properties queueprop;
@@ -1346,7 +1522,6 @@ printDeviceInfo(cl_uint d)
 	double doubleval;
 	cl_bool boolval;
 	size_t szval;
-	size_t *szvals = calloc(3, sizeof(size_t));
 	size_t len;
 
 	char *extensions = NULL;
@@ -1489,83 +1664,23 @@ printDeviceInfo(cl_uint d)
 			/* strbuf was abused to give us the dev type */
 			memcpy(&(chk.devtype), strbuf, sizeof(chk.devtype));
 			break;
+		case CL_DEVICE_GLOBAL_MEM_CACHE_TYPE:
+			/* strbuf was abused to give us the cache type */
+			memcpy(&(chk.cachetype), strbuf, sizeof(chk.cachetype));
+			break;
+		case CL_DEVICE_LOCAL_MEM_TYPE:
+			/* strbuf was abused to give us the lmem type */
+			memcpy(&(chk.lmemtype), strbuf, sizeof(chk.lmemtype));
+			break;
+		case CL_DEVICE_IMAGE_SUPPORT:
+			/* strbuf was abused to give us boolean value */
+			memcpy(&(chk.image_support), strbuf, sizeof(chk.image_support));
+			break;
 		default:
 			/* do nothing */
 			break;
 		}
 	}
-
-	// cache
-	GET_PARAM(GLOBAL_MEM_CACHE_TYPE, cachetype);
-	STR_PRINT("Global Memory cache type", cache_type_str[cachetype]);
-	if (cachetype != CL_NONE) {
-		MEM_PARAM(GLOBAL_MEM_CACHE_SIZE, "Global Memory cache size");
-		INT_PARAM(GLOBAL_MEM_CACHELINE_SIZE, "Global Memory cache line", " bytes");
-	}
-
-	// images
-	BOOL_PARAM(IMAGE_SUPPORT, "Image support");
-	if (boolval) {
-		INT_PARAM(MAX_SAMPLERS, INDENT "Max number of samplers per kernel",);
-		if (dev_is_12(&chk)) {
-			SZ_PARAM(IMAGE_MAX_BUFFER_SIZE, INDENT "Max 1D image size", " pixels");
-			SZ_PARAM(IMAGE_MAX_ARRAY_SIZE, INDENT "Max 1D or 2D image array size", " images");
-		}
-		if (dev_has_image2d_buffer(&chk)) {
-			SZ_PARAM(IMAGE_BASE_ADDRESS_ALIGNMENT, INDENT "Base address alignment for 2D image buffers",);
-			SZ_PARAM(IMAGE_PITCH_ALIGNMENT, INDENT "Pitch alignment for 2D image buffers",);
-		}
-		GET_PARAM_PTR(IMAGE2D_MAX_HEIGHT, szvals, 1);
-		GET_PARAM_PTR(IMAGE2D_MAX_WIDTH, (szvals+1), 1);
-		printf(I2_STR "%" PRIuS "x%" PRIuS " pixels\n", "Max 2D image size",
-			szvals[0], szvals[1]);
-		GET_PARAM_PTR(IMAGE3D_MAX_HEIGHT, szvals, 1);
-		GET_PARAM_PTR(IMAGE3D_MAX_WIDTH, (szvals+1), 1);
-		GET_PARAM_PTR(IMAGE3D_MAX_DEPTH, (szvals+2), 1);
-		printf(I2_STR "%" PRIuS "x%" PRIuS "x%" PRIuS " pixels\n", "Max 3D image size",
-			szvals[0], szvals[1], szvals[2]);
-		INT_PARAM(MAX_READ_IMAGE_ARGS, INDENT "Max number of read image args",);
-		INT_PARAM(MAX_WRITE_IMAGE_ARGS, INDENT "Max number of write image args",);
-		if (dev_is_20(&chk)) {
-			INT_PARAM(MAX_READ_WRITE_IMAGE_ARGS, INDENT "Max number of read/write image args",);
-		}
-	}
-
-	// pipes
-	if (dev_is_20(&chk)) {
-		INT_PARAM(MAX_PIPE_ARGS, "Max number of pipe args", "");
-		INT_PARAM(PIPE_MAX_ACTIVE_RESERVATIONS, "Max active pipe reservations", "");
-		GET_PARAM(PIPE_MAX_PACKET_SIZE, uintval);
-		if (had_error)
-			printf(I1_STR "%s\n", "Max pipe packet size", strbuf); \
-		else
-			MEM_PARAM_STR(uintval, "%u", "Max pipe packet size");
-	}
-
-
-	// local
-	GET_PARAM(LOCAL_MEM_TYPE, lmemtype);
-	STR_PRINT("Local memory type", local_mem_type_str[lmemtype]);
-	if (lmemtype != CL_NONE)
-		MEM_PARAM(LOCAL_MEM_SIZE, "Local memory size");
-	if (dev_is_gpu_amd(&chk)) {
-		MEM_PARAM(LOCAL_MEM_SIZE_PER_COMPUTE_UNIT_AMD, "Local memory size per CU (AMD)");
-		INT_PARAM(LOCAL_MEM_BANKS_AMD, "Local memory banks (AMD)",);
-	}
-
-	// nv: registers/CU
-	if (dev_has_nv(&chk)) {
-		INT_PARAM(REGISTERS_PER_BLOCK_NV, "NVIDIA registers per CU",);
-	}
-
-
-	// constant
-	MEM_PARAM(MAX_CONSTANT_BUFFER_SIZE, "Max constant buffer size");
-	INT_PARAM(MAX_CONSTANT_ARGS, "Max number of constant args",);
-
-	MEM_PARAM(MAX_PARAMETER_SIZE, "Max size of kernel argument");
-	if (dev_has_atomic_counters(&chk))
-		INT_PARAM(MAX_ATOMIC_COUNTERS_EXT, "Max number of atomic counters",);
 
 	// queue and kernel capabilities
 
