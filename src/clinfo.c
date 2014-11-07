@@ -72,13 +72,18 @@ static const char* partition_type_raw_str[] = {
 	"CL_DEVICE_PARTITION_BY_NAMES_INTEL_EXT"
 };
 
+static const char numa[] = "NUMA";
+static const char l1cache[] = "L1 cache";
+static const char l2cache[] = "L2 cache";
+static const char l3cache[] = "L3 cache";
+static const char l4cache[] = "L4 cache";
+
 static const char* affinity_domain_str[] = {
-	"NUMA", "L4 cache", "L3 cache", "L2 cache", "L1 cache", "next partitionalbe"
+	numa, l4cache, l3cache, l2cache, l1cache, "next partitionalbe"
 };
 
-/* only the overrides */
 static const char* affinity_domain_ext_str[] = {
-	NULL, NULL, NULL, NULL, NULL, "next fissionable"
+	numa, l4cache, l3cache, l2cache, l1cache, "next fissionable"
 };
 
 static const char* affinity_domain_raw_str[] = {
@@ -1218,8 +1223,6 @@ int device_info_partition_affinities_ext(cl_device_id dev, cl_device_info param,
 			if (str_idx >= 0) {
 				/* string length */
 				const char *str = ptstr[str_idx];
-				if (!str)
-					str = affinity_domain_str[str_idx];
 				slen = strlen(str);
 				strncpy(strbuf + szval, str, slen);
 				szval += slen;
