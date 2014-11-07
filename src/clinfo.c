@@ -65,7 +65,7 @@ static const char* partition_type_str[] = {
 };
 static const char* partition_type_raw_str[] = {
 	"NONE SPECIFIED",
-	none,
+	none_raw,
 	"CL_DEVICE_PARTITION_EQUALLY_EXT",
 	"CL_DEVICE_PARTITION_BY_COUNTS_EXT",
 	"CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN_EXT",
@@ -940,15 +940,18 @@ void devtopo_str(const cl_device_topology_amd *devtopo)
 {
 	switch (devtopo->raw.type) {
 	case 0:
-		snprintf(strbuf, bufsz, "(%s)", na);
+		if (output_mode == CLINFO_HUMAN)
+			sprintf(strbuf, "(%s)", na);
+		else
+			sprintf(strbuf, none_raw);
 		break;
 	case CL_DEVICE_TOPOLOGY_TYPE_PCIE_AMD:
-		snprintf(strbuf, bufsz, "PCI-E, %02x:%02x.%u",
+		sprintf(strbuf, "PCI-E, %02x:%02x.%u",
 			(cl_uchar)(devtopo->pcie.bus),
 			devtopo->pcie.device, devtopo->pcie.function);
 		break;
 	default:
-		snprintf(strbuf, bufsz, "<unknown (%u): %u %u %u %u %u>",
+		sprintf(strbuf, "<unknown (%u): %u %u %u %u %u>",
 			devtopo->raw.type,
 			devtopo->raw.data[0], devtopo->raw.data[1],
 			devtopo->raw.data[2],
@@ -1556,7 +1559,8 @@ struct device_info_traits dinfo_traits[] = {
 
 	/* Alignment */
 	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_MIN_DATA_TYPE_ALIGN_SIZE, "Minimum alignment for any data type", bytes_str, int), NULL },
-	{ CLINFO_BOTH, DINFO(CL_DEVICE_MEM_BASE_ADDR_ALIGN, "Alignment of base address", bits), NULL },
+	{ CLINFO_HUMAN, DINFO(CL_DEVICE_MEM_BASE_ADDR_ALIGN, "Alignment of base address", bits), NULL },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_MEM_BASE_ADDR_ALIGN, "Alignment of base address", int), NULL },
 
 	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_PAGE_SIZE_QCOM, "Page size (QCOM)", bytes_str, sz), dev_has_qcom_ext_host_ptr },
 	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_EXT_MEM_PADDING_IN_BYTES_QCOM, "Externa memory padding (QCOM)", bytes_str, sz), dev_has_qcom_ext_host_ptr },
@@ -1752,7 +1756,7 @@ printDeviceInfo(cl_uint d)
 		if (traits->check_func && !traits->check_func(&chk))
 			continue;
 
-		cur_sfx = traits->sfx ? traits->sfx : empty_str;
+		cur_sfx = (output_mode == CLINFO_HUMAN && traits->sfx) ? traits->sfx : empty_str;
 
 		/* Handle headers */
 		if (traits->param == CL_FALSE) {
