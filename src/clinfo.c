@@ -112,6 +112,22 @@ static const char* fp_conf_raw_str[] = {
 
 const size_t fp_conf_count = ARRAY_SIZE(fp_conf_str);
 
+static const char* svm_cap_str[] = {
+	"Coarse-grained buffer sharing",
+	"Fine-grained buffer sharing",
+	"Fine-grained system sharing",
+	"Atomics"
+};
+
+static const char* svm_cap_raw_str[] = {
+	"CL_DEVICE_SVM_COARSE_GRAIN_BUFFER",
+	"CL_DEVICE_SVM_FINE_GRAIN_BUFFER",
+	"CL_DEVICE_SVM_FINE_GRAIN_SYSTEM",
+	"CL_DEVICE_SVM_ATOMICS",
+};
+
+const size_t svm_cap_count = ARRAY_SIZE(svm_cap_str);
+
 static const char* memsfx[] = {
 	"B", "KiB", "MiB", "GiB", "TiB"
 };
@@ -1121,6 +1137,46 @@ int device_info_arch(cl_device_id dev, cl_device_info param, const char *pname,
 	return had_error;
 }
 
+/* SVM capabilities */
+int device_info_svm_cap(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk)
+{
+	cl_device_svm_capabilities val;
+	int is_20 = dev_is_20(chk);
+	int has_svm_ext = dev_has_svm_ext(chk);
+
+	GET_VAL;
+
+	if (!had_error) {
+		size_t szval = 0;
+		cl_uint i = 0;
+		const char *sep = vbar_str;
+		const char * const *scstr = (output_mode == CLINFO_HUMAN ?
+			svm_cap_str : svm_cap_raw_str);
+		if (output_mode == CLINFO_HUMAN) {
+			/* show 'why' it's being shown */
+			szval += sprintf(strbuf, "(%s%s%s)",
+				(is_20 ? core : empty_str),
+				(is_20 && has_svm_ext ? comma_str : empty_str),
+				chk->has_svm_ext);
+		}
+		for (i = 0; i < svm_cap_count; ++i) {
+			cl_device_svm_capabilities cur = (cl_device_svm_capabilities)(1) << i;
+			if (output_mode == CLINFO_HUMAN) {
+				szval += sprintf(strbuf + szval, "\n" I2_STR "%s",
+					scstr[i], bool_str[!!(val & cur)]);
+			} else if (val & cur) {
+				if (szval > 0)
+					szval += sprintf(strbuf + szval, sep);
+				szval += sprintf(strbuf + szval, scstr[i]);
+			}
+		}
+	}
+
+	show_strbuf(pname, 0);
+	return had_error;
+}
+
 /*
  * Device info traits
  */
@@ -1226,6 +1282,8 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_MEM_ALLOC_SIZE, "Max memory allocation", mem), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_HOST_UNIFIED_MEMORY, "Unified memory for Host and Device", bool), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_INTEGRATED_MEMORY_NV, "Integrated memory (NV)", bool), dev_has_nv },
+
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_SVM_CAPABILITIES, "Shared Virtual Memory (SVM) capabilities", svm_cap), dev_has_svm },
 };
 
 void
@@ -1389,33 +1447,6 @@ printDeviceInfo(cl_uint d)
 		default:
 			/* do nothing */
 			break;
-		}
-	}
-
-	// SVM
-	if (dev_has_svm(&chk)) {
-		cl_device_svm_capabilities svm_cap;
-		GET_PARAM(SVM_CAPABILITIES, svm_cap);
-		if (!had_error) {
-			szval = 0;
-			strbuf[szval++] = '(';
-			if (dev_is_20(&chk)) {
-				strncpy(strbuf + szval, "core, ", chk.has_svm_ext[0] ? 6 : 4);
-				szval += (chk.has_svm_ext[0] ? 6 : 4);
-			}
-			if (dev_has_svm_ext(&chk)) {
-				strncpy(strbuf + szval, chk.has_svm_ext, bufsz - (szval + 2));
-				szval += strlen(chk.has_svm_ext);
-			}
-			strbuf[szval++] = ')';
-			strbuf[szval++] = 0;
-		}
-		printf(I1_STR "%s\n", "Shared Virtual Memory (SVM) capabilities", strbuf);
-		if (!had_error) {
-			STR_PRINT(INDENT "Coarse-grained buffer sharing", bool_str[!!(svm_cap & CL_DEVICE_SVM_COARSE_GRAIN_BUFFER)]);
-			STR_PRINT(INDENT "Fine-grained buffer sharing", bool_str[!!(svm_cap & CL_DEVICE_SVM_FINE_GRAIN_BUFFER)]);
-			STR_PRINT(INDENT "Fine-grained system sharing", bool_str[!!(svm_cap & CL_DEVICE_SVM_FINE_GRAIN_SYSTEM)]);
-			STR_PRINT(INDENT "Atomics", bool_str[!!(svm_cap & CL_DEVICE_SVM_ATOMICS)]);
 		}
 	}
 
