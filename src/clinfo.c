@@ -197,16 +197,6 @@ static const char times_str[] = "x";
 static const char comma_str[] = ", ";
 static const char vbar_str[] = " | ";
 
-
-#define STR_PRINT(name, str) \
-	printf(I1_STR "%s\n", name, skip_leading_ws(str))
-
-#define SHOW_STRING(cmd, param, name, ...) do { \
-	GET_STRING(cmd, param, #param, __VA_ARGS__); \
-	STR_PRINT(name, strbuf); \
-} while (0)
-
-
 int had_error = 0;
 const char *cur_sfx = empty_str;
 
@@ -317,26 +307,6 @@ printPlatformInfo(cl_uint p)
 		CHECK_ERROR("number of devices");
 	num_devs_all += num_devs[p];
 }
-
-#define GET_PARAM(param, var) do { \
-	error = clGetDeviceInfo(dev, CL_DEVICE_##param, sizeof(var), &var, 0); \
-	had_error = REPORT_ERROR("get " #param); \
-} while (0)
-
-#define GET_PARAM_PTR(param, var, num) do { \
-	error = clGetDeviceInfo(dev, CL_DEVICE_##param, num*sizeof(*var), var, 0); \
-	had_error = REPORT_ERROR("get " #param); \
-} while (0)
-
-#define GET_PARAM_ARRAY(param, var, num) do { \
-	error = clGetDeviceInfo(dev, CL_DEVICE_##param, 0, NULL, &num); \
-	had_error = REPORT_ERROR("get number of " #param); \
-	if (!had_error) { \
-		REALLOC(var, num/sizeof(*var), #param); \
-		error = clGetDeviceInfo(dev, CL_DEVICE_##param, num, var, NULL); \
-		had_error = REPORT_ERROR("get " #param); \
-	} \
-} while (0)
 
 int
 getWGsizes(cl_platform_id pid, cl_device_id dev)
@@ -1659,82 +1629,6 @@ printDeviceInfo(cl_uint d)
 	struct device_info_checks chk;
 	memset(&chk, 0, sizeof(chk));
 	chk.dev_version = 10;
-
-#define KB UINT64_C(1024)
-#define MB (KB*KB)
-#define GB (MB*KB)
-#define TB (GB*KB)
-#define MEM_SIZE(val) ( \
-	val >= TB ? val/TB : \
-	val >= GB ? val/GB : \
-	val >= MB ? val/MB : \
-	val/KB )
-#define MEM_PFX(val) ( \
-	val >= TB ? "TiB" : \
-	val >= GB ? "GiB" : \
-	val >= MB ? "MiB" : \
-	 "KiB" )
-
-#define STR_PARAM(param, str) \
-	SHOW_STRING(clGetDeviceInfo, CL_DEVICE_##param, "Device " str, dev)
-#define INT_PARAM(param, name, sfx) do { \
-	GET_PARAM(param, uintval); \
-	if (had_error) { \
-		printf(I1_STR "%s\n", name, strbuf); \
-	} else { \
-		printf(I1_STR "%u" sfx "\n", name, uintval); \
-	} \
-} while (0)
-#define HEX_PARAM(param, name) do { \
-	GET_PARAM(param, uintval); \
-	if (had_error) { \
-		printf(I1_STR "%s\n", name, strbuf); \
-	} else { \
-		printf(I1_STR "0x%x\n", name, uintval); \
-	} \
-} while (0)
-#define LONG_PARAM(param, name, sfx) do { \
-	GET_PARAM(param, ulongval); \
-	if (had_error) { \
-		printf(I1_STR "%s\n", name, strbuf); \
-	} else { \
-		printf(I1_STR "%u" sfx "\n", name, ulongval); \
-	} \
-} while (0)
-#define SZ_PARAM(param, name, sfx) do { \
-	GET_PARAM(param, szval); \
-	if (had_error) { \
-		printf(I1_STR "%s\n", name, strbuf); \
-	} else { \
-		printf(I1_STR "%" PRIuS sfx "\n", name, szval); \
-	} \
-} while (0)
-#define MEM_PARAM_STR(var, fmt, name) do { \
-	doubleval = (double)var; \
-	if (var > KB) { \
-		snprintf(strbuf, bufsz, " (%.4lg%s)", \
-			MEM_SIZE(doubleval), \
-			MEM_PFX(doubleval)); \
-		strbuf[bufsz-1] = '\0'; \
-	} else strbuf[0] = '\0'; \
-	printf(I1_STR fmt "%s\n", name, var, strbuf); \
-} while (0)
-#define MEM_PARAM(param, name) do { \
-	GET_PARAM(param, ulongval); \
-	if (had_error) { \
-		printf(I1_STR "%s\n", name, strbuf); \
-	} else { \
-		MEM_PARAM_STR(ulongval, "%" PRIu64, name); \
-	} \
-} while (0)
-#define BOOL_PARAM(param, name) do { \
-	GET_PARAM(param, boolval); \
-	if (had_error) { \
-		printf(I1_STR "%s\n", name, strbuf); \
-	} else { \
-		STR_PRINT(name, bool_str[boolval]); \
-	} \
-} while (0)
 
 	current_function = __func__;
 
