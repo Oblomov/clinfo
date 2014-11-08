@@ -22,11 +22,27 @@
 
 #define ARRAY_SIZE(ar) (sizeof(ar)/sizeof(*ar))
 
+struct platform_data {
+	char *pname; /* CL_PLATFORM_NAME */
+	char *sname; /* CL_PLATFORM_ICD_SUFFIX_KHR or surrogate */
+	cl_uint ndevs; /* number of devices */
+};
+
 cl_uint num_platforms;
 cl_platform_id *platform;
-char **platform_name;
-cl_uint *num_devs;
+
+struct platform_data *pdata;
+/* maximum length of a platform's sname */
+size_t platform_sname_maxlen;
+/* maximum number of devices */
+cl_uint maxdevs;
+/* line prefix, used to identify the platform/device for each
+ * device property in RAW output mode */
+char *line_pfx;
+int line_pfx_len;
+
 cl_uint num_devs_all;
+
 cl_device_id *all_devices;
 cl_device_id *device;
 
@@ -205,7 +221,8 @@ const char *cur_sfx = empty_str;
 static inline
 void show_strbuf(const char *pname, int skip)
 {
-	printf(I1_STR "%s%s\n", pname,
+	printf("%s" I1_STR "%s%s\n",
+		line_pfx, pname,
 		(skip ? skip_leading_ws(strbuf) : strbuf),
 		had_error ? empty_str : cur_sfx);
 }
@@ -286,15 +303,23 @@ printPlatformInfo(cl_uint p)
 		case CL_PLATFORM_NAME:
 			/* Store name for future reference */
 			len = strlen(strbuf);
-			platform_name[p] = malloc(len + 1);
+			ALLOC(pdata[p].pname, len+1, "platform name copy");
 			/* memcpy instead of strncpy since we already have the len
 			 * and memcpy is possibly more optimized */
-			memcpy(platform_name[p], strbuf, len);
-			platform_name[p][len] = '\0';
+			memcpy(pdata[p].pname, strbuf, len);
+			pdata[p].pname[len] = '\0';
 			break;
 		case CL_PLATFORM_EXTENSIONS:
 			pinfo_checks.has_khr_icd = !!strstr(strbuf, "cl_khr_icd");
 			break;
+		case CL_PLATFORM_ICD_SUFFIX_KHR:
+			/* Store ICD suffix for future reference */
+			len = strlen(strbuf);
+			ALLOC(pdata[p].sname, len+1, "platform ICD suffix copy");
+			/* memcpy instead of strncpy since we already have the len
+			 * and memcpy is possibly more optimized */
+			memcpy(pdata[p].sname, strbuf, len);
+			pdata[p].sname[len] = '\0';
 		default:
 			/* do nothing */
 			break;
@@ -302,10 +327,24 @@ printPlatformInfo(cl_uint p)
 
 	}
 
-	error = clGetDeviceIDs(pid, CL_DEVICE_TYPE_ALL, 0, NULL, num_devs + p);
+	/* if no CL_PLATFORM_ICD_SUFFIX_KHR, use P### as short/symbolic name */
+	if (!pdata[p].sname) {
+		ALLOC(pdata[p].sname, 32, "platform symbolic name");
+		sprintf(pdata[p].sname, "P%u", p);
+	}
+
+	len = strlen(pdata[p].sname);
+	if (len > platform_sname_maxlen)
+		platform_sname_maxlen = len;
+
+	error = clGetDeviceIDs(pid, CL_DEVICE_TYPE_ALL, 0, NULL, &(pdata[p].ndevs));
 	if (error != CL_DEVICE_NOT_FOUND)
 		CHECK_ERROR("number of devices");
-	num_devs_all += num_devs[p];
+
+	num_devs_all += pdata[p].ndevs;
+
+	if (pdata[p].ndevs > maxdevs)
+		maxdevs = pdata[p].ndevs;
 }
 
 int
@@ -573,7 +612,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 	if (had_error) \
 		show_strbuf(pname, 0); \
 	else \
-		printf(I1_STR fmt "%s\n", pname, val, cur_sfx);
+		printf("%s" I1_STR fmt "%s\n", line_pfx, pname, val, cur_sfx);
 
 #define FMT_VAL(fmt) do { \
 	_FMT_VAL(fmt) \
@@ -633,7 +672,7 @@ int device_info_bool(cl_device_id dev, cl_device_info param, const char *pname,
 	if (had_error)
 		show_strbuf(pname, 0);
 	else {
-		printf(I1_STR "%s%s\n", pname, str[val], cur_sfx);
+		printf("%s" I1_STR "%s%s\n", line_pfx, pname, str[val], cur_sfx);
 		/* abuse strbuf to pass the bool value up to the caller,
 		 * this is used e.g. by CL_DEVICE_IMAGE_SUPPORT
 		 */
@@ -1278,8 +1317,8 @@ int device_info_fpconf(cl_device_id dev, cl_device_info param, const char *pname
 			for (i = 0; i < fp_conf_count; ++i) {
 				cl_device_fp_config cur = (cl_device_fp_config)(1) << i;
 				if (output_mode == CLINFO_HUMAN) {
-					szval += sprintf(strbuf + szval, "\n" I2_STR "%s",
-						fpstr[i], bool_str[!!(val & cur)]);
+					szval += sprintf(strbuf + szval, "\n%s" I2_STR "%s",
+						line_pfx, fpstr[i], bool_str[!!(val & cur)]);
 				} else if (val & cur) {
 					if (szval > 0)
 						szval += sprintf(strbuf + szval, sep);
@@ -1310,8 +1349,8 @@ int device_info_qprop(cl_device_id dev, cl_device_info param, const char *pname,
 		for (i = 0; i < queue_prop_count; ++i) {
 			cl_command_queue_properties cur = (cl_command_queue_properties)(1) << i;
 			if (output_mode == CLINFO_HUMAN) {
-				szval += sprintf(strbuf + szval, "\n" I2_STR "%s",
-					qpstr[i], bool_str[!!(val & cur)]);
+				szval += sprintf(strbuf + szval, "\n%s" I2_STR "%s",
+					line_pfx, qpstr[i], bool_str[!!(val & cur)]);
 			} else if (val & cur) {
 				if (szval > 0)
 					szval += sprintf(strbuf + szval, sep);
@@ -1320,8 +1359,8 @@ int device_info_qprop(cl_device_id dev, cl_device_info param, const char *pname,
 		}
 		if (output_mode == CLINFO_HUMAN && param == CL_DEVICE_QUEUE_PROPERTIES &&
 			dev_has_intel_local_thread(chk))
-			szval += sprintf(strbuf + szval, "\n" I2_STR "%s",
-				"Local thread execution (Intel)", bool_str[CL_TRUE]);
+			szval += sprintf(strbuf + szval, "\n%s" I2_STR "%s",
+				line_pfx, "Local thread execution (Intel)", bool_str[CL_TRUE]);
 	}
 	show_strbuf(pname, 0);
 	return had_error;
@@ -1342,8 +1381,8 @@ int device_info_execap(cl_device_id dev, cl_device_info param, const char *pname
 		for (i = 0; i < execap_count; ++i) {
 			cl_device_exec_capabilities cur = (cl_device_exec_capabilities)(1) << i;
 			if (output_mode == CLINFO_HUMAN) {
-				szval += sprintf(strbuf + szval, "\n" I2_STR "%s",
-					qpstr[i], bool_str[!!(val & cur)]);
+				szval += sprintf(strbuf + szval, "\n%s" I2_STR "%s",
+					line_pfx, qpstr[i], bool_str[!!(val & cur)]);
 			} else if (val & cur) {
 				if (szval > 0)
 					szval += sprintf(strbuf + szval, sep);
@@ -1404,8 +1443,8 @@ int device_info_svm_cap(cl_device_id dev, cl_device_info param, const char *pnam
 		for (i = 0; i < svm_cap_count; ++i) {
 			cl_device_svm_capabilities cur = (cl_device_svm_capabilities)(1) << i;
 			if (output_mode == CLINFO_HUMAN) {
-				szval += sprintf(strbuf + szval, "\n" I2_STR "%s",
-					scstr[i], bool_str[!!(val & cur)]);
+				szval += sprintf(strbuf + szval, "\n%s" I2_STR "%s",
+					line_pfx, scstr[i], bool_str[!!(val & cur)]);
 			} else if (val & cur) {
 				if (szval > 0)
 					szval += sprintf(strbuf + szval, sep);
@@ -1707,7 +1746,7 @@ printDeviceInfo(cl_uint d)
 	}
 
 	// and finally the extensions
-	printf(I1_STR "%s\n", (output_mode == CLINFO_HUMAN ?
+	printf("%s" I1_STR "%s\n", line_pfx, (output_mode == CLINFO_HUMAN ?
 			extensions_traits->pname :
 			extensions_traits->sname), extensions);
 	free(extensions);
@@ -1775,36 +1814,52 @@ int main(int argc, char *argv[])
 	error = clGetPlatformIDs(num_platforms, platform, NULL);
 	CHECK_ERROR("platform IDs");
 
-	ALLOC(platform_name, num_platforms, "platform names");
-	ALLOC(num_devs, num_platforms, "platform devices");
+	ALLOC(pdata, num_platforms, "platform data");
+	ALLOC(line_pfx, 1, "line prefix");
 
 	for (p = 0; p < num_platforms; ++p) {
 		printPlatformInfo(p);
 		puts("");
 	}
 
-	if (num_devs_all > 0)
+	if (num_devs_all > 0) {
 		ALLOC(all_devices, num_devs_all, "device IDs");
+	}
 
-	for (p = 0, device = all_devices;
-	     p < num_platforms;
-	     device += num_devs[p++]) {
-		printf(I1_STR "%s\n",
+	/* TODO consider enabling this for both output modes */
+	if (output_mode == CLINFO_RAW) {
+		sprintf(strbuf, "%u", maxdevs);
+		line_pfx_len = platform_sname_maxlen + strlen(strbuf) + 4;
+		REALLOC(line_pfx, line_pfx_len, "line prefix");
+	}
+
+	for (p = 0, device = all_devices; p < num_platforms; device += pdata[p++].ndevs) {
+		if (line_pfx_len > 0) {
+			sprintf(strbuf, "[%s/*]", pdata[p].sname);
+			sprintf(line_pfx, "%*s", -line_pfx_len, strbuf);
+		}
+		printf("%s" I1_STR "%s\n",
+			line_pfx,
 			(output_mode == CLINFO_HUMAN ?
 			pinfo_traits[0].pname : pinfo_traits[0].sname),
-			platform_name[p]);
-		printf(I0_STR "%u\n",
+			pdata[p].pname);
+		printf("%s" I0_STR "%u\n",
+			line_pfx,
 			(output_mode == CLINFO_HUMAN ?
 			 "Number of devices" : "#DEVICES"),
-			num_devs[p]);
+			pdata[p].ndevs);
 
-		if (num_devs[p] > 0) {
-			error = clGetDeviceIDs(platform[p], CL_DEVICE_TYPE_ALL, num_devs[p], device, NULL);
+		if (pdata[p].ndevs > 0) {
+			error = clGetDeviceIDs(platform[p], CL_DEVICE_TYPE_ALL, pdata[p].ndevs, device, NULL);
 			CHECK_ERROR("device IDs");
 		}
-		for (d = 0; d < num_devs[p]; ++d) {
+		for (d = 0; d < pdata[p].ndevs; ++d) {
+			if (line_pfx_len > 0) {
+				sprintf(strbuf, "[%s/%u]", pdata[p].sname, d);
+				sprintf(line_pfx, "%*s", -line_pfx_len, strbuf);
+			}
 			printDeviceInfo(d);
-			if (d < num_devs[p] - 1)
+			if (d < pdata[p].ndevs - 1)
 				puts("");
 			fflush(stdout);
 			fflush(stderr);

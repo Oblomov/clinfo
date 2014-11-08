@@ -11,7 +11,7 @@
 } while (0)
 
 #define ALLOC(var, num, what) do { \
-	var = calloc(num, sizeof(*var)); \
+	var = calloc(num, sizeof(*(var))); \
 	CHECK_MEM(var, what); \
 } while (0)
 
