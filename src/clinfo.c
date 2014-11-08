@@ -1870,7 +1870,10 @@ int main(int argc, char *argv[])
 	error = clGetPlatformIDs(0, NULL, &num_platforms);
 	CHECK_ERROR("number of platforms");
 
-	printf(I0_STR "%u\n", "Number of platforms", num_platforms);
+	printf(I0_STR "%u\n",
+		(output_mode == CLINFO_HUMAN ?
+		 "Number of platforms" : "#PLATFORMS"),
+		num_platforms);
 	if (!num_platforms)
 		return 0;
 
@@ -1892,8 +1895,14 @@ int main(int argc, char *argv[])
 	for (p = 0, device = all_devices;
 	     p < num_platforms;
 	     device += num_devs[p++]) {
-		printf(I1_STR "%s\n", "Platform Name", platform_name[p]);
-		printf(I0_STR "%u\n", "Number of devices", num_devs[p]);
+		printf(I1_STR "%s\n",
+			(output_mode == CLINFO_HUMAN ?
+			pinfo_traits[0].pname : pinfo_traits[0].sname),
+			platform_name[p]);
+		printf(I0_STR "%u\n",
+			(output_mode == CLINFO_HUMAN ?
+			 "Number of devices" : "#DEVICES"),
+			num_devs[p]);
 
 		if (num_devs[p] > 0) {
 			error = clGetDeviceIDs(platform[p], CL_DEVICE_TYPE_ALL, num_devs[p], device, NULL);
