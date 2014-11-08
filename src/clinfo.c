@@ -1849,8 +1849,7 @@ int main(int argc, char *argv[])
 		output_mode = CLINFO_RAW;
 
 	/* process command-line arguments */
-	while (a < argc) {
-		++a;
+	while (++a < argc) {
 		if (!strcmp(argv[a], "--raw"))
 			output_mode = CLINFO_RAW;
 		else if (!strcmp(argv[a], "--human"))
