@@ -12,7 +12,7 @@ else
   LDLIBS=-lOpenCL
 endif
 
-CFLAGS=-g -Wall
+CFLAGS+=-g -Wall
 
 clinfo:
 
