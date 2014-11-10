@@ -1753,6 +1753,181 @@ printDeviceInfo(cl_uint d)
 	extensions = NULL;
 }
 
+/* check the behavior of clGetDeviceIDs() when given a NULL platform ID;
+ * return the index of the default platform in our array of platform IDs
+ */
+
+cl_int checkNullGetDevices(void)
+{
+	cl_int i = 0; /* generic iterator */
+	cl_device_id dev = NULL; /* sample device */
+	cl_platform_id plat = NULL; /* detected platform */
+
+	cl_uint found = 0; /* number of platforms found */
+	cl_int pidx = -1; /* index of the platform found */
+	cl_uint numdevs = 0;
+
+	current_function = __func__;
+	current_param = "device IDs";
+
+	error = clGetDeviceIDs(NULL, CL_DEVICE_TYPE_ALL, 0, NULL, &numdevs);
+	/* TODO we should check other CL_DEVICE_TYPE_* combinations, since a smart
+	 * implementation might give you a different default platform for GPUs
+	 * and for CPUs.
+	 * Of course the “no devices” case would then need to be handled differently.
+	 * The logic might be maintained similarly, provided we also gather
+	 * the number of devices of each type for each platform, although it's
+	 * obviously more likely to have multiple platforms with no devices
+	 * of a given type.
+	 */
+
+	switch (error) {
+	case CL_INVALID_PLATFORM:
+		bufcpy(0, (output_mode == CLINFO_HUMAN ?
+			 "<error: Invalid platform>" :
+			 "CL_INVALID_PLATFORM"));
+		break;
+	case CL_DEVICE_NOT_FOUND:
+		 /* No devices were found, see if there are platforms with
+		  * no devices, and if there's only one, assume this is the
+		  * one being used as default by the ICD loader */
+		for (i = 0; i < num_platforms; ++i) {
+			if (pdata[i].ndevs == 0) {
+				++found;
+				if (found > 1)
+					break;
+				else {
+					plat = platform[i];
+					pidx = i;
+				}
+			}
+		}
+
+		switch (found) {
+		case 0:
+			bufcpy(0, (output_mode == CLINFO_HUMAN ?
+				"<error: 0 devices, no matching platform!>" :
+				"0 | NULL"));
+			break;
+		case 1:
+			bufcpy(0, (output_mode == CLINFO_HUMAN ?
+				pdata[pidx].pname :
+				pdata[pidx].sname));
+			break;
+		default: /* found > 1 */
+			bufcpy(0, (output_mode == CLINFO_HUMAN ?
+				"<error: 0 devices, multiple matching platforms!>" :
+				"0 | ????"));
+			break;
+		}
+		break;
+	default:
+		current_line = __LINE__+1;
+		had_error = REPORT_ERROR2("get number of %s");
+		if (had_error)
+			break;
+
+		/* Determine platform by looking at the CL_DEVICE_PLATFORM of
+		 * one of the devices */
+		error = clGetDeviceIDs(NULL, CL_DEVICE_TYPE_ALL, 1, &dev, NULL);
+		current_line = __LINE__+1;
+		had_error = REPORT_ERROR2("get %s");
+		if (had_error)
+			break;
+
+		current_param = "CL_DEVICE_PLATFORM";
+		error = clGetDeviceInfo(dev, CL_DEVICE_PLATFORM,
+			sizeof(plat), &plat, NULL);
+		current_line = __LINE__+1;
+		had_error = REPORT_ERROR2("get %s");
+		if (had_error)
+			break;
+
+		for (i = 0; i < num_platforms; ++i) {
+			if (platform[i] == plat) {
+				pidx = i;
+				bufcpy(0, output_mode == CLINFO_HUMAN ?
+					pdata[i].pname :
+					pdata[i].sname);
+				break;
+			}
+		}
+		if (i == num_platforms) {
+			sprintf(strbuf, "<error: platform 0x%p not found>", plat);
+		}
+	}
+	printf(I1_STR "%s\n",
+		"clGetDeviceIDs(NULL, CL_DEVICE_TYPE_ALL, ...)", strbuf);
+	return pidx;
+}
+
+void checkNullCtx(cl_int pidx, const cl_device_id *dev, const char *which)
+{
+	cl_context ctx = clCreateContext(NULL, 1, dev, NULL, NULL, &error);
+
+	current_function = __func__;
+	current_param = which;
+	current_line = __LINE__+2;
+
+	had_error = REPORT_ERROR2("create context with device from %s platform");
+	if (!had_error)
+		sprintf(strbuf, "%s [%s]",
+			(output_mode == CLINFO_HUMAN ? "Success" : "CL_SUCCESS"),
+			(output_mode == CLINFO_HUMAN ? pdata[pidx].pname : pdata[pidx].sname));
+	if (ctx) {
+		clReleaseContext(ctx);
+		ctx = NULL;
+	}
+}
+
+/* check the behavior of NULL platform in clGetDeviceIDs (see checkNullGetDevices)
+ * and in clCreateContext() */
+void checkNullBehavior(void)
+{
+	cl_device_id *dev = NULL;
+	cl_int pidx = -1;
+	cl_int p = 0;
+
+	printf("NULL platform behavior\n");
+	pidx = checkNullGetDevices();
+
+	/* If there's a default platform, and it has devices, try
+	 * creating a context with its first device and see if it works */
+
+	if (pidx >= 0 && pdata[pidx].ndevs > 0) {
+		p = 0;
+		dev = all_devices;
+		while (p < num_platforms && p != pidx) {
+			dev += pdata[p++].ndevs;
+		}
+		if (p < num_platforms) {
+			checkNullCtx(pidx, dev, "default");
+		} else {
+			/* this shouldn't happen, but still ... */
+			bufcpy(0, "<error: overflow in default platform scan>");
+		}
+	} else {
+		sprintf(strbuf, "<error: %s>",
+			pidx < 0 ? "no default platform" :
+			"default platform has no devices");
+	}
+	printf(I1_STR "%s\n", "clCreateContext(NULL, ...) [default]", strbuf);
+
+	/* Now look for a device from a non-default platform */
+	p = 0;
+	dev = all_devices;
+	while (p < num_platforms && (p == pidx || pdata[p].ndevs == 0)) {
+		dev += pdata[p++].ndevs;
+	}
+	if (p < num_platforms) {
+		checkNullCtx(p, dev, "non-default");
+	} else {
+		bufcpy(0, "<error: no devices in non-default plaforms>");
+	}
+	printf(I1_STR "%s\n", "clCreateContext(NULL, ...) [other]", strbuf);
+
+}
+
 void version()
 {
 	puts("clinfo version 2.0.14.11.07");
@@ -1864,8 +2039,9 @@ int main(int argc, char *argv[])
 			fflush(stdout);
 			fflush(stderr);
 		}
-		if (p < num_platforms - 1)
-			puts("");
+		puts("");
 	}
+
+	checkNullBehavior();
 	return 0;
 }
