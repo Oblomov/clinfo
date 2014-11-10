@@ -8,7 +8,8 @@
 #endif
 
 /* These two defines were introduced in the 1.2 headers
- * on 2012-11-30, so earlier versions don't have (e.g. Debian wheezy)
+ * on 2012-11-30, so earlier versions don't have them
+ * (e.g. Debian wheezy)
  */
 
 #ifndef CL_DEVICE_IMAGE_PITCH_ALIGNMENT
