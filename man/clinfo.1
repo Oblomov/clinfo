@@ -109,6 +109,13 @@ Support for OpenCL 2.0 properties is not fully tested.
 Raw (machine-parseable) output is an experimental feature, the output
 format might undergo changes.
 
+.P
+The implementation-defined behavior in case of NULL platform for
+.B clGetDeviceIDs()
+and
+.BR clCreateteContext()
+is also tested.
+
 .SH BUGS
 The results of the following undocumented properties might be
 interpreted incorrectly:
