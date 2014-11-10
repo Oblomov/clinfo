@@ -185,7 +185,6 @@ static const char* execap_raw_str[] = {
 
 const size_t execap_count = ARRAY_SIZE(execap_str);
 
-
 static const char* sources[] = {
 	"#define GWO(type) global type* restrict\n",
 	"#define GRO(type) global const type* restrict\n",
@@ -194,6 +193,21 @@ static const char* sources[] = {
 	"#define KRN(N) _KRN(float, N)\n",
 	"KRN()\n/* KRN(2)\nKRN(4)\nKRN(8)\nKRN(16) */\n",
 };
+
+const char *no_plat()
+{
+	return output_mode == CLINFO_HUMAN ?
+		"No platform" :
+		"CL_INVALID_PLATFORM";
+}
+
+const char *no_dev()
+{
+	return output_mode == CLINFO_HUMAN ?
+		"No devices in platform" :
+		"CL_DEVICE_NOT_FOUND";
+}
+
 
 /* preferred workgroup size multiple for each kernel
  * have not found a platform where the WG multiple changes,
@@ -1783,9 +1797,7 @@ cl_int checkNullGetDevices(void)
 
 	switch (error) {
 	case CL_INVALID_PLATFORM:
-		bufcpy(0, (output_mode == CLINFO_HUMAN ?
-			 "<error: Invalid platform>" :
-			 "CL_INVALID_PLATFORM"));
+		bufcpy(0, no_plat());
 		break;
 	case CL_DEVICE_NOT_FOUND:
 		 /* No devices were found, see if there are platforms with
@@ -1807,7 +1819,7 @@ cl_int checkNullGetDevices(void)
 		case 0:
 			bufcpy(0, (output_mode == CLINFO_HUMAN ?
 				"<error: 0 devices, no matching platform!>" :
-				"0 | NULL"));
+				"CL_DEVICE_NOT_FOUND | CL_INVALID_PLATFORM"));
 			break;
 		case 1:
 			bufcpy(0, (output_mode == CLINFO_HUMAN ?
@@ -1817,7 +1829,7 @@ cl_int checkNullGetDevices(void)
 		default: /* found > 1 */
 			bufcpy(0, (output_mode == CLINFO_HUMAN ?
 				"<error: 0 devices, multiple matching platforms!>" :
-				"0 | ????"));
+				"CL_DEVICE_NOT_FOUND | ????"));
 			break;
 		}
 		break;
@@ -1894,7 +1906,11 @@ void checkNullBehavior(void)
 	/* If there's a default platform, and it has devices, try
 	 * creating a context with its first device and see if it works */
 
-	if (pidx >= 0 && pdata[pidx].ndevs > 0) {
+	if (pidx < 0) {
+		bufcpy(0, no_plat());
+	} else if (pdata[pidx].ndevs == 0) {
+		bufcpy(0, no_dev());
+	} else {
 		p = 0;
 		dev = all_devices;
 		while (p < num_platforms && p != pidx) {
@@ -1906,10 +1922,6 @@ void checkNullBehavior(void)
 			/* this shouldn't happen, but still ... */
 			bufcpy(0, "<error: overflow in default platform scan>");
 		}
-	} else {
-		sprintf(strbuf, "<error: %s>",
-			pidx < 0 ? "no default platform" :
-			"default platform has no devices");
 	}
 	printf(I1_STR "%s\n", "clCreateContext(NULL, ...) [default]", strbuf);
 
