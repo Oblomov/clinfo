@@ -1942,7 +1942,7 @@ void checkNullBehavior(void)
 
 void version()
 {
-	puts("clinfo version 2.0.14.11.07");
+	puts("clinfo version 2.0.14.11.10");
 }
 
 void usage()
