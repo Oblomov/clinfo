@@ -918,7 +918,7 @@ int device_info_cachetype(cl_device_id dev, cl_device_info param, const char *pn
 	if (!had_error) {
 		const char * const *ar = (output_mode == CLINFO_HUMAN ?
 			cache_type_str : cache_type_raw_str);
-		sprintf(strbuf, ar[val]);
+		bufcpy(0, ar[val]);
 	}
 	show_strbuf(pname, 0);
 	/* we abuse global strbuf to pass the cache type over to the caller */
@@ -935,7 +935,7 @@ int device_info_lmemtype(cl_device_id dev, cl_device_info param, const char *pna
 	if (!had_error) {
 		const char * const *ar = (output_mode == CLINFO_HUMAN ?
 			lmem_type_str : lmem_type_raw_str);
-		sprintf(strbuf, ar[val]);
+		bufcpy(0, ar[val]);
 	}
 	show_strbuf(pname, 0);
 	/* we abuse global strbuf to pass the lmem type over to the caller */
@@ -1321,8 +1321,8 @@ int device_info_fpconf(cl_device_id dev, cl_device_info param, const char *pname
 						line_pfx, fpstr[i], bool_str[!!(val & cur)]);
 				} else if (val & cur) {
 					if (szval > 0)
-						szval += sprintf(strbuf + szval, sep);
-					szval += sprintf(strbuf + szval, fpstr[i]);
+						szval += bufcpy(szval, sep);
+					szval += bufcpy(szval, fpstr[i]);
 				}
 			}
 		}
@@ -1353,8 +1353,8 @@ int device_info_qprop(cl_device_id dev, cl_device_info param, const char *pname,
 					line_pfx, qpstr[i], bool_str[!!(val & cur)]);
 			} else if (val & cur) {
 				if (szval > 0)
-					szval += sprintf(strbuf + szval, sep);
-				szval += sprintf(strbuf + szval, qpstr[i]);
+					szval += bufcpy(szval, sep);
+				szval += bufcpy(szval, qpstr[i]);
 			}
 		}
 		if (output_mode == CLINFO_HUMAN && param == CL_DEVICE_QUEUE_PROPERTIES &&
@@ -1385,8 +1385,8 @@ int device_info_execap(cl_device_id dev, cl_device_info param, const char *pname
 					line_pfx, qpstr[i], bool_str[!!(val & cur)]);
 			} else if (val & cur) {
 				if (szval > 0)
-					szval += sprintf(strbuf + szval, sep);
-				szval += sprintf(strbuf + szval, qpstr[i]);
+					szval += bufcpy(szval, sep);
+				szval += bufcpy(szval, qpstr[i]);
 			}
 		}
 	}
@@ -1447,8 +1447,8 @@ int device_info_svm_cap(cl_device_id dev, cl_device_info param, const char *pnam
 					line_pfx, scstr[i], bool_str[!!(val & cur)]);
 			} else if (val & cur) {
 				if (szval > 0)
-					szval += sprintf(strbuf + szval, sep);
-				szval += sprintf(strbuf + szval, scstr[i]);
+					szval += bufcpy(szval, sep);
+				szval += bufcpy(szval, scstr[i]);
 			}
 		}
 	}
