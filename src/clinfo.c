@@ -1767,10 +1767,25 @@ printDeviceInfo(cl_uint d)
 	extensions = NULL;
 }
 
+/* check the behavior of clGetPlatformInfo() when given a NULL platform ID */
+void checkNullGetPlatformName(void)
+{
+	current_param = "CL_PLATFORM_NAME";
+
+	error = clGetPlatformInfo(NULL, CL_PLATFORM_NAME, bufsz, strbuf, NULL);
+	if (error == CL_INVALID_PLATFORM) {
+		bufcpy(0, no_plat());
+	} else {
+		current_line = __LINE__+1;
+		had_error = REPORT_ERROR2("get %s");
+	}
+	printf(I1_STR "%s\n",
+		"clGetPlatformInfo(NULL, CL_PLATFORM_NAME, ...)", strbuf);
+}
+
 /* check the behavior of clGetDeviceIDs() when given a NULL platform ID;
  * return the index of the default platform in our array of platform IDs
  */
-
 cl_int checkNullGetDevices(void)
 {
 	cl_int i = 0; /* generic iterator */
@@ -1901,6 +1916,9 @@ void checkNullBehavior(void)
 	cl_int p = 0;
 
 	printf("NULL platform behavior\n");
+
+	checkNullGetPlatformName();
+
 	pidx = checkNullGetDevices();
 
 	/* If there's a default platform, and it has devices, try
