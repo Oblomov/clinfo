@@ -69,12 +69,17 @@ static const char* bool_raw_str[] = { "CL_FALSE", "CL_TRUE" };
 
 static const char* endian_str[] = { "Big-Endian", "Little-Endian" };
 
-static const char* device_type_str[] = { unk, "Default", "CPU", "GPU", "Accelerator", "Custom" };
+static const cl_device_type devtype[] = { 0,
+	CL_DEVICE_TYPE_DEFAULT, CL_DEVICE_TYPE_CPU, CL_DEVICE_TYPE_GPU,
+	CL_DEVICE_TYPE_ACCELERATOR, CL_DEVICE_TYPE_CUSTOM, CL_DEVICE_TYPE_ALL };
+
+const size_t devtype_count = ARRAY_SIZE(devtype);
+
+static const char* device_type_str[] = { unk, "Default", "CPU", "GPU", "Accelerator", "Custom", "All" };
 static const char* device_type_raw_str[] = { unk,
 	"CL_DEVICE_TYPE_DEFAULT", "CL_DEVICE_TYPE_CPU", "CL_DEVICE_TYPE_GPU",
-	"CL_DEVICE_TYPE_ACCELERATOR", "CL_DEVICE_TYPE_CUSTOM"
+	"CL_DEVICE_TYPE_ACCELERATOR", "CL_DEVICE_TYPE_CUSTOM", "CL_DEVICE_TYPE_ALL"
 };
-static const size_t device_type_str_count = ARRAY_SIZE(device_type_str);
 
 static const char* partition_type_str[] = {
 	"none specified", none, "equally", "by counts", "by affinity domain", "by names (Intel)"
@@ -204,8 +209,15 @@ const char *no_plat()
 const char *no_dev()
 {
 	return output_mode == CLINFO_HUMAN ?
-		"No devices in platform" :
+		"No devices found in platform" :
 		"CL_DEVICE_NOT_FOUND";
+}
+
+const char *no_dev_avail()
+{
+	return output_mode == CLINFO_HUMAN ?
+		"No devices available in platform" :
+		"CL_DEVICE_NOT_AVAILABLE";
 }
 
 
@@ -897,7 +909,7 @@ int device_info_devtype(cl_device_id dev, cl_device_info param, const char *pnam
 		 * TODO: check for extra bits/no bits
 		 */
 		size_t szval = 0;
-		cl_uint i = device_type_str_count;
+		cl_uint i = devtype_count - 1; /* skip CL_DEVICE_TYPE_ALL */
 		const char *sep = (output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
 		size_t sepsz = (output_mode == CLINFO_HUMAN ? 2 : 3);
 		const char * const *devstr = (output_mode == CLINFO_HUMAN ?
@@ -1873,8 +1885,8 @@ cl_int checkNullGetDevices(void)
 		for (i = 0; i < num_platforms; ++i) {
 			if (platform[i] == plat) {
 				pidx = i;
-				bufcpy(0, output_mode == CLINFO_HUMAN ?
-					pdata[i].pname :
+				sprintf(strbuf, "%s [%s]",
+					(output_mode == CLINFO_HUMAN ? "Success" : "CL_SUCCESS"),
 					pdata[i].sname);
 				break;
 			}
@@ -1900,10 +1912,137 @@ void checkNullCtx(cl_int pidx, const cl_device_id *dev, const char *which)
 	if (!had_error)
 		sprintf(strbuf, "%s [%s]",
 			(output_mode == CLINFO_HUMAN ? "Success" : "CL_SUCCESS"),
-			(output_mode == CLINFO_HUMAN ? pdata[pidx].pname : pdata[pidx].sname));
+			pdata[pidx].sname);
 	if (ctx) {
 		clReleaseContext(ctx);
 		ctx = NULL;
+	}
+}
+
+/* check behavior of clCreateContextFromType() with NULL cl_context_properties */
+void checkNullCtxFromType()
+{
+	size_t t; /* type iterator */
+	size_t i; /* generic iterator */
+	char def[1024];
+	cl_context ctx = NULL;
+
+	size_t ndevs = 8;
+	size_t szval = 0;
+	size_t cursz = ndevs*sizeof(cl_device_id);
+	cl_platform_id plat = NULL;
+	cl_device_id *devs = NULL;
+
+	const char *platname_prop = (output_mode == CLINFO_HUMAN ?
+		pinfo_traits[0].pname :
+		pinfo_traits[0].sname);
+
+	const char *devname_prop = (output_mode == CLINFO_HUMAN ?
+		dinfo_traits[0].pname :
+		dinfo_traits[0].sname);
+
+	ALLOC(devs, ndevs, "context devices");
+
+	current_function = __func__;
+	for (t = 2; t < devtype_count; ++t) { /* we skip 0 and _DEFAULT */
+		current_param = device_type_raw_str[t];
+
+		sprintf(strbuf, "clCreateContextFromType(NULL, %s)", current_param);
+		sprintf(def, I1_STR, strbuf);
+
+		current_line = __LINE__+1;
+		ctx = clCreateContextFromType(NULL, devtype[t], NULL, NULL, &error);
+
+		switch (error) {
+		case CL_INVALID_PLATFORM:
+			bufcpy(0, no_plat()); break;
+		case CL_DEVICE_NOT_FOUND:
+		case CL_INVALID_DEVICE_TYPE: /* e.g. _CUSTOM device on 1.1 platform */
+			bufcpy(0, no_dev()); break;
+		case CL_DEVICE_NOT_AVAILABLE:
+			bufcpy(0, no_dev_avail()); break;
+		default:
+			had_error = REPORT_ERROR2("create context from type %s");
+			if (had_error)
+				break;
+
+			/* get the devices */
+			current_param = "CL_CONTEXT_DEVICES";
+			current_line = __LINE__+2;
+
+			error = clGetContextInfo(ctx, CL_CONTEXT_DEVICES, 0, NULL, &szval);
+			had_error = REPORT_ERROR2("get %s size");
+			if (had_error)
+				break;
+			if (szval > cursz) {
+				REALLOC(devs, szval, "context devices");
+				cursz = szval;
+			}
+
+			current_line = __LINE__+1;
+			error = clGetContextInfo(ctx, CL_CONTEXT_DEVICES, cursz, devs, NULL);
+			had_error = REPORT_ERROR2("get %s");
+			if (had_error)
+				break;
+			ndevs = szval/sizeof(cl_device_id);
+			if (ndevs < 1) {
+				bufcpy(0, "<error: context created with no devices>");
+			}
+
+			/* get the platform from the first device */
+			current_param = "CL_DEVICE_PLATFORM";
+			current_line = __LINE__+1;
+			error = clGetDeviceInfo(*devs, CL_DEVICE_PLATFORM, sizeof(plat), &plat, NULL);
+			had_error = REPORT_ERROR2("get %s");
+			if (had_error)
+				break;
+
+			szval = 0;
+			for (i = 0; i < num_platforms; ++i) {
+				if (platform[i] == plat)
+					break;
+			}
+			if (i == num_platforms) {
+				sprintf(strbuf, "<error: platform 0x%p not found>", plat);
+				break;
+			} else {
+				szval += sprintf(strbuf, "%s (%zu)",
+					(output_mode == CLINFO_HUMAN ? "Success" : "CL_SUCCESS"),
+					ndevs);
+				szval += snprintf(strbuf + szval, bufsz - szval, "\n" I2_STR "%s",
+					platname_prop, pdata[i].pname);
+			}
+			for (i = 0; i < ndevs; ++i) {
+				size_t szname = 0;
+				/* for each device, show the device name */
+				/* TODO some other unique ID too, e.g. PCI address, if available? */
+
+				szval += snprintf(strbuf + szval, bufsz - szval, "\n" I2_STR, devname_prop);
+				if (szval >= bufsz) {
+					trunc_strbuf();
+					break;
+				}
+
+				current_param = "CL_DEVICE_NAME";
+				current_line = __LINE__+1;
+				error = clGetDeviceInfo(devs[i], CL_DEVICE_NAME, bufsz - szval, strbuf + szval, &szname);
+				had_error = REPORT_ERROR2("get %s");
+				if (had_error)
+					break;
+				szval += szname - 1;
+
+
+			}
+			if (i != ndevs)
+				break; /* had an error earlier, bail */
+
+		}
+
+		if (ctx) {
+			clReleaseContext(ctx);
+			ctx = NULL;
+		}
+		printf("%s%s\n", def, strbuf);
 	}
 }
 
@@ -1955,6 +2094,8 @@ void checkNullBehavior(void)
 		bufcpy(0, "<error: no devices in non-default plaforms>");
 	}
 	printf(I1_STR "%s\n", "clCreateContext(NULL, ...) [other]", strbuf);
+
+	checkNullCtxFromType();
 
 }
 
