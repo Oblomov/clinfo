@@ -2101,7 +2101,7 @@ void checkNullBehavior(void)
 
 void version()
 {
-	puts("clinfo version 2.0.14.11.10");
+	puts("clinfo version 2.0.14.11.11");
 }
 
 void usage()
