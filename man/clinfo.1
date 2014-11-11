@@ -103,25 +103,36 @@ specific precisions and/or specific OpenCL versions. For example,
 is only relevant for single precision in OpenCL 1.2 devices.
 
 .P
-Support for OpenCL 2.0 properties is not fully tested.
-
-.P
-Raw (machine-parseable) output is an experimental feature, the output
-format might undergo changes.
-
-.P
-The implementation-defined behavior in case of NULL platform for
-.BR clGetPlatformInfo() ,
+The implementation-defined behavior for NULL platform or context
+properties is tested for the following API calls:
+.TP 2
+.B clGetPlatformInfo()
+by trying to show the platform name;
+.TP
 .B clGetDeviceIDs()
-and
+by trying to enumerate devices; the corresponding platform (if any)
+is then detected by quering the device platform of the first device;
+.TP
 .B clCreateteContext()
-is also tested.
+by trying to create a context from a device from the previous
+list (if any), and a context from a device from a different platform;
+.TP
+.B clCreateteContextFromType()
+by trying to create contexts for each device type (except DEFAULT).
 
 .SH BUGS
 The results of the following undocumented properties might be
 interpreted incorrectly:
 .IP \(bu 2
 .B CL_DEVICE_GLOBAL_FREE_MEMORY_AMD
+
+.SH EXPERIMENTAL FEATURES
+.P
+Support for OpenCL 2.0 properties is not fully tested.
+
+.P
+Raw (machine-parseable) output is considered experimental, the output format
+might still undergo changes.
 
 .P
 Please report any issues on
