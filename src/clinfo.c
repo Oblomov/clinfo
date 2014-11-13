@@ -740,7 +740,7 @@ int device_info_mem(cl_device_id dev, cl_device_info param, const char *pname,
 	if (!had_error) {
 		szval += sprintf(strbuf, "%" PRIu64, val);
 		if (output_mode == CLINFO_HUMAN && val > 1024)
-			szval += strbuf_mem(val, szval);
+			strbuf_mem(val, szval);
 	}
 	show_strbuf(pname, 0);
 	return had_error;
@@ -755,7 +755,7 @@ int device_info_mem_int(cl_device_id dev, cl_device_info param, const char *pnam
 	if (!had_error) {
 		szval += sprintf(strbuf, "%u", val);
 		if (output_mode == CLINFO_HUMAN && val > 1024)
-			szval += strbuf_mem(val, szval);
+			strbuf_mem(val, szval);
 	}
 	show_strbuf(pname, 0);
 	return had_error;
@@ -1385,7 +1385,7 @@ int device_info_qprop(cl_device_id dev, cl_device_info param, const char *pname,
 		}
 		if (output_mode == CLINFO_HUMAN && param == CL_DEVICE_QUEUE_PROPERTIES &&
 			dev_has_intel_local_thread(chk))
-			szval += sprintf(strbuf + szval, "\n%s" I2_STR "%s",
+			sprintf(strbuf + szval, "\n%s" I2_STR "%s",
 				line_pfx, "Local thread execution (Intel)", bool_str[CL_TRUE]);
 	}
 	show_strbuf(pname, 0);
