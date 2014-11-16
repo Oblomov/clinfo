@@ -2099,6 +2099,94 @@ void checkNullBehavior(void)
 
 }
 
+
+/* Get properties of the ocl-icd loader, if available */
+/* All properties are currently char[] */
+typedef enum {
+	CL_ICDL_OCL_VERSION=1,
+	CL_ICDL_VERSION=2,
+	CL_ICDL_NAME=3,
+	CL_ICDL_VENDOR=4,
+} cl_icdl_info;
+
+/* Function pointer to the ICD loader function */
+cl_int (*clGetICDLoaderInfoOCLICD)(cl_icdl_info, size_t, void*, size_t*);
+
+int
+icdl_info_str(cl_icdl_info param, const char* pname)
+{
+	error = clGetICDLoaderInfoOCLICD(param, 0, NULL, &nusz);
+	if (nusz > bufsz) {
+		REALLOC(strbuf, nusz, current_param);
+		bufsz = nusz;
+	}
+	had_error = REPORT_ERROR2("get %s size");
+	if (!had_error) {
+		error = clGetICDLoaderInfoOCLICD(param, bufsz, strbuf, NULL);
+		had_error = REPORT_ERROR2("get %s");
+	}
+	show_strbuf(pname, 1);
+	return had_error;
+}
+
+struct icdl_info_traits {
+	cl_icdl_info param; // CL_ICDL_*
+	const char *sname; // "CL_ICDL_*"
+	const char *pname; // "ICD loader *"
+};
+
+#define LINFO(symbol, name) { symbol, #symbol, "ICD loader " name }
+struct icdl_info_traits linfo_traits[] = {
+	LINFO(CL_ICDL_NAME, "Name"),
+	LINFO(CL_ICDL_VENDOR, "Vendor"),
+	LINFO(CL_ICDL_VERSION, "Version"),
+	LINFO(CL_ICDL_OCL_VERSION, "Profile")
+};
+
+
+void oclIcdProps()
+{
+	/* We find the clGetICDLoaderInfoOCLICD extension address, and use it to query
+	 * the ICD loader properties. It should be noted however that
+	 * clGetExtensionFunctionAddress is marked * deprecated as of OpenCL 1.2, so
+	 * to use it and compile cleanly we need disable the relevant warning.
+	 * It should be noted that in this specific case we cannot replace the
+	 * call to clGetExtensionFunctionAddress with a call to the superseding function
+	 * clGetExtensionFunctionAddressForPlatform because the extension is in the
+	 * loader itself, not in a specific platform.
+	 */
+
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4996)
+#else
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
+	clGetICDLoaderInfoOCLICD = clGetExtensionFunctionAddress("clGetICDLoaderInfoOCLICD");
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#else
+#pragma GCC diagnostic pop
+#endif
+
+	if (clGetICDLoaderInfoOCLICD != NULL) {
+		puts("\nICD loader properties");
+		current_function = __func__;
+
+		for (current_line = 0; current_line < ARRAY_SIZE(linfo_traits); ++current_line) {
+			const struct icdl_info_traits *traits = linfo_traits + current_line;
+			current_param = traits->sname;
+
+			had_error = icdl_info_str(traits->param,
+				output_mode == CLINFO_HUMAN ?
+				traits->pname : traits->sname);
+		}
+	}
+}
+
 void version()
 {
 	puts("clinfo version 2.0.14.11.11");
@@ -2214,5 +2302,7 @@ int main(int argc, char *argv[])
 	}
 
 	checkNullBehavior();
+
+	oclIcdProps();
 	return 0;
 }
