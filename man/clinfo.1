@@ -120,12 +120,6 @@ list (if any), and a context from a device from a different platform;
 .B clCreateteContextFromType()
 by trying to create contexts for each device type (except DEFAULT).
 
-.SH BUGS
-The results of the following undocumented properties might be
-interpreted incorrectly:
-.IP \(bu 2
-.B CL_DEVICE_GLOBAL_FREE_MEMORY_AMD
-
 .SH EXPERIMENTAL FEATURES
 .P
 Support for OpenCL 2.0 properties is not fully tested.
@@ -138,6 +132,12 @@ might still undergo changes.
 The properties of the ICD loader will also be queried if the
 .B clGetICDLoaderInfoOCLICD
 extension function is found.
+
+.SH BUGS
+The results of the following undocumented properties might be
+interpreted incorrectly:
+.IP \(bu 2
+.B CL_DEVICE_GLOBAL_FREE_MEMORY_AMD
 
 .P
 Please report any issues on
