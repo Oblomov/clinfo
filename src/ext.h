@@ -91,6 +91,10 @@ typedef cl_bitfield         cl_device_svm_capabilities;
 #define CL_DEVICE_GLOBAL_MEM_CHANNEL_BANK_WIDTH_AMD	0x4046
 #define CL_DEVICE_LOCAL_MEM_SIZE_PER_COMPUTE_UNIT_AMD	0x4047
 #define CL_DEVICE_LOCAL_MEM_BANKS_AMD			0x4048
+/* TODO: */
+#define CL_DEVICE_THREAD_TRACE_SUPPORTED_AMD		0x4049
+#define CL_DEVICE_GFXIP_MAJOR_AMD			0x404A
+#define CL_DEVICE_GFXIP_MINOR_AMD			0x404B
 
 #ifndef CL_DEVICE_TOPOLOGY_TYPE_PCIE_AMD
 #define CL_DEVICE_TOPOLOGY_TYPE_PCIE_AMD		1
@@ -101,6 +105,9 @@ typedef union
 	struct { cl_uint type; cl_char unused[17]; cl_char bus; cl_char device; cl_char function; } pcie;
 } cl_device_topology_amd;
 #endif
+
+/* cl_amd_offline_devices */
+#define CL_CONTEXT_OFFLINE_DEVICES_AMD			0x403F
 
 /* cl_ext_device_fission */
 #define cl_ext_device_fission				1

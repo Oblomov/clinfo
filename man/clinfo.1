@@ -27,6 +27,9 @@ produce machine-friendly output; this is the default if
 is invoked with a name that contains the string
 .RI \*(lq raw \*(rq;
 .TP
+.B --offline
+shows also offline devices for platforms that expose this feature;
+.TP
 .BR -h ", " -?
 show usage;
 .TP
@@ -66,6 +69,11 @@ for the atomic counter extension;
 .TP
 .B cl_amd_device_attribute_query
 for AMD-specific device attributes;
+.TP
+.B cl_amd_offline_devices
+to show offline devices exposed by the platform, if requested (see
+.B --offline
+option);
 .TP
 .B cl_amd_svm
 for Shared Virtual Memory (SVM) capabilities in OpenCL 1.2 devices;

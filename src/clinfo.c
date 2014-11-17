@@ -26,6 +26,7 @@ struct platform_data {
 	char *pname; /* CL_PLATFORM_NAME */
 	char *sname; /* CL_PLATFORM_ICD_SUFFIX_KHR or surrogate */
 	cl_uint ndevs; /* number of devices */
+	cl_bool has_amd_offline; /* has cl_amd_offline_devices extension */
 };
 
 cl_uint num_platforms;
@@ -44,7 +45,6 @@ int line_pfx_len;
 cl_uint num_devs_all;
 
 cl_device_id *all_devices;
-cl_device_id *device;
 
 enum output_modes {
 	CLINFO_HUMAN = 1, /* more human readable */
@@ -337,6 +337,7 @@ printPlatformInfo(cl_uint p)
 			break;
 		case CL_PLATFORM_EXTENSIONS:
 			pinfo_checks.has_khr_icd = !!strstr(strbuf, "cl_khr_icd");
+			pdata[p].has_amd_offline = !!strstr(strbuf, "cl_amd_offline_devices");
 			break;
 		case CL_PLATFORM_ICD_SUFFIX_KHR:
 			/* Store ICD suffix for future reference */
@@ -1056,7 +1057,7 @@ int device_info_cc_nv(cl_device_id dev, cl_device_info param, const char *pname,
 	return had_error;
 }
 
-/* Device Parition, CLINFO_HUMAN header */
+/* Device Partition, CLINFO_HUMAN header */
 int device_info_partition_header(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
@@ -1684,8 +1685,15 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_LINKER_AVAILABLE, "Linker Available", bool), dev_is_12 },
 };
 
+/* Process all the device info in the traits, except if param_whitelist is not NULL,
+ * in which case only those in the whitelist will be processed.
+ * If present, the whitelist should be sorted in the order of appearance of the parameters
+ * in the traits table, and terminated by the value CL_FALSE
+ */
+
 void
-printDeviceInfo(cl_uint d)
+printDeviceInfo(const cl_device_id *device, cl_uint d,
+	const cl_device_info *param_whitelist) /* list of device info to process, or NULL */
 {
 	cl_device_id dev = device[d];
 
@@ -1707,6 +1715,17 @@ printDeviceInfo(cl_uint d)
 			traits->pname : traits->sname);
 
 		current_param = traits->sname;
+
+		/* Whitelist check: finish if done traversing the list,
+		 * skip current param if it's not the right one
+		 */
+		if (param_whitelist) {
+			if (*param_whitelist == CL_FALSE)
+				break;
+			if (traits->param != *param_whitelist)
+				continue;
+			++param_whitelist;
+		}
 
 		/* skip if it's not for this output mode */
 		if (!(output_mode & traits->output_mode))
@@ -1777,6 +1796,79 @@ printDeviceInfo(cl_uint d)
 			extensions_traits->sname), extensions);
 	free(extensions);
 	extensions = NULL;
+}
+
+/* list of allowed properties for AMD offline devices */
+/* everything else seems to be set to 0, and all the other string properties
+ * actually segfault the driver */
+
+static const cl_device_info amd_offline_info_whitelist[] = {
+	CL_DEVICE_NAME,
+	/* These are present, but all the same, so just skip them:
+	CL_DEVICE_VENDOR,
+	CL_DEVICE_VENDOR_ID,
+	CL_DEVICE_VERSION,
+	CL_DRIVER_VERSION,
+	CL_DEVICE_OPENCL_C_VERSION,
+	*/
+	CL_DEVICE_EXTENSIONS,
+	CL_DEVICE_TYPE,
+	CL_DEVICE_MAX_WORK_GROUP_SIZE,
+	CL_DEVICE_AVAILABLE
+};
+
+/* process offline devices from the cl_amd_offline_devices extension */
+int processOfflineDevicesAMD(cl_uint p)
+{
+	int ret = 0;
+
+	cl_platform_id pid = platform[p];
+	cl_device_id *device = NULL;
+	cl_int num_devs, d;
+
+	cl_context_properties ctxpft[] = {
+		CL_CONTEXT_PLATFORM, (cl_context_properties)pid,
+		CL_CONTEXT_OFFLINE_DEVICES_AMD, (cl_context_properties)CL_TRUE,
+		0
+	};
+
+	cl_context ctx = NULL;
+
+	printf("%s" I0_STR, line_pfx,
+		(output_mode == CLINFO_HUMAN ?
+		 "Number of offline devices (AMD)" : "#OFFDEVICES"));
+
+	ctx = clCreateContextFromType(ctxpft, CL_DEVICE_TYPE_ALL, NULL, NULL, &error);
+	RR_ERROR("create context");
+
+	error = clGetContextInfo(ctx, CL_CONTEXT_NUM_DEVICES, sizeof(num_devs), &num_devs, NULL);
+	RR_ERROR("get num devs");
+
+	ALLOC(device, num_devs, "offline devices");
+
+	error = clGetContextInfo(ctx, CL_CONTEXT_DEVICES, num_devs*sizeof(*device), device, NULL);
+	RR_ERROR("get devs");
+
+	printf("%d\n", num_devs);
+	for (d = 0; d < num_devs; ++d) {
+		if (line_pfx_len > 0) {
+			sprintf(strbuf, "[%s/%u]", pdata[p].sname, -d);
+			sprintf(line_pfx, "%*s", -line_pfx_len, strbuf);
+		}
+		printDeviceInfo(device, d, amd_offline_info_whitelist);
+		if (d < num_devs - 1)
+			puts("");
+		fflush(stdout);
+		fflush(stderr);
+	}
+
+	had_error = CL_FALSE;
+out:
+	free(device);
+	if (ctx)
+		clReleaseContext(ctx);
+	return ret;
+
 }
 
 /* check the behavior of clGetPlatformInfo() when given a NULL platform ID */
@@ -2200,6 +2292,7 @@ void usage()
 	puts("Options:");
 	puts("\t--human\t\thuman-friendly output (default)");
 	puts("\t--raw\t\traw output");
+	puts("\t--offline\talso show offline devices");
 	puts("\t-h, -?\t\tshow usage");
 	puts("\t--version, -v\tshow version\n");
 	puts("Defaults to raw mode if invoked with");
@@ -2209,7 +2302,10 @@ void usage()
 int main(int argc, char *argv[])
 {
 	cl_uint p, d;
+	cl_device_id *device;
 	int a = 0;
+
+	cl_bool show_offline = CL_FALSE;
 
 	/* if there's a 'raw' in the program name, switch to raw output mode */
 	if (strstr(argv[0], "raw"))
@@ -2221,6 +2317,8 @@ int main(int argc, char *argv[])
 			output_mode = CLINFO_RAW;
 		else if (!strcmp(argv[a], "--human"))
 			output_mode = CLINFO_HUMAN;
+		else if (!strcmp(argv[a], "--offline"))
+			show_offline = CL_TRUE;
 		else if (!strcmp(argv[a], "-?") || !strcmp(argv[a], "-h")) {
 			usage();
 			return 0;
@@ -2292,11 +2390,17 @@ int main(int argc, char *argv[])
 				sprintf(strbuf, "[%s/%u]", pdata[p].sname, d);
 				sprintf(line_pfx, "%*s", -line_pfx_len, strbuf);
 			}
-			printDeviceInfo(d);
+			printDeviceInfo(device, d, NULL);
 			if (d < pdata[p].ndevs - 1)
 				puts("");
 			fflush(stdout);
 			fflush(stderr);
+		}
+		if (show_offline && pdata[p].has_amd_offline) {
+			puts("");
+			had_error = processOfflineDevicesAMD(p);
+			if (had_error)
+				puts(strbuf);
 		}
 		puts("");
 	}
