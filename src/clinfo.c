@@ -686,7 +686,7 @@ int device_info_str(cl_device_id dev, cl_device_info param, const char *pname,
 
 DEFINE_DEVINFO_SHOW(int, cl_uint, "%u")
 DEFINE_DEVINFO_SHOW(hex, cl_uint, "0x%x")
-DEFINE_DEVINFO_SHOW(long, cl_ulong, "%lu")
+DEFINE_DEVINFO_SHOW(long, cl_ulong, "%" PRIu64)
 DEFINE_DEVINFO_SHOW(sz, size_t, "%" PRIuS)
 
 int device_info_bool(cl_device_id dev, cl_device_info param, const char *pname,
@@ -1184,7 +1184,7 @@ int device_info_partition_types_ext(cl_device_id dev, cl_device_info param, cons
 			case CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN_EXT: str_idx = 4; break;
 			case CL_DEVICE_PARTITION_BY_NAMES_EXT: str_idx = 5; break;
 			default:
-				szval += sprintf(strbuf + szval, "by <unknown> (0x%" PRIXPTR ")", val[cursor]);
+				szval += sprintf(strbuf + szval, "by <unknown> (0x%" PRIX64 ")", val[cursor]);
 				break;
 			}
 			if (str_idx > 0) {
