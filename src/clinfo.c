@@ -654,7 +654,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 int device_info_##how(cl_device_id dev, cl_device_info param, const char *pname, \
 	const struct device_info_checks *chk) \
 { \
-	type val; \
+	type val = 0; \
 	SHOW_VAL(fmt); \
 	return had_error; \
 }
@@ -692,7 +692,7 @@ DEFINE_DEVINFO_SHOW(sz, size_t, "%" PRIuS)
 int device_info_bool(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
-	cl_bool val;
+	cl_bool val = 0;
 	const char * const * str = (output_mode == CLINFO_HUMAN ?
 		bool_str : bool_raw_str);
 	GET_VAL;
@@ -735,7 +735,7 @@ size_t strbuf_mem(cl_ulong val, size_t szval)
 int device_info_mem(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
-	cl_ulong val;
+	cl_ulong val = 0;
 	size_t szval = 0;
 	GET_VAL;
 	if (!had_error) {
@@ -750,7 +750,7 @@ int device_info_mem(cl_device_id dev, cl_device_info param, const char *pname,
 int device_info_mem_int(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
-	cl_uint val;
+	cl_uint val = 0;
 	size_t szval = 0;
 	GET_VAL;
 	if (!had_error) {
@@ -789,7 +789,7 @@ int device_info_free_mem_amd(cl_device_id dev, cl_device_info param, const char 
 int device_info_time_offset(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
-	cl_ulong val;
+	cl_ulong val = 0;
 	GET_VAL;
 	if (!had_error) {
 		int szval = 0;
@@ -808,7 +808,7 @@ int device_info_szptr(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
 	size_t *val = NULL;
-	size_t szval, numval;
+	size_t szval = 0, numval = 0;
 	GET_VAL_ARRAY;
 	if (!had_error) {
 		const char *sep = (output_mode == CLINFO_HUMAN ? times_str : spc_str);
@@ -835,7 +835,7 @@ int device_info_szptr(cl_device_id dev, cl_device_info param, const char *pname,
 int device_info_wg(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
-	cl_platform_id val;
+	cl_platform_id val = 0;
 	{
 		/* shadow */
 		cl_device_info param = CL_DEVICE_PLATFORM;
@@ -855,7 +855,7 @@ int device_info_wg(cl_device_id dev, cl_device_info param, const char *pname,
 int device_info_img_sz_2d(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
-	size_t width, height, val;
+	size_t width = 0, height = 0, val = 0;
 	GET_VAL; /* HEIGHT */
 	if (!had_error) {
 		height = val;
@@ -874,7 +874,7 @@ int device_info_img_sz_2d(cl_device_id dev, cl_device_info param, const char *pn
 int device_info_img_sz_3d(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
-	size_t width, height, depth, val;
+	size_t width = 0, height = 0, depth = 0, val = 0;
 	GET_VAL; /* HEIGHT */
 	if (!had_error) {
 		height = val;
@@ -901,7 +901,7 @@ int device_info_img_sz_3d(cl_device_id dev, cl_device_info param, const char *pn
 int device_info_devtype(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
-	cl_device_type val;
+	cl_device_type val = 0;
 	GET_VAL;
 	if (!had_error) {
 		/* iterate over device type strings, appending their textual form
@@ -940,7 +940,7 @@ int device_info_devtype(cl_device_id dev, cl_device_info param, const char *pnam
 int device_info_cachetype(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
-	cl_device_mem_cache_type val;
+	cl_device_mem_cache_type val = 0;
 	GET_VAL;
 	if (!had_error) {
 		const char * const *ar = (output_mode == CLINFO_HUMAN ?
@@ -957,7 +957,7 @@ int device_info_cachetype(cl_device_id dev, cl_device_info param, const char *pn
 int device_info_lmemtype(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
-	cl_device_local_mem_type val;
+	cl_device_local_mem_type val = 0;
 	GET_VAL;
 	if (!had_error) {
 		const char * const *ar = (output_mode == CLINFO_HUMAN ?
@@ -1013,7 +1013,7 @@ int device_info_devtopo_nv(cl_device_id dev, cl_device_info param, const char *p
 	const struct device_info_checks *chk)
 {
 	cl_device_topology_amd devtopo;
-	cl_uint val;
+	cl_uint val = 0;
 
 	devtopo.raw.type = CL_DEVICE_TOPOLOGY_TYPE_PCIE_AMD;
 
@@ -1042,7 +1042,7 @@ int device_info_devtopo_nv(cl_device_id dev, cl_device_info param, const char *p
 int device_info_cc_nv(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
-	cl_uint major, val;
+	cl_uint major = 0, val = 0;
 	GET_VAL; /* MAJOR */
 	if (!had_error) {
 		major = val;
@@ -1061,7 +1061,7 @@ int device_info_cc_nv(cl_device_id dev, cl_device_info param, const char *pname,
 int device_info_gfxip_amd(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
-	cl_uint major, val;
+	cl_uint major = 0, val = 0;
 	GET_VAL; /* MAJOR */
 	if (!had_error) {
 		major = val;
@@ -1099,7 +1099,7 @@ int device_info_partition_header(cl_device_id dev, cl_device_info param, const c
 int device_info_partition_types(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
-	size_t numval, szval, cursor, slen;
+	size_t numval = 0, szval = 0, cursor = 0, slen = 0;
 	cl_device_partition_property *val = NULL;
 
 	const char *sep = (output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
@@ -1156,7 +1156,7 @@ int device_info_partition_types(cl_device_id dev, cl_device_info param, const ch
 int device_info_partition_types_ext(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
-	size_t numval, szval, cursor, slen;
+	size_t numval = 0, szval = 0, cursor = 0, slen = 0;
 	cl_device_partition_property_ext *val = NULL;
 
 	const char *sep = (output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
@@ -1247,7 +1247,7 @@ int device_info_partition_affinities(cl_device_id dev, cl_device_info param, con
 int device_info_partition_affinities_ext(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
-	size_t numval, szval, cursor, slen;
+	size_t numval = 0, szval = 0, cursor = 0, slen = 0;
 	cl_device_partition_property_ext *val = NULL;
 
 	const char *sep = (output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
@@ -1300,7 +1300,7 @@ int device_info_partition_affinities_ext(cl_device_id dev, cl_device_info param,
 int device_info_vecwidth(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
-	cl_uint preferred, val;
+	cl_uint preferred = 0, val = 0;
 	GET_VAL;
 	if (!had_error) {
 		preferred = val;
@@ -1329,7 +1329,7 @@ int device_info_vecwidth(cl_device_id dev, cl_device_info param, const char *pna
 int device_info_fpconf(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
-	cl_device_fp_config val;
+	cl_device_fp_config val = 0;
 	int get_it = (
 		(param == CL_DEVICE_SINGLE_FP_CONFIG) ||
 		(param == CL_DEVICE_HALF_FP_CONFIG && dev_has_half(chk)) ||
@@ -1385,7 +1385,7 @@ int device_info_fpconf(cl_device_id dev, cl_device_info param, const char *pname
 int device_info_qprop(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
-	cl_command_queue_properties val;
+	cl_command_queue_properties val = 0;
 	GET_VAL;
 	if (!had_error) {
 		size_t szval = 0;
@@ -1417,7 +1417,7 @@ int device_info_qprop(cl_device_id dev, cl_device_info param, const char *pname,
 int device_info_execap(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
-	cl_device_exec_capabilities val;
+	cl_device_exec_capabilities val = 0;
 	GET_VAL;
 	if (!had_error) {
 		size_t szval = 0;
@@ -1445,15 +1445,15 @@ int device_info_execap(cl_device_id dev, cl_device_info param, const char *pname
 int device_info_arch(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
-	cl_uint bits;
+	cl_uint bits = 0;
 	{
-		cl_uint val;
+		cl_uint val = 0;
 		GET_VAL;
 		if (!had_error)
 			bits = val;
 	}
 	if (!had_error) {
-		cl_bool val;
+		cl_bool val = 0;
 		param = CL_DEVICE_ENDIAN_LITTLE;
 		current_param = "CL_DEVICE_ENDIAN_LITTLE";
 		GET_VAL;
@@ -1468,7 +1468,7 @@ int device_info_arch(cl_device_id dev, cl_device_info param, const char *pname,
 int device_info_svm_cap(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
 {
-	cl_device_svm_capabilities val;
+	cl_device_svm_capabilities val = 0;
 	int is_20 = dev_is_20(chk);
 	int has_svm_ext = dev_has_svm_ext(chk);
 
