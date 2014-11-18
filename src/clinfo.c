@@ -2201,18 +2201,20 @@ void checkNullBehavior(void)
 	}
 	printf(I1_STR "%s\n", "clCreateContext(NULL, ...) [default]", strbuf);
 
-	/* Now look for a device from a non-default platform */
-	p = 0;
-	dev = all_devices;
-	while (p < num_platforms && (p == pidx || pdata[p].ndevs == 0)) {
-		dev += pdata[p++].ndevs;
+	/* Look for a device from a non-default platform, if there are any */
+	if (pidx < 0 || num_platforms > 1) {
+		p = 0;
+		dev = all_devices;
+		while (p < num_platforms && (p == pidx || pdata[p].ndevs == 0)) {
+			dev += pdata[p++].ndevs;
+		}
+		if (p < num_platforms) {
+			checkNullCtx(p, dev, "non-default");
+		} else {
+			bufcpy(0, "<error: no devices in non-default plaforms>");
+		}
+		printf(I1_STR "%s\n", "clCreateContext(NULL, ...) [other]", strbuf);
 	}
-	if (p < num_platforms) {
-		checkNullCtx(p, dev, "non-default");
-	} else {
-		bufcpy(0, "<error: no devices in non-default plaforms>");
-	}
-	printf(I1_STR "%s\n", "clCreateContext(NULL, ...) [other]", strbuf);
 
 	checkNullCtxFromType();
 
