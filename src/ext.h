@@ -52,6 +52,8 @@ typedef cl_bitfield         cl_device_svm_capabilities;
 
 /* cl_khr_icd */
 #define CL_PLATFORM_ICD_SUFFIX_KHR			0x0920
+#define CL_PLATFORM_NOT_FOUND_KHR			-1001
+
 
 /* cl_khr_fp64 */
 #define CL_DEVICE_DOUBLE_FP_CONFIG			0x1032

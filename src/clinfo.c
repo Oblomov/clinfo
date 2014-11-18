@@ -2360,7 +2360,8 @@ int main(int argc, char *argv[])
 	bufsz = 1024;
 
 	error = clGetPlatformIDs(0, NULL, &num_platforms);
-	CHECK_ERROR("number of platforms");
+	if (error != CL_PLATFORM_NOT_FOUND_KHR)
+		CHECK_ERROR("number of platforms");
 
 	printf(I0_STR "%u\n",
 		(output_mode == CLINFO_HUMAN ?
