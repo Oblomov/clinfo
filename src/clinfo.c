@@ -1057,6 +1057,26 @@ int device_info_cc_nv(cl_device_id dev, cl_device_info param, const char *pname,
 	return had_error;
 }
 
+/* AMD GFXIP */
+int device_info_gfxip_amd(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk)
+{
+	cl_uint major, val;
+	GET_VAL; /* MAJOR */
+	if (!had_error) {
+		major = val;
+		param = CL_DEVICE_GFXIP_MINOR_AMD;
+		current_param = "CL_DEVICE_GFXIP_MINOR_AMD";
+		GET_VAL;
+		if (!had_error)
+			snprintf(strbuf, bufsz, "%u.%u", major, val);
+	}
+
+	show_strbuf(pname, 0);
+	return had_error;
+}
+
+
 /* Device Partition, CLINFO_HUMAN header */
 int device_info_partition_header(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk)
@@ -1530,9 +1550,15 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_MAX_CLOCK_FREQUENCY, "Max clock frequency", "MHz", int), NULL },
 
 	/* Device Compute Capability (NV) is multipart, so different for HUMAN and RAW */
-	{ CLINFO_HUMAN, DINFO(CL_DEVICE_COMPUTE_CAPABILITY_MAJOR_NV, "NVIDIA Compute Capability", cc_nv), dev_has_nv },
-	{ CLINFO_RAW, DINFO(CL_DEVICE_COMPUTE_CAPABILITY_MAJOR_NV, "NVIDIA Compute Capability Major", int), dev_has_nv },
-	{ CLINFO_RAW, DINFO(CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV, "NVIDIA Compute Capability Minor", int), dev_has_nv },
+	{ CLINFO_HUMAN, DINFO(CL_DEVICE_COMPUTE_CAPABILITY_MAJOR_NV, "Compute Capability (NV)", cc_nv), dev_has_nv },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_COMPUTE_CAPABILITY_MAJOR_NV, INDENT "Compute Capability Major (NV)", int), dev_has_nv },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV, INDENT "Compute Capability Minor (NV)", int), dev_has_nv },
+
+	/* GFXIP (AMD) is multipart, so different for HUMAN and RAW */
+	/* TODO: find a better human-friendly name than GFXIP */
+	{ CLINFO_HUMAN, DINFO(CL_DEVICE_GFXIP_MAJOR_AMD, "GFXIP (AMD)", gfxip_amd), dev_is_gpu_amd },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_GFXIP_MAJOR_AMD, INDENT "GFXIP MAJOR (AMD)", int), dev_is_gpu_amd },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_GFXIP_MINOR_AMD, INDENT "GFXIP MINOR (AMD)", int), dev_is_gpu_amd },
 
 	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_CORE_TEMPERATURE_ALTERA, "Core Temperature (Altera)", " C", int), dev_has_altera_dev_temp },
 
@@ -1672,6 +1698,7 @@ struct device_info_traits dinfo_traits[] = {
 
 	/* Kernel execution capabilities */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_EXECUTION_CAPABILITIES, "Execution capabilities", execap), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_THREAD_TRACE_SUPPORTED_AMD, INDENT "Thread trace supported (AMD)", bool), dev_is_gpu_amd },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_KERNEL_EXEC_TIMEOUT_NV, INDENT "Kernel execution timeout (NV)", bool), dev_has_nv },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_GPU_OVERLAP_NV, "Concurrent copy and kernel execution (NV)", bool), dev_has_nv },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_ATTRIBUTE_ASYNC_ENGINE_COUNT_NV, INDENT "Number of async copy engines", int), dev_has_nv },

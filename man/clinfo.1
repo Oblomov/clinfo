@@ -144,8 +144,18 @@ extension function is found.
 .SH BUGS
 The results of the following undocumented properties might be
 interpreted incorrectly:
-.IP \(bu 2
+.TP 2
 .B CL_DEVICE_GLOBAL_FREE_MEMORY_AMD
+(assumed: two memory sizes expressed in MB);
+.TP
+.B CL_DEVICE_THREAD_TRACE_SUPPORTED_AMD
+(assumed: a boolean that denotes if thread tracing is supported or not);
+.TP
+.B CL_DEVICE_GFXIP_MAJOR_AMD
+.TQ
+.B CL_DEVICE_GFXIP_MINOR_AMD
+(assumed: two integer values that mark the overall hardware generation of
+the GPU, similar to the Compute Capabiity of NVIDIA devices).
 
 .P
 Please report any issues on
