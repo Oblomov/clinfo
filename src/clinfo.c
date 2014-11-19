@@ -1556,9 +1556,9 @@ struct device_info_traits dinfo_traits[] = {
 
 	/* GFXIP (AMD) is multipart, so different for HUMAN and RAW */
 	/* TODO: find a better human-friendly name than GFXIP */
-	{ CLINFO_HUMAN, DINFO(CL_DEVICE_GFXIP_MAJOR_AMD, "GFXIP (AMD)", gfxip_amd), dev_is_gpu_amd },
-	{ CLINFO_RAW, DINFO(CL_DEVICE_GFXIP_MAJOR_AMD, INDENT "GFXIP MAJOR (AMD)", int), dev_is_gpu_amd },
-	{ CLINFO_RAW, DINFO(CL_DEVICE_GFXIP_MINOR_AMD, INDENT "GFXIP MINOR (AMD)", int), dev_is_gpu_amd },
+	{ CLINFO_HUMAN, DINFO(CL_DEVICE_GFXIP_MAJOR_AMD, "Graphics IP (AMD)", gfxip_amd), dev_is_gpu_amd },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_GFXIP_MAJOR_AMD, INDENT "Graphics IP MAJOR (AMD)", int), dev_is_gpu_amd },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_GFXIP_MINOR_AMD, INDENT "Graphics IP MINOR (AMD)", int), dev_is_gpu_amd },
 
 	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_CORE_TEMPERATURE_ALTERA, "Core Temperature (Altera)", " C", int), dev_has_altera_dev_temp },
 
