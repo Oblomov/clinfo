@@ -820,7 +820,7 @@ int device_info_szptr(cl_device_id dev, cl_device_info param, const char *pname,
 				strcpy(strbuf + szval, sep);
 				szval += sepsz;
 			}
-			szval += snprintf(strbuf + szval, bufsz - szval - 1, "%zu", val[counter]);
+			szval += snprintf(strbuf + szval, bufsz - szval - 1, "%" PRIuS, val[counter]);
 			if (szval >= bufsz) {
 				trunc_strbuf();
 				break;
@@ -2125,7 +2125,7 @@ void checkNullCtxFromType()
 				sprintf(strbuf, "<error: platform 0x%p not found>", plat);
 				break;
 			} else {
-				szval += sprintf(strbuf, "%s (%zu)",
+				szval += sprintf(strbuf, "%s (%" PRIuS ")",
 					(output_mode == CLINFO_HUMAN ? "Success" : "CL_SUCCESS"),
 					ndevs);
 				szval += snprintf(strbuf + szval, bufsz - szval, "\n" I2_STR "%s",

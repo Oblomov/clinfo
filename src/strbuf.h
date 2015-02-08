@@ -45,7 +45,7 @@ static inline size_t bufcpy(size_t offset, const char *str)
 	char *dst = strbuf + offset;
 	int trunc = 0;
 	if (bufsz < offset) {
-		fprintf(stderr, "bufcpy overflow copying %s at offset %zu/%zu (%s)\n",
+		fprintf(stderr, "bufcpy overflow copying %s at offset %" PRIuS "/%" PRIuS " (%s)\n",
 			str, offset, bufsz, strbuf);
 		maxlen = 0;
 		trunc = 1;
