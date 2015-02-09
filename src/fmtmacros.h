@@ -5,13 +5,13 @@
    easier.
  */
 
-#ifdef _MSC_VER
+#ifdef _WIN32
 #  include <stdint.h>
 #  include <stddef.h> // size_t
 #  define PRIu64 "I64u"
 #  define PRIX64 "I64x"
-#  define PRIXPTR "I64x" // TODO FIXME
-#  define PRIuS "I32u" // TODO FIXME
+#  define PRIXPTR "p"
+#  define PRIuS "Iu"
 #else
 # define __STDC_FORMAT_MACROS
 # include <inttypes.h>
