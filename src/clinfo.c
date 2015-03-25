@@ -1360,16 +1360,23 @@ int device_info_fpconf(cl_device_id dev, cl_device_info param, const char *pname
 		const char * const *fpstr = (output_mode == CLINFO_HUMAN ?
 			fp_conf_str : fp_conf_raw_str);
 		if (output_mode == CLINFO_HUMAN) {
-			const char *why;
+			const char *why = na;
 			switch (param) {
 			case CL_DEVICE_HALF_FP_CONFIG:
-				why = get_it ? chk->has_half : na;
+				if (get_it)
+					why = chk->has_half;
 				break;
 			case CL_DEVICE_SINGLE_FP_CONFIG:
 				why = core;
 				break;
 			case CL_DEVICE_DOUBLE_FP_CONFIG:
-				why = get_it ? chk->has_double : na;
+				if (get_it)
+					why = chk->has_double;
+				break;
+			default:
+				/* "this can't happen" (unless OpenCL starts supporting _other_ floating-point formats, maybe) */
+				fprintf(stderr, "unsupported floating-point configuration parameter %s\n", pname);
+
 			}
 			/* show 'why' it's being shown */
 			szval += sprintf(strbuf, "(%s)", why);
@@ -1831,10 +1838,11 @@ printDeviceInfo(const cl_device_id *device, cl_uint d,
 		}
 	}
 
-	// and finally the extensions
-	printf("%s" I1_STR "%s\n", line_pfx, (output_mode == CLINFO_HUMAN ?
-			extensions_traits->pname :
-			extensions_traits->sname), extensions);
+	// and finally the extensions, if we retrieved them
+	if (extensions)
+		printf("%s" I1_STR "%s\n", line_pfx, (output_mode == CLINFO_HUMAN ?
+				extensions_traits->pname :
+				extensions_traits->sname), extensions);
 	free(extensions);
 	extensions = NULL;
 }
@@ -2306,8 +2314,8 @@ void checkNullCtxFromType()
 void checkNullBehavior(void)
 {
 	cl_device_id *dev = NULL;
-	cl_uint pidx = num_platforms;
 	cl_uint p = 0;
+	cl_uint pidx;
 
 	printf("NULL platform behavior\n");
 
