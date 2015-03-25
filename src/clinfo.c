@@ -2354,6 +2354,8 @@ int main(int argc, char *argv[])
 		} else if (!strcmp(argv[a], "--version") || !strcmp(argv[a], "-v")) {
 			version();
 			return 0;
+		} else {
+			fprintf(stderr, "ignoring unknown command-line parameter %s\n", argv[a]);
 		}
 	}
 
