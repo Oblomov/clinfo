@@ -319,10 +319,7 @@ printPlatformInfo(cl_uint p)
 
 	current_function = __func__;
 
-	/* When just listing, we only care about the platform name */
-	int line_end = list_only ? 1 : ARRAY_SIZE(pinfo_traits);
-
-	for (current_line = 0; current_line < line_end ; ++current_line) {
+	for (current_line = 0; current_line < ARRAY_SIZE(pinfo_traits); ++current_line) {
 		const struct platform_info_traits *traits = pinfo_traits + current_line;
 		current_param = traits->sname;
 
@@ -1874,9 +1871,10 @@ int processOfflineDevicesAMD(cl_uint p)
 
 	cl_context ctx = NULL;
 
-	printf("%s" I0_STR, line_pfx,
-		(output_mode == CLINFO_HUMAN ?
-		 "Number of offline devices (AMD)" : "#OFFDEVICES"));
+	if (!list_only)
+		printf("%s" I0_STR, line_pfx,
+			(output_mode == CLINFO_HUMAN ?
+			 "Number of offline devices (AMD)" : "#OFFDEVICES"));
 
 	ctx = clCreateContextFromType(ctxpft, CL_DEVICE_TYPE_ALL, NULL, NULL, &error);
 	RR_ERROR("create context");
@@ -1889,15 +1887,22 @@ int processOfflineDevicesAMD(cl_uint p)
 	error = clGetContextInfo(ctx, CL_CONTEXT_DEVICES, num_devs*sizeof(*device), device, NULL);
 	RR_ERROR("get devs");
 
-	printf("%d\n", num_devs);
+	if (!list_only)
+		printf("%d\n", num_devs);
+
 	for (d = 0; d < num_devs; ++d) {
-		if (line_pfx_len > 0) {
-			sprintf(strbuf, "[%s/%u]", pdata[p].sname, -d);
-			sprintf(line_pfx, "%*s", -line_pfx_len, strbuf);
+		if (list_only) {
+			had_error = device_info_str_get(device[d], CL_DEVICE_NAME, "CL_DEVICE_NAME", NULL);
+			printf("%s%u: %s\n", line_pfx, d, strbuf);
+		} else {
+			if (line_pfx_len > 0) {
+				sprintf(strbuf, "[%s/%u]", pdata[p].sname, -d);
+				sprintf(line_pfx, "%*s", -line_pfx_len, strbuf);
+			}
+			printDeviceInfo(device, d, amd_offline_info_whitelist);
+			if (d < num_devs - 1)
+				puts("");
 		}
-		printDeviceInfo(device, d, amd_offline_info_whitelist);
-		if (d < num_devs - 1)
-			puts("");
 		fflush(stdout);
 		fflush(stderr);
 	}
@@ -1920,6 +1925,7 @@ void listPlatformsAndDevices(cl_bool show_offline)
 		sprintf(strbuf, "%u", num_platforms);
 		line_pfx_len = strlen(strbuf) + 1;
 	} else {
+		sprintf(strbuf, "+--- %sDevice #", (show_offline ? "Offline" : ""));
 		line_pfx_len = strlen("+--- Device #");
 	}
 	REALLOC(line_pfx, line_pfx_len, "line prefix");
@@ -1944,7 +1950,15 @@ void listPlatformsAndDevices(cl_bool show_offline)
 			fflush(stdout);
 			fflush(stderr);
 		}
-		/* TODO show offline devices */
+		if (show_offline && pdata[p].has_amd_offline) {
+			if (output_mode == CLINFO_RAW)
+				sprintf(line_pfx, "%u*", p);
+			else
+				sprintf(line_pfx, "+--- Offline Device #");
+			had_error = processOfflineDevicesAMD(p);
+			if (had_error)
+				puts(strbuf);
+		}
 	}
 }
 
