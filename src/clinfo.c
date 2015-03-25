@@ -1892,6 +1892,8 @@ int processOfflineDevicesAMD(cl_uint p)
 
 	for (d = 0; d < num_devs; ++d) {
 		if (list_only) {
+			if (d == num_devs - 1 && output_mode != CLINFO_RAW)
+				line_pfx[0] = '\\';
 			had_error = device_info_str_get(device[d], CL_DEVICE_NAME, "CL_DEVICE_NAME", NULL);
 			printf("%s%u: %s\n", line_pfx, d, strbuf);
 		} else {
@@ -1945,6 +1947,10 @@ void listPlatformsAndDevices(cl_bool show_offline)
 		}
 
 		for (d = 0; d < pdata[p].ndevs; ++d) {
+			cl_bool last_device = (d == pdata[p].ndevs - 1 && output_mode != CLINFO_RAW &&
+				(!show_offline || !pdata[p].has_amd_offline));
+			if (last_device)
+				line_pfx[0] = '\\';
 			had_error = device_info_str_get(device[d], CL_DEVICE_NAME, "CL_DEVICE_NAME", NULL);
 			printf("%s%u: %s\n", line_pfx, d, strbuf);
 			fflush(stdout);
