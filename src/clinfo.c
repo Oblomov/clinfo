@@ -1892,8 +1892,12 @@ int processOfflineDevicesAMD(cl_uint p)
 
 	for (d = 0; d < num_devs; ++d) {
 		if (list_only) {
+			/*
+			if (output_mode == CLINFO_HUMAN)
+				puts(" |");
+			*/
 			if (d == num_devs - 1 && output_mode != CLINFO_RAW)
-				line_pfx[0] = '\\';
+				line_pfx[1] = '`';
 			had_error = device_info_str_get(device[d], CL_DEVICE_NAME, "CL_DEVICE_NAME", NULL);
 			printf("%s%u: %s\n", line_pfx, d, strbuf);
 		} else {
@@ -1923,13 +1927,12 @@ void listPlatformsAndDevices(cl_bool show_offline)
 	cl_uint p, d;
 	cl_device_id *device;
 
-	if (output_mode == CLINFO_RAW) {
+	if (output_mode == CLINFO_RAW)
 		sprintf(strbuf, "%u", num_platforms);
-		line_pfx_len = strlen(strbuf) + 1;
-	} else {
-		sprintf(strbuf, "+--- %sDevice #", (show_offline ? "Offline" : ""));
-		line_pfx_len = strlen("+--- Device #");
-	}
+	else
+		sprintf(strbuf, " +-- %sDevice #", (show_offline ? "Offline" : ""));
+
+	line_pfx_len = strlen(strbuf) + 1;
 	REALLOC(line_pfx, line_pfx_len, "line prefix");
 
 	for (p = 0, device = all_devices; p < num_platforms; device += pdata[p++].ndevs) {
@@ -1939,7 +1942,7 @@ void listPlatformsAndDevices(cl_bool show_offline)
 		if (output_mode == CLINFO_RAW)
 			sprintf(line_pfx, "%u:", p);
 		else
-			sprintf(line_pfx, "+--- Device #");
+			sprintf(line_pfx, " +-- Device #");
 
 		if (pdata[p].ndevs > 0) {
 			error = clGetDeviceIDs(platform[p], CL_DEVICE_TYPE_ALL, pdata[p].ndevs, device, NULL);
@@ -1947,10 +1950,14 @@ void listPlatformsAndDevices(cl_bool show_offline)
 		}
 
 		for (d = 0; d < pdata[p].ndevs; ++d) {
+			/*
+			if (output_mode == CLINFO_HUMAN)
+				puts(" |");
+			*/
 			cl_bool last_device = (d == pdata[p].ndevs - 1 && output_mode != CLINFO_RAW &&
 				(!show_offline || !pdata[p].has_amd_offline));
 			if (last_device)
-				line_pfx[0] = '\\';
+				line_pfx[1] = '`';
 			had_error = device_info_str_get(device[d], CL_DEVICE_NAME, "CL_DEVICE_NAME", NULL);
 			printf("%s%u: %s\n", line_pfx, d, strbuf);
 			fflush(stdout);
@@ -1960,7 +1967,7 @@ void listPlatformsAndDevices(cl_bool show_offline)
 			if (output_mode == CLINFO_RAW)
 				sprintf(line_pfx, "%u*", p);
 			else
-				sprintf(line_pfx, "+--- Offline Device #");
+				sprintf(line_pfx, " +-- Offline Device #");
 			had_error = processOfflineDevicesAMD(p);
 			if (had_error)
 				puts(strbuf);
