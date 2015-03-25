@@ -57,6 +57,8 @@ enum output_modes output_mode = CLINFO_HUMAN;
 /* Specify if we should only be listing the platform and devices;
  * can be done in both human and raw mode, and only the platform
  * and device names (and number) will be shown
+ * TODO check if terminal supports UTF-8 and use Unicode line-drawing
+ * for the tree in list mode
  */
 cl_bool list_only = CL_FALSE;
 
