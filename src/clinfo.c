@@ -54,6 +54,12 @@ enum output_modes {
 
 enum output_modes output_mode = CLINFO_HUMAN;
 
+/* Specify if we should only be listing the platform and devices;
+ * can be done in both human and raw mode, and only the platform
+ * and device names (and number) will be shown
+ */
+cl_bool list_only = CL_FALSE;
+
 static const char unk[] = "Unknown";
 static const char none[] = "None";
 static const char none_raw[] = "CL_NONE";
@@ -266,7 +272,11 @@ platform_info_str(cl_platform_id pid, cl_platform_info param, const char* pname)
 		error = clGetPlatformInfo(pid, param, bufsz, strbuf, 0);
 		had_error = REPORT_ERROR2("get %s");
 	}
-	show_strbuf(pname, 1);
+	/* when only listing, do not print anything we're just gathering
+	 * information
+	 */
+	if (!list_only)
+		show_strbuf(pname, 1);
 	return had_error;
 }
 
@@ -309,7 +319,10 @@ printPlatformInfo(cl_uint p)
 
 	current_function = __func__;
 
-	for (current_line = 0; current_line < ARRAY_SIZE(pinfo_traits); ++current_line) {
+	/* When just listing, we only care about the platform name */
+	int line_end = list_only ? 1 : ARRAY_SIZE(pinfo_traits);
+
+	for (current_line = 0; current_line < line_end ; ++current_line) {
 		const struct platform_info_traits *traits = pinfo_traits + current_line;
 		current_param = traits->sname;
 
@@ -1898,6 +1911,96 @@ out:
 
 }
 
+void listPlatformsAndDevices(cl_bool show_offline)
+{
+	cl_uint p, d;
+	cl_device_id *device;
+
+	if (output_mode == CLINFO_RAW) {
+		sprintf(strbuf, "%u", num_platforms);
+		line_pfx_len = strlen(strbuf) + 1;
+	} else {
+		line_pfx_len = strlen("+--- Device #");
+	}
+	REALLOC(line_pfx, line_pfx_len, "line prefix");
+
+	for (p = 0, device = all_devices; p < num_platforms; device += pdata[p++].ndevs) {
+		printf("%s%u: %s\n",
+			(output_mode == CLINFO_HUMAN ? "Platform #" : ""),
+			p, pdata[p].pname);
+		if (output_mode == CLINFO_RAW)
+			sprintf(line_pfx, "%u:", p);
+		else
+			sprintf(line_pfx, "+--- Device #");
+
+		if (pdata[p].ndevs > 0) {
+			error = clGetDeviceIDs(platform[p], CL_DEVICE_TYPE_ALL, pdata[p].ndevs, device, NULL);
+			CHECK_ERROR("device IDs");
+		}
+
+		for (d = 0; d < pdata[p].ndevs; ++d) {
+			had_error = device_info_str_get(device[d], CL_DEVICE_NAME, "CL_DEVICE_NAME", NULL);
+			printf("%s%u: %s\n", line_pfx, d, strbuf);
+			fflush(stdout);
+			fflush(stderr);
+		}
+		/* TODO show offline devices */
+	}
+}
+
+void showDevices(cl_bool show_offline)
+{
+	cl_uint p, d;
+	cl_device_id *device;
+
+	/* TODO consider enabling this for both output modes */
+	if (output_mode == CLINFO_RAW) {
+		sprintf(strbuf, "%u", maxdevs);
+		line_pfx_len = platform_sname_maxlen + strlen(strbuf) + 4;
+		REALLOC(line_pfx, line_pfx_len, "line prefix");
+	}
+
+	for (p = 0, device = all_devices; p < num_platforms; device += pdata[p++].ndevs) {
+		if (line_pfx_len > 0) {
+			sprintf(strbuf, "[%s/*]", pdata[p].sname);
+			sprintf(line_pfx, "%*s", -line_pfx_len, strbuf);
+		}
+		printf("%s" I1_STR "%s\n",
+			line_pfx,
+			(output_mode == CLINFO_HUMAN ?
+			 pinfo_traits[0].pname : pinfo_traits[0].sname),
+			pdata[p].pname);
+		printf("%s" I0_STR "%u\n",
+			line_pfx,
+			(output_mode == CLINFO_HUMAN ?
+			 "Number of devices" : "#DEVICES"),
+			pdata[p].ndevs);
+
+		if (pdata[p].ndevs > 0) {
+			error = clGetDeviceIDs(platform[p], CL_DEVICE_TYPE_ALL, pdata[p].ndevs, device, NULL);
+			CHECK_ERROR("device IDs");
+		}
+		for (d = 0; d < pdata[p].ndevs; ++d) {
+			if (line_pfx_len > 0) {
+				sprintf(strbuf, "[%s/%u]", pdata[p].sname, d);
+				sprintf(line_pfx, "%*s", -line_pfx_len, strbuf);
+			}
+			printDeviceInfo(device, d, NULL);
+			if (d < pdata[p].ndevs - 1)
+				puts("");
+			fflush(stdout);
+			fflush(stderr);
+		}
+		if (show_offline && pdata[p].has_amd_offline) {
+			puts("");
+			had_error = processOfflineDevicesAMD(p);
+			if (had_error)
+				puts(strbuf);
+		}
+		puts("");
+	}
+}
+
 /* check the behavior of clGetPlatformInfo() when given a NULL platform ID */
 void checkNullGetPlatformName(void)
 {
@@ -2322,6 +2425,7 @@ void usage()
 	puts("\t--human\t\thuman-friendly output (default)");
 	puts("\t--raw\t\traw output");
 	puts("\t--offline\talso show offline devices");
+	puts("\t--list, -l\tonly list the platforms and devices by name");
 	puts("\t-h, -?\t\tshow usage");
 	puts("\t--version, -v\tshow version\n");
 	puts("Defaults to raw mode if invoked with");
@@ -2330,8 +2434,7 @@ void usage()
 
 int main(int argc, char *argv[])
 {
-	cl_uint p, d;
-	cl_device_id *device;
+	cl_uint p;
 	int a = 0;
 
 	cl_bool show_offline = CL_FALSE;
@@ -2348,6 +2451,8 @@ int main(int argc, char *argv[])
 			output_mode = CLINFO_HUMAN;
 		else if (!strcmp(argv[a], "--offline"))
 			show_offline = CL_TRUE;
+		else if (!strcmp(argv[a], "-l") || !strcmp(argv[a], "--list"))
+			list_only = CL_TRUE;
 		else if (!strcmp(argv[a], "-?") || !strcmp(argv[a], "-h")) {
 			usage();
 			return 0;
@@ -2367,10 +2472,11 @@ int main(int argc, char *argv[])
 	if (error != CL_PLATFORM_NOT_FOUND_KHR)
 		CHECK_ERROR("number of platforms");
 
-	printf(I0_STR "%u\n",
-		(output_mode == CLINFO_HUMAN ?
-		 "Number of platforms" : "#PLATFORMS"),
-		num_platforms);
+	if (!list_only)
+		printf(I0_STR "%u\n",
+			(output_mode == CLINFO_HUMAN ?
+			 "Number of platforms" : "#PLATFORMS"),
+			num_platforms);
 	if (!num_platforms)
 		return 0;
 
@@ -2383,62 +2489,21 @@ int main(int argc, char *argv[])
 
 	for (p = 0; p < num_platforms; ++p) {
 		printPlatformInfo(p);
-		puts("");
+		if (!list_only)
+			puts("");
 	}
 
 	if (num_devs_all > 0) {
 		ALLOC(all_devices, num_devs_all, "device IDs");
 	}
 
-	/* TODO consider enabling this for both output modes */
-	if (output_mode == CLINFO_RAW) {
-		sprintf(strbuf, "%u", maxdevs);
-		line_pfx_len = platform_sname_maxlen + strlen(strbuf) + 4;
-		REALLOC(line_pfx, line_pfx_len, "line prefix");
+	if (list_only) {
+		listPlatformsAndDevices(show_offline);
+	} else {
+		showDevices(show_offline);
+		checkNullBehavior();
+		oclIcdProps();
 	}
 
-	for (p = 0, device = all_devices; p < num_platforms; device += pdata[p++].ndevs) {
-		if (line_pfx_len > 0) {
-			sprintf(strbuf, "[%s/*]", pdata[p].sname);
-			sprintf(line_pfx, "%*s", -line_pfx_len, strbuf);
-		}
-		printf("%s" I1_STR "%s\n",
-			line_pfx,
-			(output_mode == CLINFO_HUMAN ?
-			pinfo_traits[0].pname : pinfo_traits[0].sname),
-			pdata[p].pname);
-		printf("%s" I0_STR "%u\n",
-			line_pfx,
-			(output_mode == CLINFO_HUMAN ?
-			 "Number of devices" : "#DEVICES"),
-			pdata[p].ndevs);
-
-		if (pdata[p].ndevs > 0) {
-			error = clGetDeviceIDs(platform[p], CL_DEVICE_TYPE_ALL, pdata[p].ndevs, device, NULL);
-			CHECK_ERROR("device IDs");
-		}
-		for (d = 0; d < pdata[p].ndevs; ++d) {
-			if (line_pfx_len > 0) {
-				sprintf(strbuf, "[%s/%u]", pdata[p].sname, d);
-				sprintf(line_pfx, "%*s", -line_pfx_len, strbuf);
-			}
-			printDeviceInfo(device, d, NULL);
-			if (d < pdata[p].ndevs - 1)
-				puts("");
-			fflush(stdout);
-			fflush(stderr);
-		}
-		if (show_offline && pdata[p].has_amd_offline) {
-			puts("");
-			had_error = processOfflineDevicesAMD(p);
-			if (had_error)
-				puts(strbuf);
-		}
-		puts("");
-	}
-
-	checkNullBehavior();
-
-	oclIcdProps();
 	return 0;
 }
