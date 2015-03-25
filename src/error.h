@@ -18,7 +18,7 @@ check_ocl_error(cl_int err, const char *what, const char *func, int line)
 }
 
 const char *current_function;
-int current_line;
+size_t current_line;
 const char *current_param;
 
 int
@@ -26,7 +26,7 @@ report_ocl_error(char *dstbuf, size_t sz, cl_int err, const char *fmt)
 {
 	static char full_fmt[1024];
 	if (err != CL_SUCCESS) {
-		snprintf(full_fmt, 1024, "<%s:%d: %s : error %d>",
+		snprintf(full_fmt, 1024, "<%s:%" PRIuS ": %s : error %d>",
 			current_function, current_line, fmt, err);
 		snprintf(dstbuf, sz, full_fmt, current_param);
 	}

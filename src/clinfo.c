@@ -735,7 +735,7 @@ int device_info_bits(cl_device_id dev, cl_device_info param, const char *pname,
 size_t strbuf_mem(cl_ulong val, size_t szval)
 {
 	double dbl = val;
-	int sfx = 0;
+	size_t sfx = 0;
 	while (dbl > 1024 && sfx < memsfx_count) {
 		dbl /= 1024;
 		++sfx;
@@ -825,7 +825,7 @@ int device_info_szptr(cl_device_id dev, cl_device_info param, const char *pname,
 	if (!had_error) {
 		const char *sep = (output_mode == CLINFO_HUMAN ? times_str : spc_str);
 		size_t sepsz = 1;
-		int counter = 0;
+		size_t counter = 0;
 		szval = 0;
 		for (counter = 0; counter < numval; ++counter) {
 			if (szval > 0) {
@@ -2047,16 +2047,18 @@ void checkNullGetPlatformName(void)
 }
 
 /* check the behavior of clGetDeviceIDs() when given a NULL platform ID;
- * return the index of the default platform in our array of platform IDs
+ * return the index of the default platform in our array of platform IDs,
+ * or num_platforms (which is an invalid platform index) in case of errors
+ * or no platform or device found.
  */
-cl_int checkNullGetDevices(void)
+cl_uint checkNullGetDevices(void)
 {
-	cl_int i = 0; /* generic iterator */
+	cl_uint i = 0; /* generic iterator */
 	cl_device_id dev = NULL; /* sample device */
 	cl_platform_id plat = NULL; /* detected platform */
 
 	cl_uint found = 0; /* number of platforms found */
-	cl_int pidx = -1; /* index of the platform found */
+	cl_uint pidx = num_platforms; /* index of the platform found */
 	cl_uint numdevs = 0;
 
 	current_function = __func__;
@@ -2151,7 +2153,7 @@ cl_int checkNullGetDevices(void)
 	return pidx;
 }
 
-void checkNullCtx(cl_int pidx, const cl_device_id *dev, const char *which)
+void checkNullCtx(cl_uint pidx, const cl_device_id *dev, const char *which)
 {
 	cl_context ctx = clCreateContext(NULL, 1, dev, NULL, NULL, &error);
 
@@ -2302,8 +2304,8 @@ void checkNullCtxFromType()
 void checkNullBehavior(void)
 {
 	cl_device_id *dev = NULL;
-	cl_int pidx = -1;
-	cl_int p = 0;
+	cl_uint pidx = num_platforms;
+	cl_uint p = 0;
 
 	printf("NULL platform behavior\n");
 
@@ -2314,7 +2316,7 @@ void checkNullBehavior(void)
 	/* If there's a default platform, and it has devices, try
 	 * creating a context with its first device and see if it works */
 
-	if (pidx < 0) {
+	if (pidx == num_platforms) {
 		bufcpy(0, no_plat());
 	} else if (pdata[pidx].ndevs == 0) {
 		bufcpy(0, no_dev());
@@ -2334,7 +2336,7 @@ void checkNullBehavior(void)
 	printf(I1_STR "%s\n", "clCreateContext(NULL, ...) [default]", strbuf);
 
 	/* Look for a device from a non-default platform, if there are any */
-	if (pidx < 0 || num_platforms > 1) {
+	if (pidx == num_platforms || num_platforms > 1) {
 		p = 0;
 		dev = all_devices;
 		while (p < num_platforms && (p == pidx || pdata[p].ndevs == 0)) {
