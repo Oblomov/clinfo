@@ -145,20 +145,19 @@ The properties of the ICD loader will also be queried if the
 extension function is found.
 
 .SH BUGS
-The results of the following undocumented properties might be
-interpreted incorrectly:
-.TP 2
+The
 .B CL_DEVICE_GLOBAL_FREE_MEMORY_AMD
-(assumed: two memory sizes expressed in MB);
-.TP
-.B CL_DEVICE_THREAD_TRACE_SUPPORTED_AMD
-(assumed: a boolean that denotes if thread tracing is supported or not);
-.TP
-.B CL_DEVICE_GFXIP_MAJOR_AMD
-.TQ
-.B CL_DEVICE_GFXIP_MINOR_AMD
-(assumed: two integer values that mark the overall hardware generation of
-the GPU, similar to the Compute Capabiity of NVIDIA devices).
+device information is documented in v3 of the
+.B cl_amd_device_attribute_query
+extension specification as being the global free memory in KBytes, but no
+explanation is given on why there are two values.
+
+The
+.B CL_DEVICE_AVAILABLE_ASYNC_QUEUES_AMD
+device information is documented in v3 of the
+.B cl_amd_device_attribute_query
+extension specification, but not reported by current
+drivers, so it is currently disabled.
 
 .P
 Please report any issues on
