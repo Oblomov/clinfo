@@ -378,7 +378,9 @@ printPlatformInfo(cl_uint p)
 		platform_sname_maxlen = len;
 
 	error = clGetDeviceIDs(pid, CL_DEVICE_TYPE_ALL, 0, NULL, &(pdata[p].ndevs));
-	if (error != CL_DEVICE_NOT_FOUND)
+	if (error == CL_DEVICE_NOT_FOUND)
+		pdata[p].ndevs = 0;
+	else
 		CHECK_ERROR("number of devices");
 
 	num_devs_all += pdata[p].ndevs;
@@ -1965,22 +1967,22 @@ void listPlatformsAndDevices(cl_bool show_offline)
 		if (pdata[p].ndevs > 0) {
 			error = clGetDeviceIDs(platform[p], CL_DEVICE_TYPE_ALL, pdata[p].ndevs, device, NULL);
 			CHECK_ERROR("device IDs");
+			for (d = 0; d < pdata[p].ndevs; ++d) {
+				/*
+				if (output_mode == CLINFO_HUMAN)
+					puts(" |");
+				*/
+				cl_bool last_device = (d == pdata[p].ndevs - 1 && output_mode != CLINFO_RAW &&
+					(!show_offline || !pdata[p].has_amd_offline));
+				if (last_device)
+					line_pfx[1] = '`';
+				had_error = device_info_str_get(device[d], CL_DEVICE_NAME, "CL_DEVICE_NAME", NULL);
+				printf("%s%u: %s\n", line_pfx, d, strbuf);
+				fflush(stdout);
+				fflush(stderr);
+			}
 		}
 
-		for (d = 0; d < pdata[p].ndevs; ++d) {
-			/*
-			if (output_mode == CLINFO_HUMAN)
-				puts(" |");
-			*/
-			cl_bool last_device = (d == pdata[p].ndevs - 1 && output_mode != CLINFO_RAW &&
-				(!show_offline || !pdata[p].has_amd_offline));
-			if (last_device)
-				line_pfx[1] = '`';
-			had_error = device_info_str_get(device[d], CL_DEVICE_NAME, "CL_DEVICE_NAME", NULL);
-			printf("%s%u: %s\n", line_pfx, d, strbuf);
-			fflush(stdout);
-			fflush(stderr);
-		}
 		if (show_offline && pdata[p].has_amd_offline) {
 			if (output_mode == CLINFO_RAW)
 				sprintf(line_pfx, "%u*", p);
