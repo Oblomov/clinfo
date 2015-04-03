@@ -12,7 +12,7 @@ else
   LDLIBS=-lOpenCL
 endif
 
-CFLAGS+=-g -Wall -Wextra
+CFLAGS+=-std=c99 -g -Wall -Wextra
 
 clinfo:
 
