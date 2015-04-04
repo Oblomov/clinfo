@@ -495,9 +495,11 @@ struct device_info_checks {
 	char has_atomic_counters[26];
 	char has_image2d_buffer[27];
 	char has_intel_local_thread[30];
+	char has_intel_AME[36];
 	char has_altera_dev_temp[29];
 	char has_spir[12];
 	char has_qcom_ext_host_ptr[21];
+	char has_simultaneous_sharing[30];
 	cl_uint dev_version;
 };
 
@@ -515,9 +517,11 @@ DEFINE_EXT_CHECK(fission)
 DEFINE_EXT_CHECK(atomic_counters)
 DEFINE_EXT_CHECK(image2d_buffer)
 DEFINE_EXT_CHECK(intel_local_thread)
+DEFINE_EXT_CHECK(intel_AME)
 DEFINE_EXT_CHECK(altera_dev_temp)
 DEFINE_EXT_CHECK(spir)
 DEFINE_EXT_CHECK(qcom_ext_host_ptr)
+DEFINE_EXT_CHECK(simultaneous_sharing)
 
 /* In the version checks we negate the opposite conditions
  * instead of double-negating the actual condition
@@ -618,8 +622,10 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 		CHECK_EXT(atomic_counters, cl_ext_atomic_counters_32);
 	CHECK_EXT(image2d_buffer, cl_khr_image2d_from_buffer);
 	CHECK_EXT(intel_local_thread, cl_intel_exec_by_local_thread);
+	CHECK_EXT(intel_AME, cl_intel_advanced_motion_estimation);
 	CHECK_EXT(altera_dev_temp, cl_altera_device_temperature);
 	CHECK_EXT(qcom_ext_host_ptr, cl_qcom_ext_host_ptr);
+	CHECK_EXT(simultaneous_sharing, cl_intel_simultaneous_sharing);
 }
 
 
@@ -1716,6 +1722,13 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_ON_DEVICE_QUEUES, "Max queues on device", int), dev_is_20 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_ON_DEVICE_EVENTS, "Max events on device", int), dev_is_20 },
 
+	/* Interop */
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_PREFERRED_INTEROP_USER_SYNC, "Prefer user sync for interop", bool), dev_is_12 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_NUM_SIMULTANEOUS_INTEROPS_INTEL, "Number of simulataneous interops (Intel)", int), dev_has_simultaneous_sharing },
+	/* TODO: this needs defines for the possible values of the context interops,
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_SIMULTANEOUS_INTEROPS_INTEL, "Simulataneous interops", interop_list), dev_has_simultaneous_sharing },
+	 */
+
 	/* Profiling resolution */
 	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_PROFILING_TIMER_RESOLUTION, "Profiling timer resolution", "ns", long), NULL },
 	{ CLINFO_HUMAN, DINFO(CL_DEVICE_PROFILING_TIMER_OFFSET_AMD, "Profiling timer offset since Epoch (AMD)", time_offset), dev_has_amd },
@@ -1730,11 +1743,11 @@ struct device_info_traits dinfo_traits[] = {
 	/* TODO FIXME Current drivers don't seem to respond to this, should probably be queried based on driver version,
 	 * or maybe it depends on some other device property?
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_AVAILABLE_ASYNC_QUEUES_AMD, INDENT "Number of async queues (AMD)", int), dev_is_gpu_amd },
-	*/
+	 */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SPIR_VERSIONS, INDENT "SPIR versions", str), dev_has_spir },
-	{ CLINFO_BOTH, DINFO(CL_DEVICE_PREFERRED_INTEROP_USER_SYNC, "Prefer user sync for interop", bool), dev_is_12 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_PRINTF_BUFFER_SIZE, "printf() buffer size", mem), dev_is_12 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_BUILT_IN_KERNELS, "Built-in kernels", str), dev_is_12 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_ME_VERSION_INTEL, "Motion Estimation accelerator version	(Intel)", int), dev_has_intel_AME },
 
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_AVAILABLE, "Device Available", bool), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_COMPILER_AVAILABLE, "Compiler Available", bool), NULL },

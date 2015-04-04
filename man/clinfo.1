@@ -88,6 +88,12 @@ for NVIDIA-specific device attributes;
 for the Intel extension allowing CPU devices to run kernels as part of
 the current host thread;
 .TP
+.B cl_intel_advanced_motion_estimation
+for the version of the Intel Motion Estimation accelerator version;
+.TP
+.B cl_intel_simultaneous_sharing
+for simultaneous CL/GL/DirectX context sharing (only partial support);
+.TP
 .B cl_altera_device_temperature
 for the Altera extension to query the core temperature of the device;
 .TP
@@ -158,6 +164,13 @@ device information is documented in v3 of the
 .B cl_amd_device_attribute_query
 extension specification, but not reported by current
 drivers, so it is currently disabled.
+
+The
+.B CL_DEVICE_SIMULTANEOUS_INTEROPS_INTEL
+device information for the
+.B cl_intel_simultaneous_sharing
+extension is not reported, due to lack of knowledge on the possible
+values the list elements can have.
 
 .P
 Please report any issues on

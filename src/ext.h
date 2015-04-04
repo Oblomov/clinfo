@@ -135,6 +135,9 @@ typedef cl_ulong  cl_device_partition_property_ext;
 #define CL_AFFINITY_DOMAIN_NUMA_EXT			0x10
 #define CL_AFFINITY_DOMAIN_NEXT_FISSIONABLE_EXT		0x100
 
+/* cl_intel_advanced_motion_estimation */
+#define CL_DEVICE_ME_VERSION_INTEL			0x407E
+
 /* cl_qcom_ext_host_ptr */
 #define CL_DEVICE_EXT_MEM_PADDING_IN_BYTES_QCOM		0x40A0
 #define CL_DEVICE_PAGE_SIZE_QCOM			0x40A1
@@ -144,3 +147,8 @@ typedef cl_ulong  cl_device_partition_property_ext;
 
 /* cl_altera_device_temperature */
 #define CL_DEVICE_CORE_TEMPERATURE_ALTERA		0x40F3
+
+/* cl_intel_simultaneous_sharing */
+#define CL_DEVICE_SIMULTANEOUS_INTEROPS_INTEL		0x4104
+#define CL_DEVICE_NUM_SIMULTANEOUS_INTEROPS_INTEL	0x4105
+
