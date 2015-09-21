@@ -109,7 +109,7 @@ static const char l3cache[] = "L3 cache";
 static const char l4cache[] = "L4 cache";
 
 static const char* affinity_domain_str[] = {
-	numa, l4cache, l3cache, l2cache, l1cache, "next partitionalbe"
+	numa, l4cache, l3cache, l2cache, l1cache, "next partitionable"
 };
 
 static const char* affinity_domain_ext_str[] = {
