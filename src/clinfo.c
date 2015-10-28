@@ -2328,6 +2328,7 @@ void checkNullCtxFromType()
 		}
 		printf("%s%s\n", def, strbuf);
 	}
+	free(devs);
 }
 
 /* check the behavior of NULL platform in clGetDeviceIDs (see checkNullGetDevices)
