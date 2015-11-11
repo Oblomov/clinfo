@@ -2430,12 +2430,18 @@ struct icdl_info_traits linfo_traits[] = {
 	LINFO(CL_ICDL_OCL_VERSION, "Profile")
 };
 
+/* GCC < 4.6 does not support the diagnostic push _inside_ the function,
+ * so we have to put it outside
+ */
+#if defined __GNUC__ && ((__GNUC__*10 + __GNUC_MINOR__) < 46)
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
 
 void oclIcdProps()
 {
 	/* We find the clGetICDLoaderInfoOCLICD extension address, and use it to query
 	 * the ICD loader properties. It should be noted however that
-	 * clGetExtensionFunctionAddress is marked * deprecated as of OpenCL 1.2, so
+	 * clGetExtensionFunctionAddress is marked deprecated as of OpenCL 1.2, so
 	 * to use it and compile cleanly we need disable the relevant warning.
 	 * It should be noted that in this specific case we cannot replace the
 	 * call to clGetExtensionFunctionAddress with a call to the superseding function
@@ -2446,7 +2452,7 @@ void oclIcdProps()
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable : 4996)
-#else
+#elif defined __GNUC__ && ((__GNUC__*10 + __GNUC_MINOR__) >= 46)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #endif
@@ -2455,7 +2461,7 @@ void oclIcdProps()
 
 #ifdef _MSC_VER
 #pragma warning(pop)
-#else
+#elif defined __GNUC__ && ((__GNUC__*10 + __GNUC_MINOR__) >= 46)
 #pragma GCC diagnostic pop
 #endif
 
@@ -2473,6 +2479,10 @@ void oclIcdProps()
 		}
 	}
 }
+
+#if defined __GNUC__ && ((__GNUC__*10 + __GNUC_MINOR__) < 46)
+#pragma GCC diagnostic warning "-Wdeprecated-declarations"
+#endif
 
 void version()
 {
