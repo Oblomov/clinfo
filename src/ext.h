@@ -46,6 +46,13 @@
 typedef cl_bitfield         cl_device_svm_capabilities;
 #endif
 
+#ifndef CL_VERSION_2_1
+#define CL_PLATFORM_HOST_TIMER_RESOLUTION		0x0905
+#define CL_DEVICE_IL_VERSION				0x105B
+#define CL_DEVICE_MAX_NUM_SUB_GROUPS			0x105C
+#define CL_DEVICE_SUB_GROUP_INDEPENDENT_FORWARD_PROGRESS 0x105D
+#endif
+
 /*
  * Extensions
  */
