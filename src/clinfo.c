@@ -577,6 +577,12 @@ int dev_is_20(const struct device_info_checks *chk)
 	return !(chk->dev_version < 20);
 }
 
+// device supports 2.1
+int dev_is_21(const struct device_info_checks *chk)
+{
+	return !(chk->dev_version < 21);
+}
+
 // device does not support 2.0
 int dev_not_20(const struct device_info_checks *chk)
 {
@@ -1645,6 +1651,7 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, "Preferred work group size multiple", wg), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_WARP_SIZE_NV, "Warp size (NV)", int), dev_has_nv },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_WAVEFRONT_WIDTH_AMD, "Wavefront width (AMD)", int), dev_is_gpu_amd },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_NUM_SUB_GROUPS, "Max sub-groups per work group", int), dev_is_21 },
 
 	/* Preferred/native vector widths: header is only presented in HUMAN case, that also pairs
 	 * PREFERRED and NATIVE in a single line */
@@ -1774,6 +1781,7 @@ struct device_info_traits dinfo_traits[] = {
 
 	/* Kernel execution capabilities */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_EXECUTION_CAPABILITIES, "Execution capabilities", execap), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_SUB_GROUP_INDEPENDENT_FORWARD_PROGRESS, INDENT "Sub-group independent forward progress", bool), dev_is_21 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_THREAD_TRACE_SUPPORTED_AMD, INDENT "Thread trace supported (AMD)", bool), dev_is_gpu_amd },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_KERNEL_EXEC_TIMEOUT_NV, INDENT "Kernel execution timeout (NV)", bool), dev_has_nv },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_GPU_OVERLAP_NV, "Concurrent copy and kernel execution (NV)", bool), dev_has_nv },
@@ -1782,6 +1790,7 @@ struct device_info_traits dinfo_traits[] = {
 	 * or maybe it depends on some other device property?
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_AVAILABLE_ASYNC_QUEUES_AMD, INDENT "Number of async queues (AMD)", int), dev_is_gpu_amd },
 	 */
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_IL_VERSION, INDENT "IL version", str), dev_is_21, },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SPIR_VERSIONS, INDENT "SPIR versions", str), dev_has_spir },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_PRINTF_BUFFER_SIZE, "printf() buffer size", mem), dev_is_12 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_BUILT_IN_KERNELS, "Built-in kernels", str), dev_is_12 },
