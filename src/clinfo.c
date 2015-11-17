@@ -30,6 +30,11 @@ struct platform_data {
 	cl_bool has_amd_offline; /* has cl_amd_offline_devices extension */
 };
 
+struct platform_info_checks {
+	int has_khr_icd;
+	int plat_version;
+};
+
 cl_uint num_platforms;
 cl_platform_id *platform;
 
@@ -251,6 +256,30 @@ static const char vbar_str[] = " | ";
 int had_error = 0;
 const char *cur_sfx = empty_str;
 
+/* parse a CL_DEVICE_VERSION or CL_PLATFORM_VERSION info to determine the OpenCL version.
+ * Returns an unsigned integer in the from major*10 + minor
+ */
+cl_uint
+getOpenCLVersion(const char *version)
+{
+	cl_uint ret = 10;
+	long parse = 0;
+	const char *from = version;
+	char *next = NULL;
+	parse = strtol(from, &next, 10);
+
+	if (next != from) {
+		ret = parse*10;
+		// skip the dot TODO should we actually check for the dot?
+		from = ++next;
+		parse = strtol(from, &next, 10);
+		if (next != from)
+			ret += parse;
+	}
+	return ret;
+}
+
+
 /* print strbuf, prefixed by pname, skipping leading whitespace if skip is nonzero,
  * affixing cur_sfx */
 static inline
@@ -263,7 +292,7 @@ void show_strbuf(const char *pname, int skip)
 }
 
 int
-platform_info_str(cl_platform_id pid, cl_platform_info param, const char* pname)
+platform_info_str(cl_platform_id pid, cl_platform_info param, const char* pname, const struct platform_info_checks * chk UNUSED)
 {
 	error = clGetPlatformInfo(pid, param, 0, NULL, &nusz);
 	if (nusz > bufsz) {
@@ -283,14 +312,32 @@ platform_info_str(cl_platform_id pid, cl_platform_info param, const char* pname)
 	return had_error;
 }
 
-struct platform_info_checks {
-	int has_khr_icd;
-};
+int
+platform_info_ulong(cl_platform_id pid, cl_platform_info param, const char* pname, const struct platform_info_checks * chk UNUSED)
+{
+	cl_ulong val = 0;
+
+	error = clGetPlatformInfo(pid, param, sizeof(val), &val, NULL);
+	had_error = REPORT_ERROR2("get %s");
+	/* when only listing, do not print anything we're just gathering
+	 * information
+	 */
+	if (!list_only) {
+		if (had_error)
+			show_strbuf(pname, 0);
+		else
+			printf("%s" I1_STR "%" PRIu64 "%s\n", line_pfx, pname, val, cur_sfx);
+	}
+	return had_error;
+}
 
 struct platform_info_traits {
 	cl_platform_info param; // CL_PLATFORM_*
 	const char *sname; // "CL_PLATFORM_*"
 	const char *pname; // "Platform *"
+	const char *sfx; // suffix for the output in non-raw mode
+	/* pointer to function that shows the parameter */
+	int (*show_func)(cl_platform_id pid, cl_platform_info param, const char *pname, const struct platform_info_checks *);
 	/* pointer to function that checks if the parameter should be checked */
 	int (*check_func)(const struct platform_info_checks *);
 };
@@ -300,15 +347,21 @@ int khr_icd_p(const struct platform_info_checks *chk)
 	return chk->has_khr_icd;
 }
 
-#define PINFO_COND(symbol, name, funcptr) { symbol, #symbol, "Platform " name, &funcptr }
-#define PINFO(symbol, name) { symbol, #symbol, "Platform " name, NULL }
+int plat_is_21(const struct platform_info_checks *chk)
+{
+	return !(chk->plat_version < 21);
+}
+
+#define PINFO_COND(symbol, name, sfx, typ, funcptr) { symbol, #symbol, "Platform " name, sfx, &platform_info_##typ, &funcptr }
+#define PINFO(symbol, name, sfx, typ) { symbol, #symbol, "Platform " name, sfx, &platform_info_##typ, NULL }
 struct platform_info_traits pinfo_traits[] = {
-	PINFO(CL_PLATFORM_NAME, "Name"),
-	PINFO(CL_PLATFORM_VENDOR, "Vendor"),
-	PINFO(CL_PLATFORM_VERSION, "Version"),
-	PINFO(CL_PLATFORM_PROFILE, "Profile"),
-	PINFO(CL_PLATFORM_EXTENSIONS, "Extensions"),
-	PINFO_COND(CL_PLATFORM_ICD_SUFFIX_KHR, "Extensions function suffix", khr_icd_p)
+	PINFO(CL_PLATFORM_NAME, "Name", NULL, str),
+	PINFO(CL_PLATFORM_VENDOR, "Vendor", NULL, str),
+	PINFO(CL_PLATFORM_VERSION, "Version", NULL, str),
+	PINFO(CL_PLATFORM_PROFILE, "Profile", NULL, str),
+	PINFO(CL_PLATFORM_EXTENSIONS, "Extensions", NULL, str),
+	PINFO_COND(CL_PLATFORM_HOST_TIMER_RESOLUTION, "Host timer resolution", "ns", ulong, plat_is_21),
+	PINFO_COND(CL_PLATFORM_ICD_SUFFIX_KHR, "Extensions function suffix", NULL, str, khr_icd_p)
 };
 
 /* Print platform info and prepare arrays for device info */
@@ -318,20 +371,24 @@ printPlatformInfo(cl_uint p)
 	cl_platform_id pid = platform[p];
 	size_t len = 0;
 
-	struct platform_info_checks pinfo_checks = { 0 };
+	struct platform_info_checks pinfo_checks = { 0, 10 };
 
 	current_function = __func__;
 
 	for (current_line = 0; current_line < ARRAY_SIZE(pinfo_traits); ++current_line) {
 		const struct platform_info_traits *traits = pinfo_traits + current_line;
+		const char *pname = (output_mode == CLINFO_HUMAN ?
+			traits->pname : traits->sname);
+
 		current_param = traits->sname;
 
 		if (traits->check_func && !traits->check_func(&pinfo_checks))
 			continue;
 
-		had_error = platform_info_str(pid, traits->param,
-			output_mode == CLINFO_HUMAN ?
-			traits->pname : traits->sname);
+		cur_sfx = (output_mode == CLINFO_HUMAN && traits->sfx) ? traits->sfx : empty_str;
+
+		had_error = traits->show_func(pid, traits->param,
+			pname, &pinfo_checks);
 
 		if (had_error)
 			continue;
@@ -347,6 +404,10 @@ printPlatformInfo(cl_uint p)
 			 * and memcpy is possibly more optimized */
 			memcpy(pdata[p].pname, strbuf, len);
 			pdata[p].pname[len] = '\0';
+			break;
+		case CL_PLATFORM_VERSION:
+			/* compute numeric value for OpenCL version */
+			pinfo_checks.plat_version = getOpenCLVersion(strbuf + 7);
 			break;
 		case CL_PLATFORM_EXTENSIONS:
 			pinfo_checks.has_khr_icd = !!strstr(strbuf, "cl_khr_icd");
@@ -451,29 +512,6 @@ out:
 		clReleaseProgram(prg);
 	if (ctx)
 		clReleaseContext(ctx);
-	return ret;
-}
-
-/* parse a CL_DEVICE_VERSION info to determine the OpenCL version.
- * Returns an unsigned integer in the from major*10 + minor
- */
-cl_uint
-getOpenCLVersion(const char *version)
-{
-	cl_uint ret = 10;
-	long parse = 0;
-	const char *from = version;
-	char *next = NULL;
-	parse = strtol(from, &next, 10);
-
-	if (next != from) {
-		ret = parse*10;
-		// skip the dot TODO should we actually check for the dot?
-		from = ++next;
-		parse = strtol(from, &next, 10);
-		if (next != from)
-			ret += parse;
-	}
 	return ret;
 }
 
