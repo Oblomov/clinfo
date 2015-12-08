@@ -150,6 +150,13 @@ The properties of the ICD loader will also be queried if the
 .B clGetICDLoaderInfoOCLICD
 extension function is found.
 
+.P
+The highest OpenCL version supported by the ICD loader is detected
+with some trivial heuristics (symbols found); a notice is output
+if this is lower than the highest platform OpenCL version, or
+if the detected version doesn't match the one declared by the ICD
+loader itself.
+
 .SH BUGS
 The
 .B CL_DEVICE_GLOBAL_FREE_MEMORY_AMD
