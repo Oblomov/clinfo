@@ -37,6 +37,12 @@ struct platform_info_checks {
 
 cl_uint num_platforms;
 cl_platform_id *platform;
+/* highest version exposed by any platform: if the OpenCL library (the ICD loader)
+ * has a lower version, problems may arise (such as API calls causing segfaults
+ * or any other unexpected behavior
+ */
+cl_uint max_plat_version;
+cl_uint icd_loader_ocl_version;
 
 struct platform_data *pdata;
 /* maximum length of a platform's sname */
@@ -427,6 +433,9 @@ printPlatformInfo(cl_uint p)
 		}
 
 	}
+
+	if (pinfo_checks.plat_version > max_plat_version)
+		max_plat_version = pinfo_checks.plat_version;
 
 	/* if no CL_PLATFORM_ICD_SUFFIX_KHR, use P### as short/symbolic name */
 	if (!pdata[p].sname) {
@@ -2523,7 +2532,22 @@ void oclIcdProps()
 			had_error = icdl_info_str(traits->param,
 				output_mode == CLINFO_HUMAN ?
 				traits->pname : traits->sname);
+
+			if (!had_error && traits->param == CL_ICDL_OCL_VERSION) {
+				icd_loader_ocl_version = getOpenCLVersion(strbuf + 7);
+			}
 		}
+	}
+
+	if (output_mode == CLINFO_HUMAN && icd_loader_ocl_version &&
+		icd_loader_ocl_version < max_plat_version) {
+		printf(	"\tNOTE:\tyour OpenCL library only supports OpenCL %u.%u,\n"
+			"\t\tbut some installed platforms support OpenCL %u.%u.\n"
+			"\t\tPrograms using %u.%u features may crash\n"
+			"\t\tor behave unexepectedly\n",
+			icd_loader_ocl_version / 10, icd_loader_ocl_version % 10,
+			max_plat_version / 10, max_plat_version % 10,
+			max_plat_version / 10, max_plat_version % 10);
 	}
 }
 
