@@ -32,7 +32,7 @@ struct platform_data {
 
 struct platform_info_checks {
 	int has_khr_icd;
-	int plat_version;
+	cl_uint plat_version;
 };
 
 cl_uint num_platforms;
@@ -257,7 +257,7 @@ int had_error = 0;
 const char *cur_sfx = empty_str;
 
 /* parse a CL_DEVICE_VERSION or CL_PLATFORM_VERSION info to determine the OpenCL version.
- * Returns an unsigned integer in the from major*10 + minor
+ * Returns an unsigned integer in the form major*10 + minor
  */
 cl_uint
 getOpenCLVersion(const char *version)
