@@ -4,6 +4,11 @@
 
 #include <time.h>
 #include <string.h>
+#include <dlfcn.h>
+
+#ifndef RTLD_DEFAULT
+#define RTLD_DEFAULT ((void*)0)
+#endif
 
 /* Load STDC format macros (PRI*), or define them
  * for those crappy, non-standard compilers
@@ -42,7 +47,10 @@ cl_platform_id *platform;
  * or any other unexpected behavior
  */
 cl_uint max_plat_version;
-cl_uint icd_loader_ocl_version;
+/* auto-detected OpenCL version support for the ICD loader */
+cl_uint icdl_ocl_version_found = 10;
+/* OpenCL version support declared by the ICD loader */
+cl_uint icdl_ocl_version;
 
 struct platform_data *pdata;
 /* maximum length of a platform's sname */
@@ -2452,8 +2460,24 @@ typedef enum {
 	CL_ICDL_VENDOR=4,
 } cl_icdl_info;
 
-/* Function pointer to the ICD loader function */
+/* Function pointer to the ICD loader info function */
 cl_int (*clGetICDLoaderInfoOCLICD)(cl_icdl_info, size_t, void*, size_t*);
+
+/* We want to auto-detect the OpenCL version supported by the ICD loader.
+ * To do this, we will progressively find symbols introduced in new APIs,
+ * until a NULL symbol is found.
+ */
+
+struct icd_loader_test {
+	cl_uint version;
+	const char *symbol;
+} icd_loader_tests[] = {
+	{ 11, "clCreateSubBuffer" },
+	{ 12, "clCreateImage" },
+	{ 20, "clSVMAlloc" },
+	{ 21, "clGetHostTimer" },
+	{ 0, NULL }
+};
 
 int
 icdl_info_str(cl_icdl_info param, const char* pname)
@@ -2495,6 +2519,20 @@ struct icdl_info_traits linfo_traits[] = {
 
 void oclIcdProps()
 {
+	/* First of all, we try to auto-detect the supported ICD loader version */
+	int i = 0;
+
+	do {
+		struct icd_loader_test check = icd_loader_tests[i];
+		if (check.symbol == NULL)
+			break;
+		if (dlsym(RTLD_DEFAULT, check.symbol) == NULL)
+			break;
+		icdl_ocl_version_found = check.version;
+		++i;
+	} while (1);
+
+
 	/* We find the clGetICDLoaderInfoOCLICD extension address, and use it to query
 	 * the ICD loader properties. It should be noted however that
 	 * clGetExtensionFunctionAddress is marked deprecated as of OpenCL 1.2, so
@@ -2534,20 +2572,30 @@ void oclIcdProps()
 				traits->pname : traits->sname);
 
 			if (!had_error && traits->param == CL_ICDL_OCL_VERSION) {
-				icd_loader_ocl_version = getOpenCLVersion(strbuf + 7);
+				icdl_ocl_version = getOpenCLVersion(strbuf + 7);
 			}
 		}
 	}
 
-	if (output_mode == CLINFO_HUMAN && icd_loader_ocl_version &&
-		icd_loader_ocl_version < max_plat_version) {
-		printf(	"\tNOTE:\tyour OpenCL library only supports OpenCL %u.%u,\n"
-			"\t\tbut some installed platforms support OpenCL %u.%u.\n"
-			"\t\tPrograms using %u.%u features may crash\n"
-			"\t\tor behave unexepectedly\n",
-			icd_loader_ocl_version / 10, icd_loader_ocl_version % 10,
-			max_plat_version / 10, max_plat_version % 10,
-			max_plat_version / 10, max_plat_version % 10);
+	if (output_mode == CLINFO_HUMAN) {
+		if (icdl_ocl_version &&
+			icdl_ocl_version != icdl_ocl_version_found) {
+			printf(	"\tNOTE:\tyour OpenCL library declares to support OpenCL %u.%u,\n"
+				"\t\tbut it seems to support up to OpenCL %u.%u %s.\n",
+				icdl_ocl_version / 10, icdl_ocl_version % 10,
+				icdl_ocl_version_found / 10, icdl_ocl_version_found % 10,
+				icdl_ocl_version_found < icdl_ocl_version  ?
+				"only" : "too");
+		}
+		if (icdl_ocl_version_found < max_plat_version) {
+			printf(	"\tNOTE:\tyour OpenCL library only supports OpenCL %u.%u,\n"
+				"\t\tbut some installed platforms support OpenCL %u.%u.\n"
+				"\t\tPrograms using %u.%u features may crash\n"
+				"\t\tor behave unexepectedly\n",
+				icdl_ocl_version_found / 10, icdl_ocl_version_found % 10,
+				max_plat_version / 10, max_plat_version % 10,
+				max_plat_version / 10, max_plat_version % 10);
+		}
 	}
 }
 

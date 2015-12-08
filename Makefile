@@ -11,6 +11,7 @@ ifeq ($(PLATFORM),Darwin)
 else
   LDLIBS=-lOpenCL
 endif
+LDLIBS += -ldl
 
 CFLAGS+=-std=c99 -g -Wall -Wextra
 
