@@ -2605,7 +2605,7 @@ void oclIcdProps()
 
 void version()
 {
-	puts("clinfo version 2.1.15.11.17");
+	puts("clinfo version 2.1.15.12.08");
 }
 
 void usage()
