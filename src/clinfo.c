@@ -894,8 +894,8 @@ int device_info_szptr(cl_device_id dev, cl_device_info param, const char *pname,
 	size_t szval = 0, numval = 0;
 	GET_VAL_ARRAY;
 	if (!had_error) {
-		set_separator(output_mode == CLINFO_HUMAN ? times_str : spc_str);
 		size_t counter = 0;
+		set_separator(output_mode == CLINFO_HUMAN ? times_str : spc_str);
 		szval = 0;
 		for (counter = 0; counter < numval; ++counter) {
 			add_separator(&szval);
@@ -987,12 +987,12 @@ int device_info_devtype(cl_device_id dev, cl_device_info param, const char *pnam
 		 * to strbuf.
 		 * TODO: check for extra bits/no bits
 		 */
-		size_t szval = 0;
-		strbuf[szval] = '\0';
 		cl_uint i = devtype_count - 1; /* skip CL_DEVICE_TYPE_ALL */
-		set_separator(output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
 		const char * const *devstr = (output_mode == CLINFO_HUMAN ?
 			device_type_str : device_type_raw_str);
+		size_t szval = 0;
+		strbuf[szval] = '\0';
+		set_separator(output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
 		for (; i > 0; --i) {
 			/* assemble CL_DEVICE_TYPE_* from index i */
 			cl_device_type cur = (cl_device_type)(1) << (i-1);
@@ -1174,10 +1174,10 @@ int device_info_partition_types(cl_device_id dev, cl_device_info param, const ch
 {
 	size_t numval = 0, szval = 0, cursor = 0, slen = 0;
 	cl_device_partition_property *val = NULL;
-
-	set_separator(output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
 	const char * const *ptstr = (output_mode == CLINFO_HUMAN ?
 		partition_type_str : partition_type_raw_str);
+
+	set_separator(output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
 
 	GET_VAL_ARRAY;
 
@@ -1229,10 +1229,10 @@ int device_info_partition_types_ext(cl_device_id dev, cl_device_info param, cons
 {
 	size_t numval = 0, szval = 0, cursor = 0, slen = 0;
 	cl_device_partition_property_ext *val = NULL;
-
-	set_separator(output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
 	const char * const *ptstr = (output_mode == CLINFO_HUMAN ?
 		partition_type_str : partition_type_raw_str);
+
+	set_separator(output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
 
 	GET_VAL_ARRAY;
 
@@ -1294,9 +1294,9 @@ int device_info_partition_affinities(cl_device_id dev, cl_device_info param, con
 		 */
 		size_t szval = 0;
 		cl_uint i = 0;
-		set_separator(output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
 		const char * const *affstr = (output_mode == CLINFO_HUMAN ?
 			affinity_domain_str : affinity_domain_raw_str);
+		set_separator(output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
 		for (i = 0; i < affinity_domain_count; ++i) {
 			cl_device_affinity_domain cur = (cl_device_affinity_domain)(1) << i;
 			if (val & cur) {
@@ -1318,10 +1318,10 @@ int device_info_partition_affinities_ext(cl_device_id dev, cl_device_info param,
 {
 	size_t numval = 0, szval = 0, cursor = 0, slen = 0;
 	cl_device_partition_property_ext *val = NULL;
-
-	set_separator(output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
 	const char * const *ptstr = (output_mode == CLINFO_HUMAN ?
 		affinity_domain_ext_str : affinity_domain_raw_ext_str);
+
+	set_separator(output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
 
 	GET_VAL_ARRAY;
 
@@ -1818,14 +1818,14 @@ printDeviceInfo(const cl_device_id *device, cl_uint d,
 
 	char *extensions = NULL;
 
+	/* pointer to the traits for CL_DEVICE_EXTENSIONS */
+	const struct device_info_traits *extensions_traits = NULL;
+
 	struct device_info_checks chk;
 	memset(&chk, 0, sizeof(chk));
 	chk.dev_version = 10;
 
 	current_function = __func__;
-
-	/* pointer to the traits for CL_DEVICE_EXTENSIONS */
-	const struct device_info_traits *extensions_traits = NULL;
 
 	for (current_line = 0; current_line < ARRAY_SIZE(dinfo_traits); ++current_line) {
 
