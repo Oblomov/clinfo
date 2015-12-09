@@ -2,6 +2,9 @@
 
 #include <stdio.h>
 
+#include "ext.h"
+#include "fmtmacros.h"
+
 cl_int error;
 
 int

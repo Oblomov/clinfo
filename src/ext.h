@@ -1,6 +1,9 @@
 /* Include OpenCL header, and define OpenCL extensions, since what is and is not
  * available in the official headers is very system-dependent */
 
+#ifndef _EXT_H
+#define _EXT_H
+
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
 #else
@@ -159,3 +162,4 @@ typedef cl_ulong  cl_device_partition_property_ext;
 #define CL_DEVICE_SIMULTANEOUS_INTEROPS_INTEL		0x4104
 #define CL_DEVICE_NUM_SIMULTANEOUS_INTEROPS_INTEL	0x4105
 
+#endif
