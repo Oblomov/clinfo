@@ -447,8 +447,9 @@ printPlatformInfo(cl_uint p)
 
 	/* if no CL_PLATFORM_ICD_SUFFIX_KHR, use P### as short/symbolic name */
 	if (!pdata[p].sname) {
-		ALLOC(pdata[p].sname, 32, "platform symbolic name");
-		sprintf(pdata[p].sname, "P%u", p);
+#define SNAME_MAX 32
+		ALLOC(pdata[p].sname, SNAME_MAX, "platform symbolic name");
+		snprintf(pdata[p].sname, SNAME_MAX, "P%u", p);
 	}
 
 	len = strlen(pdata[p].sname);
