@@ -18,9 +18,17 @@ endif
 
 CFLAGS+=-std=c99 -g -Wall -Wextra
 
+SPARSE ?= sparse
+SPARSEFLAGS=-Wno-decl
+
 clinfo:
 
 clinfo.o: clinfo.c $(HDR)
 
 clean:
 	$(RM) clinfo.o clinfo
+
+sparse: clinfo.c
+	$(SPARSE) $(SPARSEFLAGS) $^
+
+.PHONY: clean sparse
