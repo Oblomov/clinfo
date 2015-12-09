@@ -11,7 +11,10 @@ ifeq ($(PLATFORM),Darwin)
 else
   LDLIBS=-lOpenCL
 endif
-LDLIBS += -ldl
+
+ifeq ($(PLATFORM),Linux)
+  LDLIBS += -ldl
+endif
 
 CFLAGS+=-std=c99 -g -Wall -Wextra
 
