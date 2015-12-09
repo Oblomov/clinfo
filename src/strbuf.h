@@ -41,9 +41,8 @@ static void trunc_strbuf(void)
  * returning the amount of bytes written (excluding the
  * closing NULL byte)
  */
-static inline size_t bufcpy(size_t offset, const char *str)
+static inline size_t bufcpy_len(size_t offset, const char *str, size_t len)
 {
-	size_t len = strlen(str);
 	size_t maxlen = bufsz - offset - 1;
 	char *dst = strbuf + offset;
 	int trunc = 0;
@@ -67,6 +66,13 @@ static inline size_t bufcpy(size_t offset, const char *str)
 	return len;
 }
 
+/* As above, auto-compute string length */
+static inline size_t bufcpy(size_t offset, const char *str)
+{
+	return bufcpy_len(offset, str, strlen(str));
+}
+
+
 /* Separators: we want to be able to prepend separators as needed to strbuf,
  * which we do only if halfway through the buffer. The callers should first
  * call a 'set_separator' and then use add_separator(&offset) to add it, where szval
@@ -85,8 +91,6 @@ void set_separator(const char* _sep)
 /* Note that no overflow check is done: it is assumed that strbuf will have enough room */
 void add_separator(size_t *offset)
 {
-	if (*offset) {
-		memcpy(strbuf + *offset, sep, sepsz);
-		*offset += sepsz;
-	}
+	if (*offset)
+		*offset += bufcpy_len(*offset, sep, sepsz);
 }

@@ -1204,8 +1204,7 @@ int device_info_partition_types(cl_device_id dev, cl_device_info param, const ch
 				slen = strlen(ptstr[str_idx]);
 				if (output_mode == CLINFO_RAW && str_idx > 1)
 					slen -= 4;
-				strncpy(strbuf + szval, ptstr[str_idx], slen);
-				szval += slen;
+				szval += bufcpy_len(szval, ptstr[str_idx], slen);
 			}
 			if (szval >= bufsz) {
 				trunc_strbuf();
@@ -1411,9 +1410,9 @@ int device_info_fpconf(cl_device_id dev, cl_device_info param, const char *pname
 	if (!had_error) {
 		size_t szval = 0;
 		cl_uint i = 0;
-		const char *sep = vbar_str;
 		const char * const *fpstr = (output_mode == CLINFO_HUMAN ?
 			fp_conf_str : fp_conf_raw_str);
+		set_separator(vbar_str);
 		if (output_mode == CLINFO_HUMAN) {
 			const char *why = na;
 			switch (param) {
@@ -1443,8 +1442,7 @@ int device_info_fpconf(cl_device_id dev, cl_device_info param, const char *pname
 					szval += sprintf(strbuf + szval, "\n%s" I2_STR "%s",
 						line_pfx, fpstr[i], bool_str[!!(val & cur)]);
 				} else if (val & cur) {
-					if (szval > 0)
-						szval += bufcpy(szval, sep);
+					add_separator(&szval);
 					szval += bufcpy(szval, fpstr[i]);
 				}
 			}
@@ -1466,17 +1464,16 @@ int device_info_qprop(cl_device_id dev, cl_device_info param, const char *pname,
 	if (!had_error) {
 		size_t szval = 0;
 		cl_uint i = 0;
-		const char *sep = vbar_str;
 		const char * const *qpstr = (output_mode == CLINFO_HUMAN ?
 			queue_prop_str : queue_prop_raw_str);
+		set_separator(vbar_str);
 		for (i = 0; i < queue_prop_count; ++i) {
 			cl_command_queue_properties cur = (cl_command_queue_properties)(1) << i;
 			if (output_mode == CLINFO_HUMAN) {
 				szval += sprintf(strbuf + szval, "\n%s" I2_STR "%s",
 					line_pfx, qpstr[i], bool_str[!!(val & cur)]);
 			} else if (val & cur) {
-				if (szval > 0)
-					szval += bufcpy(szval, sep);
+				add_separator(&szval);
 				szval += bufcpy(szval, qpstr[i]);
 			}
 		}
@@ -1498,17 +1495,16 @@ int device_info_execap(cl_device_id dev, cl_device_info param, const char *pname
 	if (!had_error) {
 		size_t szval = 0;
 		cl_uint i = 0;
-		const char *sep = vbar_str;
 		const char * const *qpstr = (output_mode == CLINFO_HUMAN ?
 			execap_str : execap_raw_str);
+		set_separator(vbar_str);
 		for (i = 0; i < execap_count; ++i) {
 			cl_device_exec_capabilities cur = (cl_device_exec_capabilities)(1) << i;
 			if (output_mode == CLINFO_HUMAN) {
 				szval += sprintf(strbuf + szval, "\n%s" I2_STR "%s",
 					line_pfx, qpstr[i], bool_str[!!(val & cur)]);
 			} else if (val & cur) {
-				if (szval > 0)
-					szval += bufcpy(szval, sep);
+				add_separator(&szval);
 				szval += bufcpy(szval, qpstr[i]);
 			}
 		}
@@ -1553,9 +1549,9 @@ int device_info_svm_cap(cl_device_id dev, cl_device_info param, const char *pnam
 	if (!had_error) {
 		size_t szval = 0;
 		cl_uint i = 0;
-		const char *sep = vbar_str;
 		const char * const *scstr = (output_mode == CLINFO_HUMAN ?
 			svm_cap_str : svm_cap_raw_str);
+		set_separator(vbar_str);
 		if (output_mode == CLINFO_HUMAN) {
 			/* show 'why' it's being shown */
 			szval += sprintf(strbuf, "(%s%s%s)",
@@ -1569,8 +1565,7 @@ int device_info_svm_cap(cl_device_id dev, cl_device_info param, const char *pnam
 				szval += sprintf(strbuf + szval, "\n%s" I2_STR "%s",
 					line_pfx, scstr[i], bool_str[!!(val & cur)]);
 			} else if (val & cur) {
-				if (szval > 0)
-					szval += bufcpy(szval, sep);
+				add_separator(&szval);
 				szval += bufcpy(szval, scstr[i]);
 			}
 		}
