@@ -315,7 +315,7 @@ platform_info_str(cl_platform_id pid, cl_platform_info param, const char* pname,
 	}
 	had_error = REPORT_ERROR2("get %s size");
 	if (!had_error) {
-		error = clGetPlatformInfo(pid, param, bufsz, strbuf, 0);
+		error = clGetPlatformInfo(pid, param, bufsz, strbuf, NULL);
 		had_error = REPORT_ERROR2("get %s");
 	}
 	/* when only listing, do not print anything we're just gathering
@@ -486,9 +486,9 @@ getWGsizes(cl_platform_id pid, cl_device_id dev)
 		CL_CONTEXT_PLATFORM, (cl_context_properties)pid,
 		0, 0 };
 	cl_uint cursor = 0;
-	cl_context ctx = 0;
-	cl_program prg = 0;
-	cl_kernel krn = 0;
+	cl_context ctx = NULL;
+	cl_program prg = NULL;
+	cl_kernel krn = NULL;
 
 	ctx = clCreateContext(ctxpft, 1, &dev, NULL, NULL, &error);
 	RR_ERROR("create context");
@@ -520,7 +520,7 @@ getWGsizes(cl_platform_id pid, cl_device_id dev)
 			sizeof(*wgm), wgm + cursor, NULL);
 		RR_ERROR("get kernel info");
 		clReleaseKernel(krn);
-		krn = 0;
+		krn = NULL;
 	}
 
 out:
@@ -697,7 +697,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
  */
 
 #define _GET_VAL \
-	error = clGetDeviceInfo(dev, param, sizeof(val), &val, 0); \
+	error = clGetDeviceInfo(dev, param, sizeof(val), &val, NULL); \
 	had_error = REPORT_ERROR2("get %s");
 
 #define _GET_VAL_ARRAY \
@@ -754,7 +754,7 @@ int device_info_str_get(cl_device_id dev, cl_device_info param, const char *pnam
 	}
 	had_error = REPORT_ERROR2("get %s size");
 	if (!had_error) {
-		error = clGetDeviceInfo(dev, param, bufsz, strbuf, 0);
+		error = clGetDeviceInfo(dev, param, bufsz, strbuf, NULL);
 		had_error = REPORT_ERROR2("get %s");
 	}
 	return had_error;
@@ -914,7 +914,7 @@ int device_info_szptr(cl_device_id dev, cl_device_info param, const char *pname,
 int device_info_wg(cl_device_id dev, cl_device_info param UNUSED, const char *pname,
 	const struct device_info_checks *chk UNUSED)
 {
-	cl_platform_id val = 0;
+	cl_platform_id val = NULL;
 	{
 		/* shadow */
 		cl_device_info param = CL_DEVICE_PLATFORM;

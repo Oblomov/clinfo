@@ -17,7 +17,7 @@ size_t bufsz, nusz;
 		bufsz = nusz; \
 	} \
 	if (REPORT_ERROR("get " param_str " size")) break; \
-	error = cmd(__VA_ARGS__, param, bufsz, strbuf, 0); \
+	error = cmd(__VA_ARGS__, param, bufsz, strbuf, NULL); \
 	REPORT_ERROR("get " param_str); \
 } while (0)
 
