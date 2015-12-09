@@ -5,6 +5,9 @@
    easier.
  */
 
+#ifndef _FMT_MACROS_H
+#define _FMT_MACROS_H
+
 #ifdef _WIN32
 #  include <stdint.h>
 #  include <stddef.h> // size_t
@@ -22,3 +25,4 @@
 # define PRIuS "zu"
 #endif
 
+#endif

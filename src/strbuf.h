@@ -3,6 +3,9 @@
  */
 
 #include <ctype.h>
+#include <string.h>
+#include <stdio.h>
+#include "fmtmacros.h"
 
 char *strbuf;
 size_t bufsz, nusz;
