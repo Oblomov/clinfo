@@ -876,13 +876,12 @@ int device_info_time_offset(cl_device_id dev, cl_device_info param, const char *
 	cl_ulong val = 0;
 	GET_VAL;
 	if (!had_error) {
-		int szval = 0;
+		size_t szval = 0;
 		time_t time = val/UINT64_C(1000000000);
-		szval += sprintf(strbuf, "%" PRIu64 "ns (", val);
-		strcpy(strbuf + szval, ctime(&time));
-		szval = strlen(strbuf) - 1;
-		strbuf[szval++] = ')';
-		strbuf[szval++] = '\0';
+		szval += snprintf(strbuf, bufsz, "%" PRIu64 "ns (", val);
+		szval += bufcpy(szval, ctime(&time));
+		if (szval < bufsz)
+			strbuf[szval] = ')';
 	}
 	show_strbuf(pname, 0);
 	return had_error;
