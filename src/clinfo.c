@@ -227,21 +227,21 @@ static const char* sources[] = {
 	"KRN()\n/* KRN(2)\nKRN(4)\nKRN(8)\nKRN(16) */\n",
 };
 
-const char *no_plat()
+const char *no_plat(void)
 {
 	return output_mode == CLINFO_HUMAN ?
 		"No platform" :
 		"CL_INVALID_PLATFORM";
 }
 
-const char *no_dev()
+const char *no_dev(void)
 {
 	return output_mode == CLINFO_HUMAN ?
 		"No devices found in platform" :
 		"CL_DEVICE_NOT_FOUND";
 }
 
-const char *no_dev_avail()
+const char *no_dev_avail(void)
 {
 	return output_mode == CLINFO_HUMAN ?
 		"No devices available in platform" :
@@ -2254,7 +2254,7 @@ void checkNullCtx(cl_uint pidx, const cl_device_id *dev, const char *which)
 }
 
 /* check behavior of clCreateContextFromType() with NULL cl_context_properties */
-void checkNullCtxFromType()
+void checkNullCtxFromType(void)
 {
 	size_t t; /* type iterator */
 	size_t i; /* generic iterator */
@@ -2503,7 +2503,7 @@ struct icdl_info_traits linfo_traits[] = {
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #endif
 
-void oclIcdProps()
+void oclIcdProps(void)
 {
 	/* First of all, we try to auto-detect the supported ICD loader version */
 	int i = 0;
@@ -2589,12 +2589,12 @@ void oclIcdProps()
 #pragma GCC diagnostic warning "-Wdeprecated-declarations"
 #endif
 
-void version()
+void version(void)
 {
 	puts("clinfo version 2.1.15.12.08");
 }
 
-void usage()
+void usage(void)
 {
 	version();
 	puts("Display properties of all available OpenCL platforms and devices");
