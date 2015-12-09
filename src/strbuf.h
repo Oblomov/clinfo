@@ -66,3 +66,27 @@ static inline size_t bufcpy(size_t offset, const char *str)
 		strbuf[offset] = '\0';
 	return len;
 }
+
+/* Separators: we want to be able to prepend separators as needed to strbuf,
+ * which we do only if halfway through the buffer. The callers should first
+ * call a 'set_separator' and then use add_separator(&offset) to add it, where szval
+ * is an offset inside the buffer, which will be incremented as needed
+ */
+
+const char *sep;
+size_t sepsz;
+
+void set_separator(const char* _sep)
+{
+	sep = _sep;
+	sepsz = strlen(sep);
+}
+
+/* Note that no overflow check is done: it is assumed that strbuf will have enough room */
+void add_separator(size_t *offset)
+{
+	if (*offset) {
+		memcpy(strbuf + *offset, sep, sepsz);
+		*offset += sepsz;
+	}
+}

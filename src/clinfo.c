@@ -894,15 +894,11 @@ int device_info_szptr(cl_device_id dev, cl_device_info param, const char *pname,
 	size_t szval = 0, numval = 0;
 	GET_VAL_ARRAY;
 	if (!had_error) {
-		const char *sep = (output_mode == CLINFO_HUMAN ? times_str : spc_str);
-		size_t sepsz = 1;
+		set_separator(output_mode == CLINFO_HUMAN ? times_str : spc_str);
 		size_t counter = 0;
 		szval = 0;
 		for (counter = 0; counter < numval; ++counter) {
-			if (szval > 0) {
-				strcpy(strbuf + szval, sep);
-				szval += sepsz;
-			}
+			add_separator(&szval);
 			szval += snprintf(strbuf + szval, bufsz - szval - 1, "%" PRIuS, val[counter]);
 			if (szval >= bufsz) {
 				trunc_strbuf();
@@ -988,14 +984,13 @@ int device_info_devtype(cl_device_id dev, cl_device_info param, const char *pnam
 	GET_VAL;
 	if (!had_error) {
 		/* iterate over device type strings, appending their textual form
-		 * to strbuf. We use plain strcpy since we know that it's at least
-		 * 1024 so we are safe.
+		 * to strbuf.
 		 * TODO: check for extra bits/no bits
 		 */
 		size_t szval = 0;
+		strbuf[szval] = '\0';
 		cl_uint i = devtype_count - 1; /* skip CL_DEVICE_TYPE_ALL */
-		const char *sep = (output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
-		size_t sepsz = (output_mode == CLINFO_HUMAN ? 2 : 3);
+		set_separator(output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
 		const char * const *devstr = (output_mode == CLINFO_HUMAN ?
 			device_type_str : device_type_raw_str);
 		for (; i > 0; --i) {
@@ -1003,15 +998,10 @@ int device_info_devtype(cl_device_id dev, cl_device_info param, const char *pnam
 			cl_device_type cur = (cl_device_type)(1) << (i-1);
 			if (val & cur) {
 				/* match: add separator if not first match */
-				if (szval > 0) {
-					strcpy(strbuf + szval, sep);
-					szval += sepsz;
-				}
-				strcpy(strbuf + szval, devstr[i]);
-				szval += strlen(devstr[i]);
+				add_separator(&szval);
+				szval += bufcpy(szval, devstr[i]);
 			}
 		}
-		strbuf[szval] = '\0';
 	}
 	show_strbuf(pname, 0);
 	/* we abuse global strbuf to pass the device type over to the caller */
@@ -1185,8 +1175,7 @@ int device_info_partition_types(cl_device_id dev, cl_device_info param, const ch
 	size_t numval = 0, szval = 0, cursor = 0, slen = 0;
 	cl_device_partition_property *val = NULL;
 
-	const char *sep = (output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
-	size_t sepsz = (output_mode == CLINFO_HUMAN ? 2 : 3);
+	set_separator(output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
 	const char * const *ptstr = (output_mode == CLINFO_HUMAN ?
 		partition_type_str : partition_type_raw_str);
 
@@ -1198,10 +1187,7 @@ int device_info_partition_types(cl_device_id dev, cl_device_info param, const ch
 			int str_idx = -1;
 
 			/* add separator for values past the first */
-			if (szval > 0) {
-				strcpy(strbuf + szval, sep);
-				szval += sepsz;
-			}
+			add_separator(&szval);
 
 			switch (val[cursor]) {
 			case 0: str_idx = 1; break;
@@ -1210,7 +1196,7 @@ int device_info_partition_types(cl_device_id dev, cl_device_info param, const ch
 			case CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN: str_idx = 4; break;
 			case CL_DEVICE_PARTITION_BY_NAMES_INTEL: str_idx = 5; break;
 			default:
-				szval += sprintf(strbuf + szval, "by <unknown> (0x%" PRIXPTR ")", val[cursor]);
+				szval += snprintf(strbuf + szval, bufsz - szval - 1, "by <unknown> (0x%" PRIXPTR ")", val[cursor]);
 				break;
 			}
 			if (str_idx > 0) {
@@ -1221,13 +1207,15 @@ int device_info_partition_types(cl_device_id dev, cl_device_info param, const ch
 				strncpy(strbuf + szval, ptstr[str_idx], slen);
 				szval += slen;
 			}
+			if (szval >= bufsz) {
+				trunc_strbuf();
+				break;
+			}
 		}
 		if (szval == 0) {
-			slen = strlen(ptstr[0]);
-			strcpy(strbuf, ptstr[0]);
-			szval += slen;
-		}
-		strbuf[szval] = '\0';
+			bufcpy(szval, ptstr[0]);
+		} else if (szval < bufsz)
+			strbuf[szval] = '\0';
 	}
 
 	show_strbuf(pname, 0);
@@ -1242,8 +1230,7 @@ int device_info_partition_types_ext(cl_device_id dev, cl_device_info param, cons
 	size_t numval = 0, szval = 0, cursor = 0, slen = 0;
 	cl_device_partition_property_ext *val = NULL;
 
-	const char *sep = (output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
-	size_t sepsz = (output_mode == CLINFO_HUMAN ? 2 : 3);
+	set_separator(output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
 	const char * const *ptstr = (output_mode == CLINFO_HUMAN ?
 		partition_type_str : partition_type_raw_str);
 
@@ -1255,10 +1242,7 @@ int device_info_partition_types_ext(cl_device_id dev, cl_device_info param, cons
 			int str_idx = -1;
 
 			/* add separator for values past the first */
-			if (szval > 0) {
-				strcpy(strbuf + szval, sep);
-				szval += sepsz;
-			}
+			add_separator(&szval);
 
 			switch (val[cursor]) {
 			case 0: str_idx = 1; break;
@@ -1267,7 +1251,7 @@ int device_info_partition_types_ext(cl_device_id dev, cl_device_info param, cons
 			case CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN_EXT: str_idx = 4; break;
 			case CL_DEVICE_PARTITION_BY_NAMES_EXT: str_idx = 5; break;
 			default:
-				szval += sprintf(strbuf + szval, "by <unknown> (0x%" PRIX64 ")", val[cursor]);
+				szval += snprintf(strbuf + szval, bufsz - szval - 1, "by <unknown> (0x%" PRIX64 ")", val[cursor]);
 				break;
 			}
 			if (str_idx > 0) {
@@ -1276,13 +1260,18 @@ int device_info_partition_types_ext(cl_device_id dev, cl_device_info param, cons
 				strncpy(strbuf + szval, ptstr[str_idx], slen);
 				szval += slen;
 			}
+			if (szval >= bufsz) {
+				trunc_strbuf();
+				break;
+			}
 		}
 		if (szval == 0) {
 			slen = strlen(ptstr[0]);
-			strcpy(strbuf, ptstr[0]);
+			memcpy(strbuf, ptstr[0], slen);
 			szval += slen;
 		}
-		strbuf[szval] = '\0';
+		if (szval < bufsz)
+			strbuf[szval] = '\0';
 	}
 
 	show_strbuf(pname, 0);
@@ -1305,21 +1294,18 @@ int device_info_partition_affinities(cl_device_id dev, cl_device_info param, con
 		 */
 		size_t szval = 0;
 		cl_uint i = 0;
-		const char *sep = (output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
-		size_t sepsz = (output_mode == CLINFO_HUMAN ? 2 : 3);
+		set_separator(output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
 		const char * const *affstr = (output_mode == CLINFO_HUMAN ?
 			affinity_domain_str : affinity_domain_raw_str);
 		for (i = 0; i < affinity_domain_count; ++i) {
 			cl_device_affinity_domain cur = (cl_device_affinity_domain)(1) << i;
 			if (val & cur) {
 				/* match: add separator if not first match */
-				if (szval > 0) {
-					strcpy(strbuf + szval, sep);
-					szval += sepsz;
-				}
-				strcpy(strbuf + szval, affstr[i]);
-				szval += strlen(affstr[i]);
+				add_separator(&szval);
+				szval += bufcpy(szval, affstr[i]);
 			}
+			if (szval >= bufsz)
+				break;
 		}
 	}
 	if (val || had_error)
@@ -1333,8 +1319,7 @@ int device_info_partition_affinities_ext(cl_device_id dev, cl_device_info param,
 	size_t numval = 0, szval = 0, cursor = 0, slen = 0;
 	cl_device_partition_property_ext *val = NULL;
 
-	const char *sep = (output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
-	size_t sepsz = (output_mode == CLINFO_HUMAN ? 2 : 3);
+	set_separator(output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
 	const char * const *ptstr = (output_mode == CLINFO_HUMAN ?
 		affinity_domain_ext_str : affinity_domain_raw_ext_str);
 
@@ -1346,10 +1331,7 @@ int device_info_partition_affinities_ext(cl_device_id dev, cl_device_info param,
 			int str_idx = -1;
 
 			/* add separator for values past the first */
-			if (szval > 0) {
-				strcpy(strbuf + szval, sep);
-				szval += sepsz;
-			}
+			add_separator(&szval);
 
 			switch (val[cursor]) {
 			case CL_AFFINITY_DOMAIN_NUMA_EXT: str_idx = 0; break;
@@ -1359,7 +1341,7 @@ int device_info_partition_affinities_ext(cl_device_id dev, cl_device_info param,
 			case CL_AFFINITY_DOMAIN_L1_CACHE_EXT: str_idx = 4; break;
 			case CL_AFFINITY_DOMAIN_NEXT_FISSIONABLE_EXT: str_idx = 5; break;
 			default:
-				szval += sprintf(strbuf + szval, "<unknown> (0x%" PRIX64 ")", val[cursor]);
+				szval += snprintf(strbuf + szval, bufsz - szval - 1, "<unknown> (0x%" PRIX64 ")", val[cursor]);
 				break;
 			}
 			if (str_idx >= 0) {
@@ -1368,6 +1350,10 @@ int device_info_partition_affinities_ext(cl_device_id dev, cl_device_info param,
 				slen = strlen(str);
 				strncpy(strbuf + szval, str, slen);
 				szval += slen;
+			}
+			if (szval >= bufsz) {
+				trunc_strbuf();
+				break;
 			}
 		}
 		strbuf[szval] = '\0';
