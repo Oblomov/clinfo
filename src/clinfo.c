@@ -880,8 +880,9 @@ int device_info_time_offset(cl_device_id dev, cl_device_info param, const char *
 		time_t time = val/UINT64_C(1000000000);
 		szval += snprintf(strbuf, bufsz, "%" PRIu64 "ns (", val);
 		szval += bufcpy(szval, ctime(&time));
+		/* overwrite ctime's newline with the closing parenthesis */
 		if (szval < bufsz)
-			strbuf[szval] = ')';
+			strbuf[szval - 1] = ')';
 	}
 	show_strbuf(pname, 0);
 	return had_error;
