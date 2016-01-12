@@ -2684,7 +2684,8 @@ int main(int argc, char *argv[])
 		listPlatformsAndDevices(show_offline);
 	} else {
 		showDevices(show_offline);
-		checkNullBehavior();
+		if (output_mode != CLINFO_RAW)
+			checkNullBehavior();
 		oclIcdProps();
 	}
 
