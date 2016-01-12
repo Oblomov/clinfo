@@ -2544,7 +2544,9 @@ void oclIcdProps(void)
 #endif
 
 	if (clGetICDLoaderInfoOCLICD != NULL) {
-		puts("\nICD loader properties");
+		/* TODO think of a sensible header in CLINFO_RAW */
+		if (output_mode != CLINFO_RAW)
+			puts("\nICD loader properties");
 		current_function = __func__;
 
 		if (output_mode == CLINFO_RAW) {
