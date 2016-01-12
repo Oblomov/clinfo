@@ -2484,6 +2484,8 @@ struct icdl_info_traits {
 	const char *pname; // "ICD loader *"
 };
 
+static const char * const oclicdl_pfx = "OCLICD";
+
 #define LINFO(symbol, name) { symbol, #symbol, "ICD loader " name }
 struct icdl_info_traits linfo_traits[] = {
 	LINFO(CL_ICDL_NAME, "Name"),
@@ -2544,6 +2546,13 @@ void oclIcdProps(void)
 	if (clGetICDLoaderInfoOCLICD != NULL) {
 		puts("\nICD loader properties");
 		current_function = __func__;
+
+		if (output_mode == CLINFO_RAW) {
+			line_pfx_len = strlen(oclicdl_pfx) + 5;
+			REALLOC(line_pfx, line_pfx_len, "line prefix OCL ICD");
+			sprintf(strbuf, "[%s/*]", oclicdl_pfx);
+			sprintf(line_pfx, "%*s", -line_pfx_len, strbuf);
+		}
 
 		for (current_line = 0; current_line < ARRAY_SIZE(linfo_traits); ++current_line) {
 			const struct icdl_info_traits *traits = linfo_traits + current_line;
