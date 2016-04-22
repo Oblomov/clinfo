@@ -16,7 +16,7 @@ ifeq ($(PLATFORM),Linux)
   LDLIBS += -ldl
 endif
 
-CFLAGS+=-std=c99 -g -Wall -Wextra
+CFLAGS+=-std=c99 -g -Wall -Wextra -pedantic
 
 SPARSE ?= sparse
 SPARSEFLAGS=-Wsparse-all -Wno-decl

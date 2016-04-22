@@ -10,6 +10,13 @@
 #define RTLD_DEFAULT ((void*)0)
 #endif
 
+/* ISO C forbids assignments between function pointers and void pointers,
+ * but POSIX allows it. To compile without warnings even in -pedantic mode,
+ * we use this horrible trick to get a function address from
+ * clGetExtensionFunctionAddress
+ */
+#define PTR_FUNC_PTR *(void**)&
+
 /* Load STDC format macros (PRI*), or define them
  * for those crappy, non-standard compilers
  */
@@ -2222,7 +2229,7 @@ cl_uint checkNullGetDevices(void)
 			}
 		}
 		if (i == num_platforms) {
-			sprintf(strbuf, "<error: platform 0x%p not found>", plat);
+			sprintf(strbuf, "<error: platform 0x%p not found>", (void*)plat);
 		}
 	}
 	printf(I1_STR "%s\n",
@@ -2333,7 +2340,7 @@ void checkNullCtxFromType(void)
 					break;
 			}
 			if (i == num_platforms) {
-				sprintf(strbuf, "<error: platform 0x%p not found>", plat);
+				sprintf(strbuf, "<error: platform 0x%p not found>", (void*)plat);
 				break;
 			} else {
 				szval += sprintf(strbuf, "%s (%" PRIuS ")",
@@ -2535,7 +2542,7 @@ void oclIcdProps(void)
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #endif
 
-	clGetICDLoaderInfoOCLICD = clGetExtensionFunctionAddress("clGetICDLoaderInfoOCLICD");
+	PTR_FUNC_PTR clGetICDLoaderInfoOCLICD = clGetExtensionFunctionAddress("clGetICDLoaderInfoOCLICD");
 
 #ifdef _MSC_VER
 #pragma warning(pop)
