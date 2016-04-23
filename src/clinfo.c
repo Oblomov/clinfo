@@ -2536,6 +2536,7 @@ struct icd_loader_test {
 	{ 12, "clCreateImage" },
 	{ 20, "clSVMAlloc" },
 	{ 21, "clGetHostTimer" },
+	{ 22, "clSetProgramSpecializationConstant" },
 	{ 0, NULL }
 };
 
