@@ -162,4 +162,7 @@ typedef cl_ulong  cl_device_partition_property_ext;
 #define CL_DEVICE_SIMULTANEOUS_INTEROPS_INTEL		0x4104
 #define CL_DEVICE_NUM_SIMULTANEOUS_INTEROPS_INTEL	0x4105
 
+/* cl_intel_required_subgroup_size */
+#define CL_DEVICE_SUB_GROUP_SIZES_INTEL			0x4108
+
 #endif
