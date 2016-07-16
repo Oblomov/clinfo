@@ -554,7 +554,8 @@ struct device_info_checks {
 	char has_double[24];
 	char has_nv[29];
 	char has_amd[30];
-	char has_svm_ext[11];
+	char has_amd_svm[11];
+	char has_arm_svm[29];
 	char has_fission[22];
 	char has_atomic_counters[26];
 	char has_image2d_buffer[27];
@@ -577,7 +578,8 @@ DEFINE_EXT_CHECK(half)
 DEFINE_EXT_CHECK(double)
 DEFINE_EXT_CHECK(nv)
 DEFINE_EXT_CHECK(amd)
-DEFINE_EXT_CHECK(svm_ext)
+DEFINE_EXT_CHECK(amd_svm)
+DEFINE_EXT_CHECK(arm_svm)
 DEFINE_EXT_CHECK(fission)
 DEFINE_EXT_CHECK(atomic_counters)
 DEFINE_EXT_CHECK(image2d_buffer)
@@ -630,7 +632,7 @@ int dev_is_gpu_amd(const struct device_info_checks *chk)
 
 int dev_has_svm(const struct device_info_checks *chk)
 {
-	return dev_is_20(chk) || dev_has_svm_ext(chk);
+	return dev_is_20(chk) || dev_has_amd_svm(chk);
 }
 
 int dev_has_partition(const struct device_info_checks *chk)
@@ -692,7 +694,8 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 		CHECK_EXT(double, cl_APPLE_fp64_basic_ops);
 	CHECK_EXT(nv, cl_nv_device_attribute_query);
 	CHECK_EXT(amd, cl_amd_device_attribute_query);
-	CHECK_EXT(svm_ext, cl_amd_svm);
+	CHECK_EXT(amd_svm, cl_amd_svm);
+	CHECK_EXT(arm_svm, cl_arm_shared_virtual_memory);
 	CHECK_EXT(fission, cl_ext_device_fission);
 	CHECK_EXT(atomic_counters, cl_ext_atomic_counters_64);
 	if (dev_has_atomic_counters(chk))
@@ -1558,8 +1561,8 @@ int device_info_svm_cap(cl_device_id dev, cl_device_info param, const char *pnam
 	const struct device_info_checks *chk)
 {
 	cl_device_svm_capabilities val = 0;
-	int is_20 = dev_is_20(chk);
-	int has_svm_ext = dev_has_svm_ext(chk);
+	const int is_20 = dev_is_20(chk);
+	const int has_amd_svm = (param == CL_DEVICE_SVM_CAPABILITIES && dev_has_amd_svm(chk));
 
 	GET_VAL;
 
@@ -1569,12 +1572,12 @@ int device_info_svm_cap(cl_device_id dev, cl_device_info param, const char *pnam
 		const char * const *scstr = (output_mode == CLINFO_HUMAN ?
 			svm_cap_str : svm_cap_raw_str);
 		set_separator(vbar_str);
-		if (output_mode == CLINFO_HUMAN) {
+		if (output_mode == CLINFO_HUMAN && param == CL_DEVICE_SVM_CAPABILITIES) {
 			/* show 'why' it's being shown */
 			szval += sprintf(strbuf, "(%s%s%s)",
 				(is_20 ? core : empty_str),
-				(is_20 && has_svm_ext ? comma_str : empty_str),
-				chk->has_svm_ext);
+				(is_20 && has_amd_svm ? comma_str : empty_str),
+				chk->has_amd_svm);
 		}
 		for (i = 0; i < svm_cap_count; ++i) {
 			cl_device_svm_capabilities cur = (cl_device_svm_capabilities)(1) << i;
@@ -1716,6 +1719,7 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_INTEGRATED_MEMORY_NV, "Integrated memory (NV)", bool), dev_has_nv },
 
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SVM_CAPABILITIES, "Shared Virtual Memory (SVM) capabilities", svm_cap), dev_has_svm },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_SVM_CAPABILITIES_ARM, "Shared Virtual Memory (SVM) capabilities (ARM)", svm_cap), dev_has_arm_svm },
 
 	/* Alignment */
 	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_MIN_DATA_TYPE_ALIGN_SIZE, "Minimum alignment for any data type", bytes_str, int), NULL },

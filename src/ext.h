@@ -152,6 +152,9 @@ typedef cl_ulong  cl_device_partition_property_ext;
 #define CL_DEVICE_EXT_MEM_PADDING_IN_BYTES_QCOM		0x40A0
 #define CL_DEVICE_PAGE_SIZE_QCOM			0x40A1
 
+/* cl_arm_shared_virtual_memory */
+#define CL_DEVICE_SVM_CAPABILITIES_ARM			0x40B6
+
 /* cl_khr_spir */
 #define CL_DEVICE_SPIR_VERSIONS				0x40E0
 
