@@ -508,11 +508,18 @@ getWGsizes(cl_platform_id pid, cl_device_id dev)
 
 	/* for a program build failure, dump the log to stderr before bailing */
 	if (error == CL_BUILD_PROGRAM_FAILURE) {
+		/* Do not clobber strbuf, shadow it */
+		char *strbuf = NULL;
+		size_t bufsz = 0, nusz = 0;
 		GET_STRING(clGetProgramBuildInfo, CL_PROGRAM_BUILD_LOG, "CL_PROGRAM_BUILD_LOG", prg, dev);
 		if (error == CL_SUCCESS) {
+			fflush(stdout);
+			fflush(stderr);
 			fputs("=== CL_PROGRAM_BUILD_LOG ===\n", stderr);
 			fputs(strbuf, stderr);
+			fflush(stderr);
 		}
+		free(strbuf);
 	}
 	if (had_error)
 		goto out;
