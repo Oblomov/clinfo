@@ -1,27 +1,35 @@
-SRCDIR=src
+# Headers
 
-VPATH=$(SRCDIR)
+HDR =	src/error.h \
+	src/ext.h \
+	src/fmtmacros.h \
+	src/memory.h \
+	src/ms_support.h \
+	src/strbuf.h
 
-HDR=$(wildcard $(SRCDIR)/*.h)
+VPATH = src
 
-PLATFORM=$(shell uname -s)
-
-ifeq ($(PLATFORM),Darwin)
-  LDLIBS=-framework OpenCL
-else
-  LDLIBS=-lOpenCL
-endif
-
-ifeq ($(PLATFORM),Linux)
-  LDLIBS += -ldl
-endif
-
-CFLAGS+=-std=c99 -g -Wall -Wextra -pedantic
+CFLAGS += -std=c99 -g -Wall -Wextra -pedantic
 
 SPARSE ?= sparse
 SPARSEFLAGS=-Wsparse-all -Wno-decl
 
-clinfo:
+# BSD make does not define RM
+RM ?= rm -f
+
+# Common library includes
+# TODO ideally we would want this to be on "not Darwin",
+# rather than shared, but I haven't found a way to achieve this
+# using features supported by both GNU and BSD make
+LDLIBS = -lOpenCL
+
+# OS-specific library includes
+LDLIBS_Darwin = -framework OpenCL
+LDLIBS_Linux = -ldl
+
+LDLIBS += $(LDLIBS_${OS})
+
+clinfo: clinfo.o
 
 clinfo.o: clinfo.c $(HDR)
 
