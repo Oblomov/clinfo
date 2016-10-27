@@ -18,16 +18,18 @@ SPARSEFLAGS=-Wsparse-all -Wno-decl
 RM ?= rm -f
 
 # Common library includes
-# TODO ideally we would want this to be on "not Darwin",
-# rather than shared, but I haven't found a way to achieve this
-# using features supported by both GNU and BSD make
 LDLIBS = -lOpenCL
 
 # OS-specific library includes
 LDLIBS_Darwin = -framework OpenCL
+LDLIBS_Darwin_exclude = -lOpenCL
+
 LDLIBS_Linux = -ldl
 
 LDLIBS += $(LDLIBS_${OS})
+
+# Remove -lOpenCL if OS is Darwin
+LDLIBS := $(LDLIBS:$(LDLIBS_${OS}_exclude)=)
 
 clinfo: clinfo.o
 
