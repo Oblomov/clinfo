@@ -569,6 +569,7 @@ struct device_info_checks {
 	char has_intel_local_thread[30];
 	char has_intel_AME[36];
 	char has_intel_AVC_ME[43];
+	char has_intel_planar_yuv[20];
 	char has_intel_required_subgroup_size[32];
 	char has_altera_dev_temp[29];
 	char has_spir[12];
@@ -594,6 +595,7 @@ DEFINE_EXT_CHECK(image2d_buffer)
 DEFINE_EXT_CHECK(intel_local_thread)
 DEFINE_EXT_CHECK(intel_AME)
 DEFINE_EXT_CHECK(intel_AVC_ME)
+DEFINE_EXT_CHECK(intel_planar_yuv)
 DEFINE_EXT_CHECK(intel_required_subgroup_size)
 DEFINE_EXT_CHECK(altera_dev_temp)
 DEFINE_EXT_CHECK(spir)
@@ -713,6 +715,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 	CHECK_EXT(intel_local_thread, cl_intel_exec_by_local_thread);
 	CHECK_EXT(intel_AME, cl_intel_advanced_motion_estimation);
 	CHECK_EXT(intel_AVC_ME, cl_intel_device_side_avc_motion_estimation);
+	CHECK_EXT(intel_planar_yuv, cl_intel_planar_yuv);
 	CHECK_EXT(intel_required_subgroup_size, cl_intel_required_subgroup_size);
 	CHECK_EXT(altera_dev_temp, cl_altera_device_temperature);
 	CHECK_EXT(qcom_ext_host_ptr, cl_qcom_ext_host_ptr);
@@ -979,6 +982,26 @@ int device_info_img_sz_2d(cl_device_id dev, cl_device_info param, const char *pn
 	show_strbuf(pname, 0);
 	return had_error;
 }
+
+int device_info_img_sz_intel_planar_yuv(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk UNUSED)
+{
+	size_t width = 0, height = 0, val = 0;
+	GET_VAL; /* HEIGHT */
+	if (!had_error) {
+		height = val;
+		param = CL_DEVICE_PLANAR_YUV_MAX_WIDTH_INTEL;
+		current_param = "CL_DEVICE_PLANAR_YUV_MAX_WIDTH_INTEL";
+		GET_VAL;
+		if (!had_error) {
+			width = val;
+			sprintf(strbuf, "%" PRIuS "x%" PRIuS, width, height);
+		}
+	}
+	show_strbuf(pname, 0);
+	return had_error;
+}
+
 
 int device_info_img_sz_3d(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk UNUSED)
@@ -1766,6 +1789,9 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_HUMAN, DINFO_SFX(CL_DEVICE_IMAGE2D_MAX_HEIGHT, INDENT "Max 2D image size",  pixels_str, img_sz_2d), dev_has_images },
 	{ CLINFO_RAW, DINFO(CL_DEVICE_IMAGE2D_MAX_HEIGHT, INDENT "Max 2D image height",  sz), dev_has_images },
 	{ CLINFO_RAW, DINFO(CL_DEVICE_IMAGE2D_MAX_WIDTH, INDENT "Max 2D image width",  sz), dev_has_images },
+	{ CLINFO_HUMAN, DINFO_SFX(CL_DEVICE_PLANAR_YUV_MAX_HEIGHT_INTEL, INDENT "Max planar YUV image size",  pixels_str, img_sz_2d), dev_has_intel_planar_yuv },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_PLANAR_YUV_MAX_HEIGHT_INTEL, INDENT "Max planar YUV image height",  sz), dev_has_intel_planar_yuv },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_PLANAR_YUV_MAX_WIDTH_INTEL, INDENT "Max planar YUV image width",  sz), dev_has_intel_planar_yuv },
 	{ CLINFO_HUMAN, DINFO_SFX(CL_DEVICE_IMAGE3D_MAX_HEIGHT, INDENT "Max 3D image size",  pixels_str, img_sz_3d), dev_has_images },
 	{ CLINFO_RAW, DINFO(CL_DEVICE_IMAGE3D_MAX_HEIGHT, INDENT "Max 3D image height",  sz), dev_has_images },
 	{ CLINFO_RAW, DINFO(CL_DEVICE_IMAGE3D_MAX_WIDTH, INDENT "Max 3D image width",  sz), dev_has_images },

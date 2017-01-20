@@ -153,6 +153,10 @@ typedef cl_ulong  cl_device_partition_property_ext;
 #define CL_DEVICE_AVC_ME_SUPPORTS_TEXTURE_SAMPLER_USE_INTEL	0x410C
 #define CL_DEVICE_AVC_ME_SUPPORTS_PREEMPTION_INTEL		0x410D
 
+/* cl_intel_planar_yuv */
+#define CL_DEVICE_PLANAR_YUV_MAX_WIDTH_INTEL		0x417E
+#define CL_DEVICE_PLANAR_YUV_MAX_HEIGHT_INTEL		0x417F
+
 /* cl_qcom_ext_host_ptr */
 #define CL_DEVICE_EXT_MEM_PADDING_IN_BYTES_QCOM		0x40A0
 #define CL_DEVICE_PAGE_SIZE_QCOM			0x40A1
