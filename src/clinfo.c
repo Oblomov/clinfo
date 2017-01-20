@@ -568,6 +568,7 @@ struct device_info_checks {
 	char has_image2d_buffer[27];
 	char has_intel_local_thread[30];
 	char has_intel_AME[36];
+	char has_intel_AVC_ME[43];
 	char has_intel_required_subgroup_size[32];
 	char has_altera_dev_temp[29];
 	char has_spir[12];
@@ -592,6 +593,7 @@ DEFINE_EXT_CHECK(atomic_counters)
 DEFINE_EXT_CHECK(image2d_buffer)
 DEFINE_EXT_CHECK(intel_local_thread)
 DEFINE_EXT_CHECK(intel_AME)
+DEFINE_EXT_CHECK(intel_AVC_ME)
 DEFINE_EXT_CHECK(intel_required_subgroup_size)
 DEFINE_EXT_CHECK(altera_dev_temp)
 DEFINE_EXT_CHECK(spir)
@@ -710,6 +712,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 	CHECK_EXT(image2d_buffer, cl_khr_image2d_from_buffer);
 	CHECK_EXT(intel_local_thread, cl_intel_exec_by_local_thread);
 	CHECK_EXT(intel_AME, cl_intel_advanced_motion_estimation);
+	CHECK_EXT(intel_AVC_ME, cl_intel_device_side_avc_motion_estimation);
 	CHECK_EXT(intel_required_subgroup_size, cl_intel_required_subgroup_size);
 	CHECK_EXT(altera_dev_temp, cl_altera_device_temperature);
 	CHECK_EXT(qcom_ext_host_ptr, cl_qcom_ext_host_ptr);
@@ -1828,6 +1831,9 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_PRINTF_BUFFER_SIZE, "printf() buffer size", mem), dev_is_12 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_BUILT_IN_KERNELS, "Built-in kernels", str), dev_is_12 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_ME_VERSION_INTEL, "Motion Estimation accelerator version (Intel)", int), dev_has_intel_AME },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_AVC_ME_VERSION_INTEL, INDENT "Device-side AVC Motion Estimation version", int), dev_has_intel_AVC_ME },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_AVC_ME_SUPPORTS_TEXTURE_SAMPLER_USE_INTEL, INDENT INDENT "Supports texture sampler use", bool), dev_has_intel_AVC_ME },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_AVC_ME_SUPPORTS_PREEMPTION_INTEL, INDENT INDENT "Supports preemption", bool), dev_has_intel_AVC_ME },
 };
 
 /* Process all the device info in the traits, except if param_whitelist is not NULL,

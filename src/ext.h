@@ -148,6 +148,11 @@ typedef cl_ulong  cl_device_partition_property_ext;
 /* cl_intel_advanced_motion_estimation */
 #define CL_DEVICE_ME_VERSION_INTEL			0x407E
 
+/* cl_intel_device_side_avc_motion_estimation */
+#define CL_DEVICE_AVC_ME_VERSION_INTEL				0x410B
+#define CL_DEVICE_AVC_ME_SUPPORTS_TEXTURE_SAMPLER_USE_INTEL	0x410C
+#define CL_DEVICE_AVC_ME_SUPPORTS_PREEMPTION_INTEL		0x410D
+
 /* cl_qcom_ext_host_ptr */
 #define CL_DEVICE_EXT_MEM_PADDING_IN_BYTES_QCOM		0x40A0
 #define CL_DEVICE_PAGE_SIZE_QCOM			0x40A1
