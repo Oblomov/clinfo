@@ -33,7 +33,11 @@
 #include "strbuf.h"
 
 #define ARRAY_SIZE(ar) (sizeof(ar)/sizeof(*ar))
+#ifdef _GNUC
 #define UNUSED __attribute__((unused))
+#else
+#define UNUSED
+#endif
 
 struct platform_data {
 	char *pname; /* CL_PLATFORM_NAME */
