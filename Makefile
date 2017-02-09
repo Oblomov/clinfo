@@ -18,13 +18,11 @@ SPARSEFLAGS=-Wsparse-all -Wno-decl
 RM ?= rm -f
 
 # Common library includes
-LDLIBS = -lOpenCL
+LDLIBS = -lOpenCL -ldl
 
 # OS-specific library includes
 LDLIBS_Darwin = -framework OpenCL
 LDLIBS_Darwin_exclude = -lOpenCL
-
-LDLIBS_Linux = -ldl
 
 LDLIBS += $(LDLIBS_${OS})
 
