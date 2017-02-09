@@ -12,11 +12,11 @@ size_t bufsz, nusz;
 
 #define GET_STRING(cmd, param, param_str, ...) do { \
 	error = cmd(__VA_ARGS__, param, 0, NULL, &nusz); \
+	if (REPORT_ERROR("get " param_str " size")) break; \
 	if (nusz > bufsz) { \
 		REALLOC(strbuf, nusz, #param); \
 		bufsz = nusz; \
 	} \
-	if (REPORT_ERROR("get " param_str " size")) break; \
 	error = cmd(__VA_ARGS__, param, bufsz, strbuf, NULL); \
 	REPORT_ERROR("get " param_str); \
 } while (0)
