@@ -198,11 +198,15 @@ static const char* svm_cap_raw_str[] = {
 
 const size_t svm_cap_count = ARRAY_SIZE(svm_cap_str);
 
+/* SI suffixes for memory sizes. Note that in OpenCL most of them are
+ * passed via a cl_ulong, which at most can mode 16 EiB, but hey,
+ * let's be forward-thinking ;-)
+ */
 static const char* memsfx[] = {
-	"B", "KiB", "MiB", "GiB", "TiB"
+	"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"
 };
 
-const size_t memsfx_count = ARRAY_SIZE(memsfx);
+const size_t memsfx_end = ARRAY_SIZE(memsfx) + 1;
 
 static const char* lmem_type_str[] = { none, "Local", "Global" };
 static const char* lmem_type_raw_str[] = { none_raw, "CL_LOCAL", "CL_GLOBAL" };
@@ -822,7 +826,7 @@ size_t strbuf_mem(cl_ulong val, size_t szval)
 {
 	double dbl = val;
 	size_t sfx = 0;
-	while (dbl > 1024 && sfx < memsfx_count) {
+	while (dbl > 1024 && sfx < memsfx_end) {
 		dbl /= 1024;
 		++sfx;
 	}
