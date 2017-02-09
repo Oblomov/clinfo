@@ -2341,7 +2341,7 @@ void checkNullCtxFromType(void)
 	ALLOC(devs, ndevs, "context devices");
 
 	current_function = __func__;
-	for (t = 2; t < devtype_count; ++t) { /* we skip 0 and _DEFAULT */
+	for (t = 1; t < devtype_count; ++t) { /* we skip 0 */
 		current_param = device_type_raw_str[t];
 
 		sprintf(strbuf, "clCreateContextFromType(NULL, %s)", current_param);
