@@ -1,9 +1,16 @@
+matrix:
+ include:
+  - os: linux
+    dist: trusty
+    sudo: required
+  - os: osx
+
 language: c
 compiler:
  - gcc
  - clang
+
 before_install:
- - sudo apt-get update -qq
-install:
- - sudo apt-get install -qq opencl-headers
+ - if [ "$TRAVIS_OS_NAME" = "linux" ] ; then sudo apt-get update -qq && sudo apt-get install -qq ocl-icd-opencl-dev ; fi
+
 script: make && ./clinfo
