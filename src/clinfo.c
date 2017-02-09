@@ -864,6 +864,21 @@ int device_info_mem_int(cl_device_id dev, cl_device_info param, const char *pnam
 	return had_error;
 }
 
+int device_info_mem_sz(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks *chk UNUSED)
+{
+	size_t val = 0;
+	size_t szval = 0;
+	GET_VAL;
+	if (!had_error) {
+		szval += sprintf(strbuf, "%zu", val);
+		if (output_mode == CLINFO_HUMAN && val > 1024)
+			strbuf_mem(val, szval);
+	}
+	show_strbuf(pname, 0);
+	return had_error;
+}
+
 int device_info_free_mem_amd(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk UNUSED)
 {
@@ -1840,7 +1855,7 @@ struct device_info_traits dinfo_traits[] = {
 	 */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_IL_VERSION, INDENT "IL version", str), dev_is_21, },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SPIR_VERSIONS, INDENT "SPIR versions", str), dev_has_spir },
-	{ CLINFO_BOTH, DINFO(CL_DEVICE_PRINTF_BUFFER_SIZE, "printf() buffer size", mem), dev_is_12 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_PRINTF_BUFFER_SIZE, "printf() buffer size", mem_sz), dev_is_12 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_BUILT_IN_KERNELS, "Built-in kernels", str), dev_is_12 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_ME_VERSION_INTEL, "Motion Estimation accelerator version (Intel)", int), dev_has_intel_AME },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_AVC_ME_VERSION_INTEL, INDENT "Device-side AVC Motion Estimation version", int), dev_has_intel_AVC_ME },
