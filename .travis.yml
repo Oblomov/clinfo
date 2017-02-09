@@ -1,15 +1,14 @@
-matrix:
- include:
-  - os: linux
-    dist: trusty
-    addons:
-     apt:
-      sources:
-       - sourceline: "deb http://archive.ubuntu.com/ubuntu trusty universe"
-      packages:
-       - ocl-icd-opencl-dev
+os:
+ - linux
+ - osx
 
-  - os: osx
+dist: trusty
+addons:
+ apt:
+  sources:
+   - sourceline: "deb http://archive.ubuntu.com/ubuntu trusty universe"
+  packages:
+   - ocl-icd-opencl-dev
 
 language: c
 compiler:
