@@ -315,16 +315,7 @@ void show_strbuf(const char *pname, int skip)
 int
 platform_info_str(cl_platform_id pid, cl_platform_info param, const char* pname, const struct platform_info_checks * chk UNUSED)
 {
-	error = clGetPlatformInfo(pid, param, 0, NULL, &nusz);
-	had_error = REPORT_ERROR2("get %s size");
-	if (!had_error) {
-		if (nusz > bufsz) {
-			REALLOC(strbuf, nusz, current_param);
-			bufsz = nusz;
-		}
-		error = clGetPlatformInfo(pid, param, bufsz, strbuf, NULL);
-		had_error = REPORT_ERROR2("get %s");
-	}
+	GET_STRING2(clGetPlatformInfo, pid, param);
 	/* when only listing, do not print anything we're just gathering
 	 * information
 	 */
@@ -779,16 +770,7 @@ int device_info_str_get(cl_device_id dev, cl_device_info param, const char *pnam
 	const struct device_info_checks *chk UNUSED)
 {
 	current_param = pname;
-	error = clGetDeviceInfo(dev, param, 0, NULL, &nusz);
-	had_error = REPORT_ERROR2("get %s size");
-	if (!had_error) {
-		if (nusz > bufsz) {
-			REALLOC(strbuf, nusz, current_param);
-			bufsz = nusz;
-		}
-		error = clGetDeviceInfo(dev, param, bufsz, strbuf, NULL);
-		had_error = REPORT_ERROR2("get %s");
-	}
+	GET_STRING2(clGetDeviceInfo, dev, param);
 	return had_error;
 }
 
@@ -2530,16 +2512,7 @@ struct icd_loader_test {
 int
 icdl_info_str(cl_icdl_info param, const char* pname)
 {
-	error = clGetICDLoaderInfoOCLICD(param, 0, NULL, &nusz);
-	had_error = REPORT_ERROR2("get %s size");
-	if (!had_error) {
-		if (nusz > bufsz) {
-			REALLOC(strbuf, nusz, current_param);
-			bufsz = nusz;
-		}
-		error = clGetICDLoaderInfoOCLICD(param, bufsz, strbuf, NULL);
-		had_error = REPORT_ERROR2("get %s");
-	}
+	GET_STRING2(clGetICDLoaderInfoOCLICD, param);
 	show_strbuf(pname, 1);
 	return had_error;
 }

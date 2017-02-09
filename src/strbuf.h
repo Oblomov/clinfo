@@ -21,6 +21,19 @@ size_t bufsz, nusz;
 	REPORT_ERROR("get " param_str); \
 } while (0)
 
+#define GET_STRING2(cmd, ...) do { \
+	error = cmd(__VA_ARGS__, 0, NULL, &nusz); \
+	had_error = REPORT_ERROR2("get %s size"); \
+	if (!had_error) { \
+		if (nusz > bufsz) { \
+			REALLOC(strbuf, nusz, current_param); \
+			bufsz = nusz; \
+		} \
+		error = cmd(__VA_ARGS__, bufsz, strbuf, NULL); \
+		had_error = REPORT_ERROR2("get %s"); \
+	} \
+} while (0)
+
 /* Skip leading whitespace in a string */
 static inline const char* skip_leading_ws(const char *str)
 {
