@@ -871,7 +871,7 @@ int device_info_mem_sz(cl_device_id dev, cl_device_info param, const char *pname
 	size_t szval = 0;
 	GET_VAL;
 	if (!had_error) {
-		szval += sprintf(strbuf, "%zu", val);
+		szval += sprintf(strbuf, "%" PRIuS, val);
 		if (output_mode == CLINFO_HUMAN && val > 1024)
 			strbuf_mem(val, szval);
 	}
