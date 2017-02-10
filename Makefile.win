@@ -1,0 +1,36 @@
+# TODO FIXME find a better way to detect the directory to use
+# for OpenCL development files
+!IF "$(OPENCLDIR)" == ""
+OPENCLDIR = $(AMDAPPSDKROOT)
+!ENDIF
+!IF "$(OPENCLDIR)" == ""
+OPENCLDIR = $(MAKEDIR)
+!ENDIF
+!IF "$(OPENCLDIR)" == ""
+OPENCLDIR = .
+!ENDIF
+!MESSAGE OpenCL dir: $(OPENCLDIR)
+
+
+HDR =	src/error.h \
+	src/ext.h \
+	src/fmtmacros.h \
+	src/memory.h \
+	src/ms_support.h \
+	src/strbuf.h
+
+CFLAGS = /GL /Ox /W4 /Zi /I"$(OPENCLDIR)\include" /nologo
+LIBS = libOpenCL.a
+LINKOPTS = /LTCG /LIBPATH:"$(OPENCLDIR)\lib" /LIBPATH:"$(OPENCLDIR)\lib\x86" /LIBPATH:"$(OPENCLDIR)\lib\x86_64" /LIBPATH:"$(OPENCLDIR)\lib\x86_amd64" /LIBPATH:"$(OPENCLDIR)\lib\amd64" /nologo
+
+clinfo.exe: clinfo.obj
+	link $(LINKOPTS) $(LIBS) clinfo.obj /out:clinfo.exe
+
+clinfo.obj: src/clinfo.c $(HDR)
+	$(CC) $(CFLAGS) /c src/clinfo.c /Foclinfo.obj
+
+clean:
+	del /F /Q clinfo.exe clinfo.obj
+
+.PHONY: clean
+
