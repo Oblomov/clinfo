@@ -824,7 +824,7 @@ int device_info_bits(cl_device_id dev, cl_device_info param, const char *pname,
 
 size_t strbuf_mem(cl_ulong val, size_t szval)
 {
-	double dbl = val;
+	double dbl = (double)val;
 	size_t sfx = 0;
 	while (dbl > 1024 && sfx < memsfx_end) {
 		dbl /= 1024;
@@ -1155,7 +1155,7 @@ int device_info_devtopo_nv(cl_device_id dev, cl_device_info param, const char *p
 		GET_VAL;
 
 		if (!had_error) {
-			devtopo.pcie.device = val >> 3;
+			devtopo.pcie.device = (val >> 3) & 0xff;
 			devtopo.pcie.function = val & 7;
 			devtopo_str(&devtopo);
 		}
