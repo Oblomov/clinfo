@@ -4,10 +4,18 @@
 
 #include <time.h>
 #include <string.h>
-#include <dlfcn.h>
 
-#ifndef RTLD_DEFAULT
-#define RTLD_DEFAULT ((void*)0)
+/* We will want to check for symbols in the OpenCL library.
+ * On Windows, we must get the module handle for it, on Unix-like
+ * systems we can just use RTLD_DEFAULT
+ */
+#ifdef _MSC_VER
+# include <windows.h>
+# define dlsym GetProcAddress
+# define DL_MODULE GetModuleHandle("OpenCL")
+#else
+# include <dlfcn.h>
+# define DL_MODULE ((void*)0) /* This would be RTLD_DEFAULT */
 #endif
 
 /* ISO C forbids assignments between function pointers and void pointers,
@@ -22,7 +30,7 @@
  */
 #include "fmtmacros.h"
 
-// Support for the horrible MS C compiler
+// More support for the horrible MS C compiler
 #ifdef _MSC_VER
 #include "ms_support.h"
 #endif
@@ -33,7 +41,10 @@
 #include "strbuf.h"
 
 #define ARRAY_SIZE(ar) (sizeof(ar)/sizeof(*ar))
+
+#ifndef UNUSED
 #define UNUSED(x) x __attribute__((unused))
+#endif
 
 struct platform_data {
 	char *pname; /* CL_PLATFORM_NAME */
@@ -2568,7 +2579,7 @@ void oclIcdProps(void)
 		struct icd_loader_test check = icd_loader_tests[i];
 		if (check.symbol == NULL)
 			break;
-		if (dlsym(RTLD_DEFAULT, check.symbol) == NULL)
+		if (dlsym(DL_MODULE, check.symbol) == NULL)
 			break;
 		icdl_ocl_version_found = check.version;
 		++i;
@@ -2586,8 +2597,7 @@ void oclIcdProps(void)
 	 */
 
 #ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4996)
+#pragma warning(suppress : 4996)
 #elif defined __GNUC__ && ((__GNUC__*10 + __GNUC_MINOR__) >= 46)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -2595,9 +2605,7 @@ void oclIcdProps(void)
 
 	PTR_FUNC_PTR clGetICDLoaderInfoOCLICD = clGetExtensionFunctionAddress("clGetICDLoaderInfoOCLICD");
 
-#ifdef _MSC_VER
-#pragma warning(pop)
-#elif defined __GNUC__ && ((__GNUC__*10 + __GNUC_MINOR__) >= 46)
+#if defined __GNUC__ && ((__GNUC__*10 + __GNUC_MINOR__) >= 46)
 #pragma GCC diagnostic pop
 #endif
 
