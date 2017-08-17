@@ -74,6 +74,12 @@ typedef cl_bitfield         cl_device_svm_capabilities;
 /* cl_khr_terminate_context */
 #define CL_DEVICE_TERMINATE_CAPABILITY_KHR		0x200F
 
+/* TODO: I cannot find official definitions for these,
+ * so I'm currently extrapolating them from the specification
+ */
+typedef cl_bitfield cl_device_terminate_capability_khr;
+#define CL_DEVICE_TERMINATE_CAPABILITY_CONTEXT		(1<<0)
+
 /* cl_khr_subgroup_named_barrier */
 #define CL_DEVICE_MAX_NAMED_BARRIER_COUNT_KHR		0x2035
 
