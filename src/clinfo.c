@@ -581,6 +581,7 @@ struct device_info_checks {
 	char has_spir[12];
 	char has_qcom_ext_host_ptr[21];
 	char has_simultaneous_sharing[30];
+	char has_subgroup_named_barrier[30];
 	cl_uint dev_version;
 };
 
@@ -607,6 +608,7 @@ DEFINE_EXT_CHECK(altera_dev_temp)
 DEFINE_EXT_CHECK(spir)
 DEFINE_EXT_CHECK(qcom_ext_host_ptr)
 DEFINE_EXT_CHECK(simultaneous_sharing)
+DEFINE_EXT_CHECK(subgroup_named_barrier)
 
 /* In the version checks we negate the opposite conditions
  * instead of double-negating the actual condition
@@ -726,6 +728,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 	CHECK_EXT(altera_dev_temp, cl_altera_device_temperature);
 	CHECK_EXT(qcom_ext_host_ptr, cl_qcom_ext_host_ptr);
 	CHECK_EXT(simultaneous_sharing, cl_intel_simultaneous_sharing);
+	CHECK_EXT(subgroup_named_barrier, cl_khr_subgroup_named_barrier);
 }
 
 
@@ -1721,6 +1724,7 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_WARP_SIZE_NV, "Warp size (NV)", int), dev_has_nv },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_WAVEFRONT_WIDTH_AMD, "Wavefront width (AMD)", int), dev_is_gpu_amd },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_NUM_SUB_GROUPS, "Max sub-groups per work group", int), dev_is_21 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_NAMED_BARRIER_COUNT_KHR, "Max named sub-group barriers", int), dev_has_subgroup_named_barrier },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SUB_GROUP_SIZES_INTEL, "Sub-group sizes (Intel)", szptr), dev_has_intel_required_subgroup_size },
 
 	/* Preferred/native vector widths: header is only presented in HUMAN case, that also pairs
