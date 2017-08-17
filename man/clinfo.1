@@ -65,6 +65,9 @@ for the suffix of vendor extensions functions;
 .B cl_khr_subgroup_named_barrier
 for the maximum number of named sub-group barriers;
 .TP
+.B cl_khr_terminate_context
+for the terminate capabilities for the device;
+.TP
 .B cl_ext_device_fission
 for device fission support in OpenCL 1.1 devices;
 .TP
@@ -154,6 +157,11 @@ by trying to create contexts for each device type (except DEFAULT).
 .SH EXPERIMENTAL FEATURES
 .P
 Support for OpenCL 2.x properties is not fully tested.
+
+.P
+Support for
+.B cl_khr_subgroup_named_barrier
+is experimental due to missing definitions in the official OpenCL headers.
 
 .P
 Raw (machine-parsable) output is considered experimental, the output format

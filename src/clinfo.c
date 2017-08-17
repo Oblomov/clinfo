@@ -173,6 +173,16 @@ static const char* affinity_domain_raw_ext_str[] = {
 
 const size_t affinity_domain_count = ARRAY_SIZE(affinity_domain_str);
 
+static const char *terminate_capability_str[] = {
+	"Context"
+};
+
+static const char *terminate_capability_raw_str[] = {
+	"CL_DEVICE_TERMINATE_CAPABILITY_CONTEXT_KHR"
+};
+
+const size_t terminate_capability_count = ARRAY_SIZE(terminate_capability_str);
+
 static const char* fp_conf_str[] = {
 	"Denormals", "Infinity and NANs", "Round to nearest", "Round to zero",
 	"Round to infinity", "IEEE754-2008 fused multiply-add",
@@ -582,6 +592,7 @@ struct device_info_checks {
 	char has_qcom_ext_host_ptr[21];
 	char has_simultaneous_sharing[30];
 	char has_subgroup_named_barrier[30];
+	char has_terminate_context[25];
 	cl_uint dev_version;
 };
 
@@ -609,6 +620,7 @@ DEFINE_EXT_CHECK(spir)
 DEFINE_EXT_CHECK(qcom_ext_host_ptr)
 DEFINE_EXT_CHECK(simultaneous_sharing)
 DEFINE_EXT_CHECK(subgroup_named_barrier)
+DEFINE_EXT_CHECK(terminate_context)
 
 /* In the version checks we negate the opposite conditions
  * instead of double-negating the actual condition
@@ -729,8 +741,8 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 	CHECK_EXT(qcom_ext_host_ptr, cl_qcom_ext_host_ptr);
 	CHECK_EXT(simultaneous_sharing, cl_intel_simultaneous_sharing);
 	CHECK_EXT(subgroup_named_barrier, cl_khr_subgroup_named_barrier);
+	CHECK_EXT(terminate_context, cl_khr_terminate_context);
 }
-
 
 
 /*
@@ -1643,6 +1655,39 @@ int device_info_svm_cap(cl_device_id dev, cl_device_info param, const char *pnam
 	return had_error;
 }
 
+/* Device terminate capability */
+int device_info_terminate_capability(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks* UNUSED(chk))
+{
+	cl_device_terminate_capability_khr val;
+	GET_VAL;
+	if (!had_error && val) {
+		/* iterate over terminate capability strings appending their textual form
+		 * to strbuf
+		 * TODO: check for extra bits/no bits
+		 */
+		size_t szval = 0;
+		cl_uint i = 0;
+		const char * const *capstr = (output_mode == CLINFO_HUMAN ?
+			terminate_capability_str : terminate_capability_raw_str);
+		set_separator(output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
+		for (i = 0; i < terminate_capability_count; ++i) {
+			cl_device_terminate_capability_khr cur = (cl_device_terminate_capability_khr)(1) << i;
+			if (val & cur) {
+				/* match: add separator if not first match */
+				add_separator(&szval);
+				szval += bufcpy(szval, capstr[i]);
+			}
+			if (szval >= bufsz)
+				break;
+		}
+	}
+	if (val || had_error)
+		show_strbuf(pname, 0);
+	return had_error;
+}
+
+
 /*
  * Device info traits
  */
@@ -1844,6 +1889,9 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_QUEUE_ON_DEVICE_MAX_SIZE, INDENT "Max size", mem), dev_is_20 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_ON_DEVICE_QUEUES, "Max queues on device", int), dev_is_20 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_ON_DEVICE_EVENTS, "Max events on device", int), dev_is_20 },
+
+	/* Terminate context */
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_TERMINATE_CAPABILITY_KHR, "Terminate capability", terminate_capability), dev_has_terminate_context },
 
 	/* Interop */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_PREFERRED_INTEROP_USER_SYNC, "Prefer user sync for interop", bool), dev_is_12 },

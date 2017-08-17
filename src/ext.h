@@ -78,7 +78,7 @@ typedef cl_bitfield         cl_device_svm_capabilities;
  * so I'm currently extrapolating them from the specification
  */
 typedef cl_bitfield cl_device_terminate_capability_khr;
-#define CL_DEVICE_TERMINATE_CAPABILITY_CONTEXT		(1<<0)
+#define CL_DEVICE_TERMINATE_CAPABILITY_CONTEXT_KHR	(1<<0)
 
 /* cl_khr_subgroup_named_barrier */
 #define CL_DEVICE_MAX_NAMED_BARRIER_COUNT_KHR		0x2035
