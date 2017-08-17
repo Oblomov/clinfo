@@ -74,6 +74,9 @@ typedef cl_bitfield         cl_device_svm_capabilities;
 /* cl_khr_terminate_context */
 #define CL_DEVICE_TERMINATE_CAPABILITY_KHR		0x200F
 
+/* cl_khr_subgroup_named_barrier */
+#define CL_DEVICE_MAX_NAMED_BARRIER_COUNT_KHR		0x2035
+
 /* cl_nv_device_attribute_query */
 #define CL_DEVICE_COMPUTE_CAPABILITY_MAJOR_NV		0x4000
 #define CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV		0x4001
