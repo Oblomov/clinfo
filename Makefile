@@ -1,5 +1,8 @@
 # Headers
 
+PROG = clinfo
+MAN = man1/$(PROG).1
+
 HDR =	src/error.h \
 	src/ext.h \
 	src/fmtmacros.h \
@@ -17,6 +20,13 @@ SPARSEFLAGS=-Wsparse-all -Wno-decl
 # BSD make does not define RM
 RM ?= rm -f
 
+# Installation paths and modes
+PREFIX ?= /usr/local
+BINDIR ?= $(PREFIX)/bin
+BINMODE ?= 555
+MANDIR ?= $(PREFIX)/man
+MANMODE ?= 444
+
 # Common library includes
 LDLIBS = -lOpenCL -ldl
 
@@ -29,14 +39,35 @@ LDLIBS += $(LDLIBS_${OS})
 # Remove -lOpenCL if OS is Darwin
 LDLIBS := $(LDLIBS:$(LDLIBS_${OS}_exclude)=)
 
-clinfo: clinfo.o
 
-clinfo.o: clinfo.c $(HDR)
+#
+# Standard targets
+#
+
+$(PROG): $(PROG).o
+
+$(PROG).o: $(PROG).c $(HDR)
 
 clean:
-	$(RM) clinfo.o clinfo
+	$(RM) $(PROG).o $(PROG)
 
-sparse: clinfo.c
+$(BINDIR):
+	install -d $@
+
+$(MANDIR)/man1:
+	install -d $@
+
+$(BINDIR)/$(PROG): $(PROG) $(BINDIR)
+	install -p -m $(BINMODE) $(PROG) $@
+
+$(MANDIR)/$(MAN): $(MAN) $(MANDIR)/man1
+	install -p -m $(MANMODE) $(MAN) $@
+
+install: $(BINDIR)/$(PROG) $(MANDIR)/$(MAN)
+
+
+sparse: $(PROG).c
 	$(SPARSE) $(CPPFLAGS) $(CFLAGS) $(SPARSEFLAGS) $^
 
-.PHONY: clean sparse
+
+.PHONY: clean sparse install
