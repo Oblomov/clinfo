@@ -120,6 +120,8 @@ static const cl_device_type devtype[] = { 0,
 	CL_DEVICE_TYPE_ACCELERATOR, CL_DEVICE_TYPE_CUSTOM, CL_DEVICE_TYPE_ALL };
 
 const size_t devtype_count = ARRAY_SIZE(devtype);
+/* number of actual device types, without ALL */
+const size_t actual_devtype_count = ARRAY_SIZE(devtype) - 1;
 
 static const char* device_type_str[] = { unk, "Default", "CPU", "GPU", "Accelerator", "Custom", "All" };
 static const char* device_type_raw_str[] = { unk,
@@ -1064,10 +1066,8 @@ int device_info_devtype(cl_device_id dev, cl_device_info param, const char *pnam
 	GET_VAL;
 	if (!had_error) {
 		/* iterate over device type strings, appending their textual form
-		 * to strbuf.
-		 * TODO: check for extra bits/no bits
-		 */
-		cl_uint i = devtype_count - 1; /* skip CL_DEVICE_TYPE_ALL */
+		 * to strbuf */
+		cl_uint i = actual_devtype_count;
 		const char * const *devstr = (output_mode == CLINFO_HUMAN ?
 			device_type_str : device_type_raw_str);
 		size_t szval = 0;
@@ -1080,6 +1080,15 @@ int device_info_devtype(cl_device_id dev, cl_device_info param, const char *pnam
 				/* match: add separator if not first match */
 				add_separator(&szval);
 				szval += bufcpy(szval, devstr[i]);
+			}
+		}
+		/* check for extra bits */
+		if (szval < bufsz) {
+			cl_device_type known_mask = ((cl_device_type)(1) << actual_devtype_count) - 1;
+			cl_device_type extra = val & ~known_mask;
+			if (extra) {
+				add_separator(&szval);
+				szval += snprintf(strbuf + szval, bufsz - szval - 1, "0x%" PRIX64, extra);
 			}
 		}
 	}
@@ -1368,9 +1377,7 @@ int device_info_partition_affinities(cl_device_id dev, cl_device_info param, con
 	GET_VAL;
 	if (!had_error && val) {
 		/* iterate over affinity domain strings appending their textual form
-		 * to strbuf
-		 * TODO: check for extra bits/no bits
-		 */
+		 * to strbuf */
 		size_t szval = 0;
 		cl_uint i = 0;
 		const char * const *affstr = (output_mode == CLINFO_HUMAN ?
@@ -1385,6 +1392,15 @@ int device_info_partition_affinities(cl_device_id dev, cl_device_info param, con
 			}
 			if (szval >= bufsz)
 				break;
+		}
+		/* check for extra bits */
+		if (szval < bufsz) {
+			cl_device_affinity_domain known_mask = ((cl_device_affinity_domain)(1) << affinity_domain_count) - 1;
+			cl_device_affinity_domain extra = val & ~known_mask;
+			if (extra) {
+				add_separator(&szval);
+				szval += snprintf(strbuf + szval, bufsz - szval - 1, "0x%" PRIX64, extra);
+			}
 		}
 	}
 	if (val || had_error)
@@ -1663,9 +1679,7 @@ int device_info_terminate_capability(cl_device_id dev, cl_device_info param, con
 	GET_VAL;
 	if (!had_error && val) {
 		/* iterate over terminate capability strings appending their textual form
-		 * to strbuf
-		 * TODO: check for extra bits/no bits
-		 */
+		 * to strbuf */
 		size_t szval = 0;
 		cl_uint i = 0;
 		const char * const *capstr = (output_mode == CLINFO_HUMAN ?
@@ -1680,6 +1694,15 @@ int device_info_terminate_capability(cl_device_id dev, cl_device_info param, con
 			}
 			if (szval >= bufsz)
 				break;
+		}
+		/* check for extra bits */
+		if (szval < bufsz) {
+			cl_device_terminate_capability_khr known_mask = ((cl_device_terminate_capability_khr)(1) << terminate_capability_count) - 1;
+			cl_device_terminate_capability_khr extra = val & ~known_mask;
+			if (extra) {
+				add_separator(&szval);
+				szval += snprintf(strbuf + szval, bufsz - szval - 1, "0x%" PRIX64, extra);
+			}
 		}
 	}
 	if (val || had_error)
