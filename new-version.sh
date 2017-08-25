@@ -20,5 +20,5 @@ VERSION="$MAJOR$SUBV"
 sed -i -e "/clinfo version/ s/version \S\+\"/version $VERSION\"/" src/clinfo.c
 sed -i -e "1 s/\".\+$/\"$DATE\" \"clinfo $VERSION\"/" man/clinfo.1
 
-git commit -m "Version $VERSION" -e -a && git tag $VERSION
+git commit -m "Version $VERSION" -e -a && git tag -m "Version $VERSION" $VERSION
 
