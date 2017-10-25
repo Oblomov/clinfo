@@ -12,7 +12,7 @@ HDR =	src/error.h \
 
 VPATH = src
 
-CFLAGS += -std=c99 -g -Wall -Wextra -pedantic
+CFLAGS += -std=c99 -g -Wall -Wextra -pedantic -Werror
 
 SPARSE ?= sparse
 SPARSEFLAGS=-Wsparse-all -Wno-decl
