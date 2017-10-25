@@ -2747,7 +2747,7 @@ void oclIcdProps(void)
 
 void version(void)
 {
-	puts("clinfo version 2.2.17.08.25");
+	puts("clinfo version 2.2.17.10.25");
 }
 
 void usage(void)
