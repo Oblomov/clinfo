@@ -1532,7 +1532,14 @@ int device_info_fpconf(cl_device_id dev, cl_device_info param, const char *pname
 			szval += sprintf(strbuf, "(%s)", why);
 		}
 		if (get_it) {
-			for (i = 0; i < fp_conf_count; ++i) {
+			/* The last flag, CL_FP_CORRECTLY_ROUNDED_DIVIDE_SQRT is only considered
+			 * in the single-precision case. half and double don't consider it,
+			 * so we skip it altogether */
+			size_t num_flags = fp_conf_count;
+			if (param != CL_DEVICE_SINGLE_FP_CONFIG)
+				num_flags -= 1;
+
+			for (i = 0; i < num_flags; ++i) {
 				cl_device_fp_config cur = (cl_device_fp_config)(1) << i;
 				if (output_mode == CLINFO_HUMAN) {
 					szval += sprintf(strbuf + szval, "\n%s" I2_STR "%s",
