@@ -19,9 +19,9 @@ set(HEADERS
 
 add_executable(clinfo "${SOURCE_FILE}" "${HEADERS}")
 
-include_directories(clinfo ${OpenCL_INCLUDE_DIRS})
-
-target_link_libraries(clinfo ${OpenCL_LIBRARIES})
+# Link OpenCL
+include_directories(clinfo ${OpenCL_INCLUDE_DIR})
+target_link_libraries(clinfo ${OpenCL_LIBRARY})
 
 if(MSVC)
   set_property(GLOBAL PROPERTY USE_FOLDERS ON)
