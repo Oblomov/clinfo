@@ -26,3 +26,7 @@ target_link_libraries(clinfo ${OpenCL_LIBRARY})
 if(MSVC)
   set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 endif(MSVC)
+
+if(CMAKE_DL_LIBS)
+  target_link_libraries(clinfo ${CMAKE_DL_LIBS})
+endif()
