@@ -1,6 +1,9 @@
 # TODO FIXME find a better way to detect the directory to use
 # for OpenCL development files
 !IF "$(OPENCLDIR)" == ""
+OPENCLDIR = $(INTELOCLSDKROOT)
+!ENDIF
+!IF "$(OPENCLDIR)" == ""
 OPENCLDIR = $(AMDAPPSDKROOT)
 !ENDIF
 !IF "$(OPENCLDIR)" == ""
@@ -21,7 +24,7 @@ HDR =	src/error.h \
 
 CFLAGS = /GL /Ox /W4 /Zi /I"$(OPENCLDIR)\include" /nologo
 LIBS = libOpenCL.a
-LINKOPTS = /LTCG /LIBPATH:"$(OPENCLDIR)\lib" /LIBPATH:"$(OPENCLDIR)\lib\x86" /LIBPATH:"$(OPENCLDIR)\lib\x86_64" /LIBPATH:"$(OPENCLDIR)\lib\x86_amd64" /LIBPATH:"$(OPENCLDIR)\lib\amd64" /nologo
+LINKOPTS = /LTCG /LIBPATH:"$(OPENCLDIR)\lib" /LIBPATH:"$(OPENCLDIR)\lib\x64" /LIBPATH:"$(OPENCLDIR)\lib\x86" /LIBPATH:"$(OPENCLDIR)\lib\x86_64" /LIBPATH:"$(OPENCLDIR)\lib\x86_amd64" /LIBPATH:"$(OPENCLDIR)\lib\amd64" /nologo
 
 clinfo.exe: clinfo.obj
 	link $(LINKOPTS) $(LIBS) clinfo.obj /out:clinfo.exe
