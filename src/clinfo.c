@@ -18,13 +18,6 @@
 # define DL_MODULE ((void*)0) /* This would be RTLD_DEFAULT */
 #endif
 
-/* ISO C forbids assignments between function pointers and void pointers,
- * but POSIX allows it. To compile without warnings even in -pedantic mode,
- * we use this horrible trick to get a function address from
- * clGetExtensionFunctionAddress
- */
-#define PTR_FUNC_PTR *(void**)&
-
 /* Load STDC format macros (PRI*), or define them
  * for those crappy, non-standard compilers
  */
@@ -2603,7 +2596,9 @@ typedef enum {
 } cl_icdl_info;
 
 /* Function pointer to the ICD loader info function */
-cl_int (*clGetICDLoaderInfoOCLICD)(cl_icdl_info, size_t, void*, size_t*);
+
+typedef cl_int (*icdl_info_fn_ptr)(cl_icdl_info, size_t, void*, size_t*);
+icdl_info_fn_ptr clGetICDLoaderInfoOCLICD;
 
 /* We want to auto-detect the OpenCL version supported by the ICD loader.
  * To do this, we will progressively find symbols introduced in new APIs,
@@ -2646,11 +2641,17 @@ struct icdl_info_traits linfo_traits[] = {
 	LINFO(CL_ICDL_OCL_VERSION, "Profile")
 };
 
-/* GCC < 4.6 does not support the diagnostic push _inside_ the function,
- * so we have to put it outside
+/* The ICD loader info function must be retrieved via clGetExtensionFunctionAddress,
+ * which returns a void pointer.
+ * ISO C forbids assignments between function pointers and void pointers,
+ * but POSIX allows it. To compile without warnings even in -pedantic mode,
+ * we take advantage of the fact that we _can_ do the conversion via
+ * pointers-to-pointers. This is supported on most compilers, except
+ * for some rather old GCC versions whose strict aliasing rules are
+ * too strict. Disable strict aliasing warnings for these compilers.
  */
 #if defined __GNUC__ && ((__GNUC__*10 + __GNUC_MINOR__) < 46)
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diagnostic ignored "-Wstrict-aliasing"
 #endif
 
 void oclIcdProps(void)
@@ -2677,7 +2678,8 @@ void oclIcdProps(void)
 	 * loader itself, not in a specific platform.
 	 */
 
-	PTR_FUNC_PTR clGetICDLoaderInfoOCLICD = clGetExtensionFunctionAddress("clGetICDLoaderInfoOCLICD");
+	void *ptrHack = clGetExtensionFunctionAddress("clGetICDLoaderInfoOCLICD");
+	clGetICDLoaderInfoOCLICD = *(icdl_info_fn_ptr*)(&ptrHack);
 
 	if (clGetICDLoaderInfoOCLICD != NULL) {
 		/* TODO think of a sensible header in CLINFO_RAW */
@@ -2729,7 +2731,7 @@ void oclIcdProps(void)
 }
 
 #if defined __GNUC__ && ((__GNUC__*10 + __GNUC_MINOR__) < 46)
-#pragma GCC diagnostic warning "-Wdeprecated-declarations"
+#pragma GCC diagnostic warning "-Wstrict-aliasing"
 #endif
 
 void version(void)
