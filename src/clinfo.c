@@ -2670,27 +2670,14 @@ void oclIcdProps(void)
 
 
 	/* We find the clGetICDLoaderInfoOCLICD extension address, and use it to query
-	 * the ICD loader properties. It should be noted however that
-	 * clGetExtensionFunctionAddress is marked deprecated as of OpenCL 1.2, so
-	 * to use it and compile cleanly we need disable the relevant warning.
+	 * the ICD loader properties.
 	 * It should be noted that in this specific case we cannot replace the
 	 * call to clGetExtensionFunctionAddress with a call to the superseding function
 	 * clGetExtensionFunctionAddressForPlatform because the extension is in the
 	 * loader itself, not in a specific platform.
 	 */
 
-#ifdef _MSC_VER
-#pragma warning(suppress : 4996)
-#elif defined __GNUC__ && ((__GNUC__*10 + __GNUC_MINOR__) >= 46)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#endif
-
 	PTR_FUNC_PTR clGetICDLoaderInfoOCLICD = clGetExtensionFunctionAddress("clGetICDLoaderInfoOCLICD");
-
-#if defined __GNUC__ && ((__GNUC__*10 + __GNUC_MINOR__) >= 46)
-#pragma GCC diagnostic pop
-#endif
 
 	if (clGetICDLoaderInfoOCLICD != NULL) {
 		/* TODO think of a sensible header in CLINFO_RAW */

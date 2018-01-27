@@ -4,6 +4,11 @@
 #ifndef _EXT_H
 #define _EXT_H
 
+/* We will use the deprecated clGetExtensionFunctionAddress,
+ * so let the headers know that we don't care about it being deprecated.
+ */
+#define CL_USE_DEPRECATED_OPENCL_1_1_APIS
+
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
 #else
