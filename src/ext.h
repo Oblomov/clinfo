@@ -6,12 +6,21 @@
 
 /* We will use the deprecated clGetExtensionFunctionAddress,
  * so let the headers know that we don't care about it being deprecated.
+ * The standard CL_USE_DEPRECATED_OPENCL_1_1_APIS define apparently
+ * doesn't work for macOS, so we'll just tell the compiler to not
+ * warn about deprecated functions.
+ * A more correct solution would be to suppress the warning only around the
+ * clGetExtensionFunctionAddress call, but honestly I just cleaned up that
+ * piece of code. And I'm actually wondering if it even makes sense to
+ * build that part of the code on macOS: does anybody actually use
+ * ocl-icd as OpenCL dispatcher on macOS?
  */
-#define CL_USE_DEPRECATED_OPENCL_1_1_APIS
 
 #ifdef __APPLE__
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include <OpenCL/opencl.h>
 #else
+#define CL_USE_DEPRECATED_OPENCL_1_1_APIS
 #include <CL/cl.h>
 #endif
 
