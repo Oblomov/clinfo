@@ -1969,9 +1969,9 @@ struct device_info_traits dinfo_traits[] = {
 
 	/* Interop */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_PREFERRED_INTEROP_USER_SYNC, "Prefer user sync for interop", bool), dev_is_12 },
-	{ CLINFO_BOTH, DINFO(CL_DEVICE_NUM_SIMULTANEOUS_INTEROPS_INTEL, "Number of simulataneous interops (Intel)", int), dev_has_simultaneous_sharing },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_NUM_SIMULTANEOUS_INTEROPS_INTEL, "Number of simultaneous interops (Intel)", int), dev_has_simultaneous_sharing },
 	/* TODO: this needs defines for the possible values of the context interops,
-	{ CLINFO_BOTH, DINFO(CL_DEVICE_SIMULTANEOUS_INTEROPS_INTEL, "Simulataneous interops", interop_list), dev_has_simultaneous_sharing },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_SIMULTANEOUS_INTEROPS_INTEL, "Simultaneous interops", interop_list), dev_has_simultaneous_sharing },
 	 */
 
 	/* P2P buffer copy */
