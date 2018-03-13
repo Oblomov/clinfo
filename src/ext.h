@@ -158,6 +158,10 @@ typedef union
 /* cl_amd_offline_devices */
 #define CL_CONTEXT_OFFLINE_DEVICES_AMD			0x403F
 
+/* cl_amd_copy_buffer_p2p */
+#define CL_DEVICE_NUM_P2P_DEVICES_AMD			0x4088
+#define CL_DEVICE_P2P_DEVICES_AMD			0x4089
+
 /* cl_ext_device_fission */
 #define cl_ext_device_fission				1
 

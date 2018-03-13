@@ -87,6 +87,9 @@ to show offline devices exposed by the platform, if requested (see
 .B --offline
 option);
 .TP
+.B cl_amd_copy_buffer_p2p
+to show the number and IDs of available P2P devices;
+.TP
 .B cl_amd_svm
 .TQ
 .B cl_arm_shared_virtual_memory
@@ -174,6 +177,11 @@ might still undergo changes.
 The properties of the ICD loader will also be queried if the
 .B clGetICDLoaderInfoOCLICD
 extension function is found.
+
+.P
+Support for the properties exposed by
+.B cl_amd_copy_buffer_p2p
+is experimental.
 
 .P
 The highest OpenCL version supported by the ICD loader is detected

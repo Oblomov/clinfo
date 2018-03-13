@@ -584,6 +584,7 @@ struct device_info_checks {
 	char has_intel_planar_yuv[20];
 	char has_intel_required_subgroup_size[32];
 	char has_altera_dev_temp[29];
+	char has_p2p[23];
 	char has_spir[12];
 	char has_qcom_ext_host_ptr[21];
 	char has_simultaneous_sharing[30];
@@ -613,6 +614,7 @@ DEFINE_EXT_CHECK(intel_AVC_ME)
 DEFINE_EXT_CHECK(intel_planar_yuv)
 DEFINE_EXT_CHECK(intel_required_subgroup_size)
 DEFINE_EXT_CHECK(altera_dev_temp)
+DEFINE_EXT_CHECK(p2p)
 DEFINE_EXT_CHECK(spir)
 DEFINE_EXT_CHECK(qcom_ext_host_ptr)
 DEFINE_EXT_CHECK(simultaneous_sharing)
@@ -754,6 +756,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 	CHECK_EXT(intel_planar_yuv, cl_intel_planar_yuv);
 	CHECK_EXT(intel_required_subgroup_size, cl_intel_required_subgroup_size);
 	CHECK_EXT(altera_dev_temp, cl_altera_device_temperature);
+	CHECK_EXT(p2p, cl_amd_copy_buffer_p2p);
 	CHECK_EXT(qcom_ext_host_ptr, cl_qcom_ext_host_ptr);
 	CHECK_EXT(simultaneous_sharing, cl_intel_simultaneous_sharing);
 	CHECK_EXT(subgroup_named_barrier, cl_khr_subgroup_named_barrier);
@@ -1731,6 +1734,28 @@ int device_info_terminate_capability(cl_device_id dev, cl_device_info param, con
 	return had_error;
 }
 
+int device_info_p2p_dev_list(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks* UNUSED(chk))
+{
+	cl_device_id *val = NULL;
+	size_t szval = 0, numval = 0;
+	GET_VAL_ARRAY;
+	if (!had_error) {
+		size_t cursor = 0;
+		szval = 0;
+		for (cursor= 0; cursor < numval; ++cursor) {
+			if (szval > 0) {
+				strbuf[szval] = ' ';
+				++szval;
+			}
+			szval += snprintf(strbuf + szval, bufsz - szval - 1, "0x%p", (void*)val[cursor]);
+		}
+	}
+	show_strbuf(pname, 0);
+	free(val);
+	return had_error;
+}
+
 
 /*
  * Device info traits
@@ -1948,6 +1973,10 @@ struct device_info_traits dinfo_traits[] = {
 	/* TODO: this needs defines for the possible values of the context interops,
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SIMULTANEOUS_INTEROPS_INTEL, "Simulataneous interops", interop_list), dev_has_simultaneous_sharing },
 	 */
+
+	/* P2P buffer copy */
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_NUM_P2P_DEVICES_AMD, "Number of P2P devices (AMD)", int), dev_has_p2p },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_P2P_DEVICES_AMD, "P2P devices (AMD)", p2p_dev_list), dev_has_p2p },
 
 	/* Profiling resolution */
 	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_PROFILING_TIMER_RESOLUTION, "Profiling timer resolution", "ns", sz), NULL },
