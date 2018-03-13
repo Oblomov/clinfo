@@ -133,6 +133,14 @@ typedef cl_bitfield cl_device_terminate_capability_khr;
 #define CL_DEVICE_GFXIP_MAJOR_AMD			0x404A
 #define CL_DEVICE_GFXIP_MINOR_AMD			0x404B
 #define CL_DEVICE_AVAILABLE_ASYNC_QUEUES_AMD		0x404C
+/* These were added in v4 of the extension, but have values lower than
+ * than the older ones, and spanning around the cl_ext_atomic_counters_*
+ * define
+ */
+#define CL_DEVICE_PREFERRED_WORK_GROUP_SIZE_AMD         0x4030
+#define CL_DEVICE_MAX_WORK_GROUP_SIZE_AMD               0x4031
+#define CL_DEVICE_PREFERRED_CONSTANT_BUFFER_SIZE_AMD    0x4033
+#define CL_DEVICE_PCIE_ID_AMD                           0x4034
 
 #ifndef CL_DEVICE_TOPOLOGY_TYPE_PCIE_AMD
 #define CL_DEVICE_TOPOLOGY_TYPE_PCIE_AMD		1
