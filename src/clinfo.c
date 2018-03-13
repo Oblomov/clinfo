@@ -577,6 +577,7 @@ struct device_info_checks {
 	char has_fission[22];
 	char has_atomic_counters[26];
 	char has_image2d_buffer[27];
+	char has_il_program[18];
 	char has_intel_local_thread[30];
 	char has_intel_AME[36];
 	char has_intel_AVC_ME[43];
@@ -605,6 +606,7 @@ DEFINE_EXT_CHECK(arm_svm)
 DEFINE_EXT_CHECK(fission)
 DEFINE_EXT_CHECK(atomic_counters)
 DEFINE_EXT_CHECK(image2d_buffer)
+DEFINE_EXT_CHECK(il_program)
 DEFINE_EXT_CHECK(intel_local_thread)
 DEFINE_EXT_CHECK(intel_AME)
 DEFINE_EXT_CHECK(intel_AVC_ME)
@@ -676,6 +678,11 @@ int dev_has_lmem(const struct device_info_checks *chk)
 	return chk->lmemtype != CL_NONE;
 }
 
+int dev_has_il(const struct device_info_checks *chk)
+{
+	return dev_is_21(chk) || dev_has_il_program(chk);
+}
+
 int dev_has_images(const struct device_info_checks *chk)
 {
 	return chk->image_support;
@@ -727,6 +734,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 	if (dev_has_atomic_counters(chk))
 		CHECK_EXT(atomic_counters, cl_ext_atomic_counters_32);
 	CHECK_EXT(image2d_buffer, cl_khr_image2d_from_buffer);
+	CHECK_EXT(il_program, cl_khr_il_program);
 	CHECK_EXT(intel_local_thread, cl_intel_exec_by_local_thread);
 	CHECK_EXT(intel_AME, cl_intel_advanced_motion_estimation);
 	CHECK_EXT(intel_AVC_ME, cl_intel_device_side_avc_motion_estimation);
@@ -1939,7 +1947,8 @@ struct device_info_traits dinfo_traits[] = {
 	 * or maybe it depends on some other device property?
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_AVAILABLE_ASYNC_QUEUES_AMD, INDENT "Number of async queues (AMD)", int), dev_is_gpu_amd },
 	 */
-	{ CLINFO_BOTH, DINFO(CL_DEVICE_IL_VERSION, INDENT "IL version", str), dev_is_21, },
+	/* TODO: this should tell if it's being done due to the device being 2.1 or due to it having the extension */
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_IL_VERSION, INDENT "IL version", str), dev_has_il },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SPIR_VERSIONS, INDENT "SPIR versions", str), dev_has_spir },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_PRINTF_BUFFER_SIZE, "printf() buffer size", mem_sz), dev_is_12 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_BUILT_IN_KERNELS, "Built-in kernels", str), dev_is_12 },

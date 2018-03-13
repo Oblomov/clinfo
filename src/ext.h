@@ -85,6 +85,9 @@ typedef cl_bitfield         cl_device_svm_capabilities;
 /* cl_khr_fp16 */
 #define CL_DEVICE_HALF_FP_CONFIG			0x1033
 
+/* cl_khr_il_program */
+#define CL_DEVICE_IL_VERSION_KHR			0x105B
+
 /* cl_khr_terminate_context */
 #define CL_DEVICE_TERMINATE_CAPABILITY_KHR		0x200F
 
