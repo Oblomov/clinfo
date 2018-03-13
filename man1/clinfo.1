@@ -184,33 +184,61 @@ Support for the properties exposed by
 is experimental.
 
 .P
+Support for some (documented and undocumented) properties exposed by
+.B cl_amd_device_attribute_query
+is experimental (see also
+.BR LIMITATIONS ).
+
+.P
 The highest OpenCL version supported by the ICD loader is detected
 with some trivial heuristics (symbols found); a notice is output
 if this is lower than the highest platform OpenCL version, or
 if the detected version doesn't match the one declared by the ICD
 loader itself.
 
-.SH BUGS
-The
+.SH LIMITATIONS
+
+.P
+OpenCL provides no explicit mean to detect the supported version
+of any extension exposed by a device, which makes it impossible to
+determine a priori if it will be possible to successfully query
+a device about a specific property.
+Additionally, the actual size and meaning of some properties are not
+officially declared anywhere.
+
+.P
+Most notably, this affects extensions such as
+.B cl_amd_device_attribute_query
+and
+.BR cl_nv_device_attribute_query .
+Heuristics based on standard version support are partially used in the code to
+determine which version may be supported.
+
+.P
+Properties which are known to be affected by these limitations include:
+
+.TP 2
 .B CL_DEVICE_GLOBAL_FREE_MEMORY_AMD
-device information is documented in v3 of the
+documented in v3 of the
 .B cl_amd_device_attribute_query
-extension specification as being the global free memory in KBytes, but no
-explanation is given on why there are two values.
-
-The
+extension specification as being the global free memory in KBytes, without
+any explanation given on why there are two values.
+.TP
 .B CL_DEVICE_AVAILABLE_ASYNC_QUEUES_AMD
-device information is documented in v3 of the
+documented in v3 of the
 .B cl_amd_device_attribute_query
-extension specification, but not reported by current
-drivers, so it is currently disabled.
-
-The
+extension specification, but not reported by drivers supporting other v3
+properties. This has now been enabled for drivers
+.I assumed
+to support v4 of the same extension.
+.TP
 .B CL_DEVICE_SIMULTANEOUS_INTEROPS_INTEL
-device information for the
+exposed by the
 .B cl_intel_simultaneous_sharing
 extension is not reported, due to lack of knowledge on the possible
 values the list elements can have.
+
+.SH BUGS
 
 .P
 Please report any issues on
