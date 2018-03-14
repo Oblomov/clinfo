@@ -1033,7 +1033,7 @@ int device_info_time_offset(cl_device_id dev, cl_device_info param, const char *
 	return had_error;
 }
 
-int device_info_szptr(cl_device_id dev, cl_device_info param, const char *pname,
+int device_info_szptr_sep(const char *human_sep, cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
 	size_t *val = NULL;
@@ -1041,7 +1041,7 @@ int device_info_szptr(cl_device_id dev, cl_device_info param, const char *pname,
 	GET_VAL_ARRAY;
 	if (!had_error) {
 		size_t counter = 0;
-		set_separator(output_mode == CLINFO_HUMAN ? times_str : spc_str);
+		set_separator(output_mode == CLINFO_HUMAN ? human_sep : spc_str);
 		szval = 0;
 		for (counter = 0; counter < numval; ++counter) {
 			add_separator(&szval);
@@ -1055,6 +1055,18 @@ int device_info_szptr(cl_device_id dev, cl_device_info param, const char *pname,
 	show_strbuf(pname, 0);
 	free(val);
 	return had_error;
+}
+
+int device_info_szptr_times(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks* chk, int checked)
+{
+	return device_info_szptr_sep(times_str, dev, param, pname, chk, checked);
+}
+
+int device_info_szptr_comma(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks* chk, int checked)
+{
+	return device_info_szptr_sep(comma_str, dev, param, pname, chk, checked);
 }
 
 int device_info_wg(cl_device_id dev, cl_device_info UNUSED(param), const char *pname,
@@ -1898,7 +1910,7 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_AFFINITY_DOMAINS_EXT, INDENT "Supported affinity domains (ext)", partition_affinities_ext), dev_has_fission },
 
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, "Max work item dimensions", int), NULL },
-	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_WORK_ITEM_SIZES, "Max work item sizes", szptr), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_WORK_ITEM_SIZES, "Max work item sizes", szptr_times), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_WORK_GROUP_SIZE, "Max work group size", sz), NULL },
 
 	/* cl_amd_device_attribute_query v4 */
@@ -1910,7 +1922,7 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_WAVEFRONT_WIDTH_AMD, "Wavefront width (AMD)", int), dev_is_gpu_amd },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_NUM_SUB_GROUPS, "Max sub-groups per work group", int), dev_is_21 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_NAMED_BARRIER_COUNT_KHR, "Max named sub-group barriers", int), dev_has_subgroup_named_barrier },
-	{ CLINFO_BOTH, DINFO(CL_DEVICE_SUB_GROUP_SIZES_INTEL, "Sub-group sizes (Intel)", szptr), dev_has_intel_required_subgroup_size },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_SUB_GROUP_SIZES_INTEL, "Sub-group sizes (Intel)", szptr_comma), dev_has_intel_required_subgroup_size },
 
 	/* Preferred/native vector widths: header is only presented in HUMAN case, that also pairs
 	 * PREFERRED and NATIVE in a single line */
