@@ -91,7 +91,8 @@ typedef cl_bitfield         cl_device_svm_capabilities;
 #define CL_DEVICE_IL_VERSION_KHR			0x105B
 
 /* cl_khr_terminate_context */
-#define CL_DEVICE_TERMINATE_CAPABILITY_KHR		0x200F
+#define CL_DEVICE_TERMINATE_CAPABILITY_KHR_1x		0x200F
+#define CL_DEVICE_TERMINATE_CAPABILITY_KHR_2x		0x2031
 
 /* TODO: I cannot find official definitions for these,
  * so I'm currently extrapolating them from the specification

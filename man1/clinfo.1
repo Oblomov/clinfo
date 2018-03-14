@@ -225,7 +225,7 @@ Properties which are known to be affected by these limitations include:
 documented in v3 of the
 .B cl_amd_device_attribute_query
 extension specification as being the global free memory in KBytes, without
-any explanation given on why there are two values.
+any explanation given on why there are two values;
 .TP
 .B CL_DEVICE_AVAILABLE_ASYNC_QUEUES_AMD
 documented in v3 of the
@@ -233,13 +233,20 @@ documented in v3 of the
 extension specification, but not reported by drivers supporting other v3
 properties. This has now been enabled for drivers
 .I assumed
-to support v4 of the same extension.
+to support v4 of the same extension;
 .TP
 .B CL_DEVICE_SIMULTANEOUS_INTEROPS_INTEL
 exposed by the
 .B cl_intel_simultaneous_sharing
 extension is not reported, due to lack of knowledge on the possible
-values the list elements can have.
+values the list elements can have;
+.TP
+.B CL_DEVICE_TERMINATE_CAPABILITY_KHR
+exposed by the
+.B cl_khr_terminate_context
+has changed value between OpenCL 1.x and 2.x, and it's
+.I allegedly
+a bitfield, whose values are however not defined anywhere.
 
 .SH BUGS
 
