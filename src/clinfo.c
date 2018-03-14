@@ -54,6 +54,8 @@ struct platform_info_checks {
 
 cl_uint num_platforms;
 cl_platform_id *platform;
+struct platform_info_checks *platform_checks;
+
 /* highest version exposed by any platform: if the OpenCL library (the ICD loader)
  * has a lower version, problems may arise (such as API calls causing segfaults
  * or any other unexpected behavior
@@ -400,6 +402,11 @@ int khr_icd_p(const struct platform_info_checks *chk)
 	return chk->has_khr_icd;
 }
 
+int plat_is_20(const struct platform_info_checks *chk)
+{
+	return !(chk->plat_version < 20);
+}
+
 int plat_is_21(const struct platform_info_checks *chk)
 {
 	return !(chk->plat_version < 21);
@@ -431,11 +438,8 @@ printPlatformInfo(cl_uint p)
 	cl_platform_id pid = platform[p];
 	size_t len = 0;
 
-	struct platform_info_checks pinfo_checks = {
-		.has_khr_icd = 0,
-		.has_amd_object_metadata = 0,
-		.plat_version = 10
-	};
+	struct platform_info_checks *pinfo_checks = platform_checks + p;
+	pinfo_checks->plat_version = 10;
 
 	current_function = __func__;
 
@@ -446,13 +450,13 @@ printPlatformInfo(cl_uint p)
 
 		current_param = traits->sname;
 
-		if (traits->check_func && !traits->check_func(&pinfo_checks))
+		if (traits->check_func && !traits->check_func(pinfo_checks))
 			continue;
 
 		cur_sfx = (output_mode == CLINFO_HUMAN && traits->sfx) ? traits->sfx : empty_str;
 
 		had_error = traits->show_func(pid, traits->param,
-			pname, &pinfo_checks);
+			pname, pinfo_checks);
 
 		if (had_error)
 			continue;
@@ -471,11 +475,11 @@ printPlatformInfo(cl_uint p)
 			break;
 		case CL_PLATFORM_VERSION:
 			/* compute numeric value for OpenCL version */
-			pinfo_checks.plat_version = getOpenCLVersion(strbuf + 7);
+			pinfo_checks->plat_version = getOpenCLVersion(strbuf + 7);
 			break;
 		case CL_PLATFORM_EXTENSIONS:
-			pinfo_checks.has_khr_icd = !!strstr(strbuf, "cl_khr_icd");
-			pinfo_checks.has_amd_object_metadata = !!strstr(strbuf, "cl_amd_object_metadata");
+			pinfo_checks->has_khr_icd = !!strstr(strbuf, "cl_khr_icd");
+			pinfo_checks->has_amd_object_metadata = !!strstr(strbuf, "cl_amd_object_metadata");
 			pdata[p].has_amd_offline = !!strstr(strbuf, "cl_amd_offline_devices");
 			break;
 		case CL_PLATFORM_ICD_SUFFIX_KHR:
@@ -493,8 +497,8 @@ printPlatformInfo(cl_uint p)
 
 	}
 
-	if (pinfo_checks.plat_version > max_plat_version)
-		max_plat_version = pinfo_checks.plat_version;
+	if (pinfo_checks->plat_version > max_plat_version)
+		max_plat_version = pinfo_checks->plat_version;
 
 	/* if no CL_PLATFORM_ICD_SUFFIX_KHR, use P### as short/symbolic name */
 	if (!pdata[p].sname) {
@@ -517,6 +521,8 @@ printPlatformInfo(cl_uint p)
 
 	if (pdata[p].ndevs > maxdevs)
 		maxdevs = pdata[p].ndevs;
+
+
 }
 
 int
@@ -596,6 +602,7 @@ out:
  */
 
 struct device_info_checks {
+	const struct platform_info_checks *pinfo_checks;
 	cl_device_type devtype;
 	cl_device_mem_cache_type cachetype;
 	cl_device_local_mem_type lmemtype;
@@ -699,10 +706,10 @@ int dev_has_amd_v4(const struct device_info_checks *chk)
 	/* We don't actually have a criterion ot check if the device
 	 * supports a specific version of an extension, so for the time
 	 * being rely on them being GPU devices with cl_amd_device_attribute_query
-	 * and supporting OpenCL 2.0 or later
+	 * and the platform supporting OpenCL 2.0 or later
 	 * TODO FIXME tune criteria
 	 */
-	return dev_is_gpu(chk) && dev_has_amd(chk) && dev_is_20(chk);
+	return dev_is_gpu(chk) && dev_has_amd(chk) && plat_is_20(chk->pinfo_checks);
 }
 
 
@@ -2047,7 +2054,7 @@ struct device_info_traits dinfo_traits[] = {
  */
 
 void
-printDeviceInfo(const cl_device_id *device, cl_uint d,
+printDeviceInfo(const cl_device_id *device, cl_uint p, cl_uint d,
 	const cl_device_info *param_whitelist) /* list of device info to process, or NULL */
 {
 	cl_device_id dev = device[d];
@@ -2059,6 +2066,7 @@ printDeviceInfo(const cl_device_id *device, cl_uint d,
 
 	struct device_info_checks chk;
 	memset(&chk, 0, sizeof(chk));
+	chk.pinfo_checks = platform_checks + p;
 	chk.dev_version = 10;
 
 	current_function = __func__;
@@ -2228,7 +2236,7 @@ int processOfflineDevicesAMD(cl_uint p)
 				sprintf(strbuf, "[%s/%u]", pdata[p].sname, -d);
 				sprintf(line_pfx, "%*s", -line_pfx_len, strbuf);
 			}
-			printDeviceInfo(device, d, amd_offline_info_whitelist);
+			printDeviceInfo(device, p, d, amd_offline_info_whitelist);
 			if (d < num_devs - 1)
 				puts("");
 		}
@@ -2335,7 +2343,7 @@ void showDevices(cl_bool show_offline)
 				sprintf(strbuf, "[%s/%u]", pdata[p].sname, d);
 				sprintf(line_pfx, "%*s", -line_pfx_len, strbuf);
 			}
-			printDeviceInfo(device, d, NULL);
+			printDeviceInfo(device, p, d, NULL);
 			if (d < pdata[p].ndevs - 1)
 				puts("");
 			fflush(stdout);
@@ -2899,6 +2907,7 @@ int main(int argc, char *argv[])
 	CHECK_ERROR("platform IDs");
 
 	ALLOC(pdata, num_platforms, "platform data");
+	ALLOC(platform_checks, num_platforms, "platform checks data");
 	ALLOC(line_pfx, 1, "line prefix");
 
 	for (p = 0; p < num_platforms; ++p) {
