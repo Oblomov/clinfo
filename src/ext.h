@@ -78,6 +78,8 @@ typedef cl_bitfield         cl_device_svm_capabilities;
 #define CL_PLATFORM_ICD_SUFFIX_KHR			0x0920
 #define CL_PLATFORM_NOT_FOUND_KHR			-1001
 
+/* cl_amd_object_metadata */
+#define CL_PLATFORM_MAX_KEYS_AMD			0x403C
 
 /* cl_khr_fp64 */
 #define CL_DEVICE_DOUBLE_FP_CONFIG			0x1032

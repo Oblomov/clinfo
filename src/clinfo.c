@@ -48,6 +48,7 @@ struct platform_data {
 
 struct platform_info_checks {
 	int has_khr_icd;
+	int has_amd_object_metadata;
 	cl_uint plat_version;
 };
 
@@ -363,6 +364,26 @@ platform_info_ulong(cl_platform_id pid, cl_platform_info param, const char* pnam
 	return had_error;
 }
 
+int
+platform_info_sz(cl_platform_id pid, cl_platform_info param, const char* pname, const struct platform_info_checks* UNUSED(chk))
+{
+	size_t val = 0;
+
+	error = clGetPlatformInfo(pid, param, sizeof(val), &val, NULL);
+	had_error = REPORT_ERROR2("get %s");
+	/* when only listing, do not print anything we're just gathering
+	 * information
+	 */
+	if (!list_only) {
+		if (had_error)
+			show_strbuf(pname, 0);
+		else
+			printf("%s" I1_STR "%" PRIuS "%s\n", line_pfx, pname, val, cur_sfx);
+	}
+	return had_error;
+}
+
+
 struct platform_info_traits {
 	cl_platform_info param; // CL_PLATFORM_*
 	const char *sname; // "CL_PLATFORM_*"
@@ -384,6 +405,12 @@ int plat_is_21(const struct platform_info_checks *chk)
 	return !(chk->plat_version < 21);
 }
 
+int plat_has_amd_object_metadata(const struct platform_info_checks *chk)
+{
+	return chk->has_amd_object_metadata;
+}
+
+
 #define PINFO_COND(symbol, name, sfx, typ, funcptr) { symbol, #symbol, "Platform " name, sfx, &platform_info_##typ, &funcptr }
 #define PINFO(symbol, name, sfx, typ) { symbol, #symbol, "Platform " name, sfx, &platform_info_##typ, NULL }
 struct platform_info_traits pinfo_traits[] = {
@@ -392,6 +419,7 @@ struct platform_info_traits pinfo_traits[] = {
 	PINFO(CL_PLATFORM_VERSION, "Version", NULL, str),
 	PINFO(CL_PLATFORM_PROFILE, "Profile", NULL, str),
 	PINFO(CL_PLATFORM_EXTENSIONS, "Extensions", NULL, str),
+	PINFO_COND(CL_PLATFORM_MAX_KEYS_AMD, "Max metadata object keys (AMD)", NULL, sz, plat_has_amd_object_metadata),
 	PINFO_COND(CL_PLATFORM_HOST_TIMER_RESOLUTION, "Host timer resolution", "ns", ulong, plat_is_21),
 	PINFO_COND(CL_PLATFORM_ICD_SUFFIX_KHR, "Extensions function suffix", NULL, str, khr_icd_p)
 };
@@ -403,7 +431,11 @@ printPlatformInfo(cl_uint p)
 	cl_platform_id pid = platform[p];
 	size_t len = 0;
 
-	struct platform_info_checks pinfo_checks = { 0, 10 };
+	struct platform_info_checks pinfo_checks = {
+		.has_khr_icd = 0,
+		.has_amd_object_metadata = 0,
+		.plat_version = 10
+	};
 
 	current_function = __func__;
 
@@ -443,6 +475,7 @@ printPlatformInfo(cl_uint p)
 			break;
 		case CL_PLATFORM_EXTENSIONS:
 			pinfo_checks.has_khr_icd = !!strstr(strbuf, "cl_khr_icd");
+			pinfo_checks.has_amd_object_metadata = !!strstr(strbuf, "cl_amd_object_metadata");
 			pdata[p].has_amd_offline = !!strstr(strbuf, "cl_amd_offline_devices");
 			break;
 		case CL_PLATFORM_ICD_SUFFIX_KHR:
