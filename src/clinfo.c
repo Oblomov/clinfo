@@ -1927,7 +1927,7 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_RAW, DINFO(CL_DEVICE_MEM_BASE_ADDR_ALIGN, "Alignment of base address", int), NULL },
 
 	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_PAGE_SIZE_QCOM, "Page size (QCOM)", bytes_str, sz), dev_has_qcom_ext_host_ptr },
-	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_EXT_MEM_PADDING_IN_BYTES_QCOM, "Externa memory padding (QCOM)", bytes_str, sz), dev_has_qcom_ext_host_ptr },
+	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_EXT_MEM_PADDING_IN_BYTES_QCOM, "External memory padding (QCOM)", bytes_str, sz), dev_has_qcom_ext_host_ptr },
 
 	/* Atomics alignment, with HUMAN-only header */
 	{ CLINFO_HUMAN, DINFO(CL_FALSE, "Preferred alignment for atomics", str), dev_is_20 },
