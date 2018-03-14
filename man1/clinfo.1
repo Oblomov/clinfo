@@ -17,6 +17,20 @@ available on the system and the devices they expose.
 .B clinfo
 accepts the following options:
 .TP 2
+.BR -a ", " --all-props
+try to retrieve all properties, even those not officially supported
+(e.g. because they require specific extensions), but only show them
+if the property could be retrieved successfully; see also the
+.B LIMITATIONS
+section below; note that even though this may reveal hidden properties,
+there is no guarantee that the returned values are meaningful, nor that
+the corresponding feature is actually available at all;
+.TP
+.BR -A ", " --always-all-props
+like
+.BR -a ,
+but also show errors;
+.TP
 .B --human
 produce human-friendly output; this is the default (except
 as noted below);
