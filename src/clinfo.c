@@ -477,6 +477,7 @@ printPlatformInfo(cl_uint p)
 
 		cur_sfx = (output_mode == CLINFO_HUMAN && traits->sfx) ? traits->sfx : empty_str;
 
+		strbuf[0] = '\0';
 		had_error = traits->show_func(pid, traits->param,
 			pname, pinfo_checks, checked);
 
@@ -2151,6 +2152,7 @@ printDeviceInfo(const cl_device_id *device, cl_uint p, cl_uint d,
 			continue;
 		}
 
+		strbuf[0] = '\0';
 		had_error = traits->show_func(dev, traits->param,
 			pname, &chk, checked);
 
