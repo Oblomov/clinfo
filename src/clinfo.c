@@ -882,10 +882,10 @@ int device_info_##how(cl_device_id dev, cl_device_info param, const char *pname,
 }
 
 /* Get string-type info without showing it */
-int device_info_str_get(cl_device_id dev, cl_device_info param, const char *pname,
+int device_info_str_get(cl_device_id dev, cl_device_info param, const char *sname,
 	const struct device_info_checks* UNUSED(chk), int UNUSED(checked))
 {
-	current_param = pname;
+	current_param = sname;
 	GET_STRING2(clGetDeviceInfo, dev, param);
 	return had_error;
 }
@@ -893,7 +893,7 @@ int device_info_str_get(cl_device_id dev, cl_device_info param, const char *pnam
 int device_info_str(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk, int checked)
 {
-	had_error = device_info_str_get(dev, param, pname, chk, checked);
+	had_error = device_info_str_get(dev, param, current_param, chk, checked);
 	CHECK_SKIP(checked);
 	show_strbuf(pname, 1);
 	return had_error;
