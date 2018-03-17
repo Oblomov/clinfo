@@ -9,7 +9,12 @@
 // disable warning about constant conditional expressions
 #pragma warning(disable : 4127)
 // disable warning about non-constant aggregate initializer
-#pragma warning(disable:  4204)
+#pragma warning(disable : 4204)
+
+// disable warning about global shadowing
+#pragma warning(disable : 4459)
+// disable warning about parameter shadowing
+#pragma warning(disable : 4457)
 
 // Suppress warning about unused parameters. The macro definition
 // _should_ work, but it doesn't on VS2012 (cl 17), may be a version thing
