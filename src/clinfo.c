@@ -2127,7 +2127,7 @@ printDeviceInfo(const cl_device_id *device, cl_uint p, cl_uint d,
 		/* Whitelist check: finish if done traversing the list,
 		 * skip current param if it's not the right one
 		 */
-		if (param_whitelist) {
+		if (cond_prop_mode == COND_PROP_CHECK && param_whitelist) {
 			if (*param_whitelist == CL_FALSE)
 				break;
 			if (traits->param != *param_whitelist)
