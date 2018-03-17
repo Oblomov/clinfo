@@ -2801,9 +2801,20 @@ struct icdl_info_traits linfo_traits[] = {
 
 void oclIcdProps(void)
 {
-	/* First of all, we try to auto-detect the supported ICD loader version */
+	/* Counter that'll be used to walk the icd_loader_tests */
 	int i = 0;
 
+	/* We find the clGetICDLoaderInfoOCLICD extension address, which will be used
+	 * to query the ICD loader properties.
+	 * It should be noted that in this specific case we cannot replace the
+	 * call to clGetExtensionFunctionAddress with a call to the superseding function
+	 * clGetExtensionFunctionAddressForPlatform because the extension is in the
+	 * loader itself, not in a specific platform.
+	 */
+	void *ptrHack = clGetExtensionFunctionAddress("clGetICDLoaderInfoOCLICD");
+	clGetICDLoaderInfoOCLICD = *(icdl_info_fn_ptr*)(&ptrHack);
+
+	/* Step #1: try to auto-detect the supported ICD loader version */
 	do {
 		struct icd_loader_test check = icd_loader_tests[i];
 		if (check.symbol == NULL)
@@ -2814,18 +2825,7 @@ void oclIcdProps(void)
 		++i;
 	} while (1);
 
-
-	/* We find the clGetICDLoaderInfoOCLICD extension address, and use it to query
-	 * the ICD loader properties.
-	 * It should be noted that in this specific case we cannot replace the
-	 * call to clGetExtensionFunctionAddress with a call to the superseding function
-	 * clGetExtensionFunctionAddressForPlatform because the extension is in the
-	 * loader itself, not in a specific platform.
-	 */
-
-	void *ptrHack = clGetExtensionFunctionAddress("clGetICDLoaderInfoOCLICD");
-	clGetICDLoaderInfoOCLICD = *(icdl_info_fn_ptr*)(&ptrHack);
-
+	/* Step #2: query proerties from extension, if available */
 	if (clGetICDLoaderInfoOCLICD != NULL) {
 		/* TODO think of a sensible header in CLINFO_RAW */
 		if (output_mode != CLINFO_RAW)
@@ -2853,6 +2853,7 @@ void oclIcdProps(void)
 		}
 	}
 
+	/* Step #3: show it */
 	if (output_mode == CLINFO_HUMAN) {
 		if (icdl_ocl_version &&
 			icdl_ocl_version != icdl_ocl_version_found) {
