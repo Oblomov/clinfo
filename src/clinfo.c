@@ -1164,7 +1164,7 @@ int device_info_devtype(cl_device_id dev, cl_device_info param, const char *pnam
 	if (!had_error) {
 		/* iterate over device type strings, appending their textual form
 		 * to strbuf */
-		cl_uint i = actual_devtype_count;
+		cl_uint i = (cl_uint)actual_devtype_count;
 		const char * const *devstr = (output_mode == CLINFO_HUMAN ?
 			device_type_str : device_type_raw_str);
 		size_t szval = 0;
@@ -2309,7 +2309,7 @@ void listPlatformsAndDevices(cl_bool show_offline)
 	else
 		sprintf(strbuf, " +-- %sDevice #", (show_offline ? "Offline" : ""));
 
-	line_pfx_len = strlen(strbuf) + 1;
+	line_pfx_len = (int)(strlen(strbuf) + 1);
 	REALLOC(line_pfx, line_pfx_len, "line prefix");
 
 	for (p = 0, device = all_devices; p < num_platforms; device += pdata[p++].ndevs) {
@@ -2360,7 +2360,7 @@ void showDevices(cl_bool show_offline)
 	/* TODO consider enabling this for both output modes */
 	if (output_mode == CLINFO_RAW) {
 		sprintf(strbuf, "%u", maxdevs);
-		line_pfx_len = platform_sname_maxlen + strlen(strbuf) + 4;
+		line_pfx_len = (int)(platform_sname_maxlen + strlen(strbuf) + 4);
 		REALLOC(line_pfx, line_pfx_len, "line prefix");
 	}
 
@@ -2833,7 +2833,7 @@ void oclIcdProps(void)
 		current_function = __func__;
 
 		if (output_mode == CLINFO_RAW) {
-			line_pfx_len = strlen(oclicdl_pfx) + 5;
+			line_pfx_len = (int)(strlen(oclicdl_pfx) + 5);
 			REALLOC(line_pfx, line_pfx_len, "line prefix OCL ICD");
 			sprintf(strbuf, "[%s/*]", oclicdl_pfx);
 			sprintf(line_pfx, "%*s", -line_pfx_len, strbuf);
