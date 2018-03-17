@@ -36,6 +36,15 @@ report_ocl_error(char *dstbuf, size_t sz, cl_int err, const char *fmt)
 	return err != CL_SUCCESS;
 }
 
+void
+report_size_mismatch(char *dstbuf, size_t sz, size_t req, size_t ours)
+{
+	snprintf(dstbuf, sz, "<%s:%" PRIuS ": %s : size mismatch "
+		"(requested %" PRIuS ", we offer %" PRIuS ")>",
+		current_function, current_line, current_param,
+		req, ours);
+}
+
 int
 report_ocl_error_old(char *where, size_t sz, cl_int err, const char *what, const char *func, int line)
 {
@@ -50,4 +59,5 @@ report_ocl_error_old(char *where, size_t sz, cl_int err, const char *what, const
 
 #define REPORT_ERROR(what) report_ocl_error_old(strbuf, bufsz, error, what, __func__, __LINE__)
 #define REPORT_ERROR2(what) report_ocl_error(strbuf, bufsz, error, what)
+#define REPORT_SIZE_MISMATCH(req, ours) report_size_mismatch(strbuf, bufsz, req, ours)
 

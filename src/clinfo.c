@@ -111,6 +111,20 @@ enum cond_prop_modes cond_prop_mode = COND_PROP_CHECK;
  */
 #define CHECK_SKIP(checked) if (!checked && had_error && cond_prop_mode != COND_PROP_SHOW) return had_error
 
+/* clGetDeviceInfo returns CL_INVALID_VALUE both for unknown properties
+ * and when the destinaiton variable is too small. Set the following to CL_TRUE
+ * to check which one is the case
+ */
+static const cl_bool check_size = CL_FALSE;
+
+#define CHECK_SIZE(cmd, ...) do { \
+	/* check if the issue is with param size */ \
+	if (check_size && error == CL_INVALID_VALUE) { \
+		size_t _actual_sz; \
+		if (cmd(__VA_ARGS__, 0, NULL, &_actual_sz) == CL_SUCCESS) { REPORT_SIZE_MISMATCH(_actual_sz, sizeof(val)); } \
+	} \
+} while (0)
+
 static const char unk[] = "Unknown";
 static const char none[] = "None";
 static const char none_raw[] = "CL_NONE";
@@ -370,6 +384,7 @@ platform_info_ulong(cl_platform_id pid, cl_platform_info param, const char* pnam
 
 	error = clGetPlatformInfo(pid, param, sizeof(val), &val, NULL);
 	had_error = REPORT_ERROR2("get %s");
+	CHECK_SIZE(clGetPlatformInfo, pid, param);
 	CHECK_SKIP(checked);
 	/* when only listing, do not print anything, we're just gathering
 	 * information
@@ -390,6 +405,7 @@ platform_info_sz(cl_platform_id pid, cl_platform_info param, const char* pname, 
 
 	error = clGetPlatformInfo(pid, param, sizeof(val), &val, NULL);
 	had_error = REPORT_ERROR2("get %s");
+	CHECK_SIZE(clGetPlatformInfo, pid, param);
 	CHECK_SKIP(checked);
 	/* when only listing, do not print anything, we're just gathering
 	 * information
@@ -833,7 +849,8 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 
 #define _GET_VAL \
 	error = clGetDeviceInfo(dev, param, sizeof(val), &val, NULL); \
-	had_error = REPORT_ERROR2("get %s");
+	had_error = REPORT_ERROR2("get %s"); \
+	CHECK_SIZE(clGetDeviceInfo, dev, param);
 
 #define _GET_VAL_ARRAY \
 	error = clGetDeviceInfo(dev, param, 0, NULL, &szval); \
