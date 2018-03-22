@@ -24,19 +24,31 @@ HDR =	src/error.h \
 
 CFLAGS = /GL /Ox /W4 /Zi /I"$(OPENCLDIR)\include" /nologo
 LIBS = libOpenCL.a
+
+# TODO there's most likely a better way to do the multiarch
+# switching
+!IF "$(PROCESSOR_ARCHITECTURE)" == "AMD64"
+ARCH=64
+!ELSE
+ARCH=32
+!ENDIF
+
+# Platform=x64 in the 64-bit cross-platform build of my VS
+!IF "$(PLATFORM)" == "x64"
+ARCH=64
+!ENDIF
+
+!MESSAGE Building for $(ARCH)-bit (processor architecture: $(PROCESSOR_ARCHITECTURE), platform: $(PLATFORM))
+
 LIBPATH32 = /LIBPATH:"$(OPENCLDIR)\lib" /LIBPATH:"$(OPENCLDIR)\lib\x86"
 LIBPATH64 = /LIBPATH:"$(OPENCLDIR)\lib\x64" /LIBPATH:"$(OPENCLDIR)\lib\x86_64" /LIBPATH:"$(OPENCLDIR)\lib\x86_amd64"
 
-
-!IF "$(PLATFORM)" == "x64"
-ARCH=64
+# And since we can't do $(LIBPATH$(ARCH)) with nmake ...
+!IF "$(ARCH)" == "64"
 LINKOPTS = /LTCG $(LIBPATH64) /nologo
 !ELSE
-ARCH=32
 LINKOPTS = /LTCG $(LIBPATH32) /nologo
 !ENDIF
-
-!MESSAGE Building for $(ARCH)-bit
 
 clinfo.exe: clinfo.obj
 	link $(LINKOPTS) $(LIBS) clinfo.obj /out:clinfo.exe
