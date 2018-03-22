@@ -35,8 +35,10 @@ ARCH=32
 !ENDIF
 
 # Platform=x64 in the 64-bit cross-platform build of my VS
-!IF "$(PLATFORM)" == "x64"
+!IF "$(PLATFORM)" == "x64" || "$(PLATFORM)" == "X64"
 ARCH=64
+!ELSE IF "$(PLATFORM)" == "x86" || "$(PLATFORM)" == "X86"
+ARCH=32
 !ENDIF
 
 !MESSAGE Building for $(ARCH)-bit (processor architecture: $(PROCESSOR_ARCHITECTURE), platform: $(PLATFORM))
