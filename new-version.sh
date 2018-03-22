@@ -18,5 +18,6 @@ VERSION="$MAJOR$SUBV"
 
 sed -i -e "/clinfo version/ s/version \S\+\"/version $VERSION\"/" src/clinfo.c &&
 sed -i -e "1 s/\".\+$/\"$DATE\" \"clinfo $VERSION\"/" man1/clinfo.1 &&
+sed -i -e "1 s/\".\+$/version: $VERSION-{build}/" .appveyor.yml &&
 git commit -m "Version $VERSION" -e -a &&
 git tag -m "Version $VERSION" $VERSION

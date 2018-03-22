@@ -1,0 +1,24 @@
+version: 2.2.18.03.22-{build}
+
+image: Visual Studio 2015
+
+shallow_clone: true
+
+platform:
+ - x86
+ - x64
+
+init:
+- cmd: C:\"Program Files (x86)"\"Microsoft Visual Studio 12.0"\VC\vcvarsall.bat %PLATFORM%
+
+install:
+- cmd: fetch-opencl-dev-win.cmd %PLATFORM%
+
+build_script:
+- cmd: make.cmd
+
+test_script:
+- cmd: clinfo
+
+artifacts:
+- path: clinfo.exe
