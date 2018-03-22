@@ -16,8 +16,12 @@
 # define PRIX32 "I32x"
 # define PRIu64 "I64u"
 # define PRIX64 "I64x"
-# define PRIXPTR "p"
 # define PRIuS "Iu"
+#if sizeof(intptr_t) == sizeof(int32_t)
+# define PRIXPTR PRIX32
+#else
+# define PRIXPTR PRIX64
+#endif
 #else
 # define __STDC_FORMAT_MACROS
 # include <inttypes.h>
