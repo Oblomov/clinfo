@@ -1853,6 +1853,30 @@ int device_info_p2p_dev_list(cl_device_id dev, cl_device_info param, const char 
 	return had_error;
 }
 
+int device_info_interop_list(cl_device_id dev, cl_device_info param, const char *pname,
+	const struct device_info_checks* UNUSED(chk), int checked)
+{
+	cl_uint *val = NULL;
+	size_t szval = 0, numval = 0;
+	GET_VAL_ARRAY;
+	if (!had_error) {
+		size_t cursor = 0;
+		szval = 0;
+		for (cursor= 0; cursor < numval; ++cursor) {
+			if (szval > 0) {
+				strbuf[szval] = ' ';
+				++szval;
+			}
+			/* TODO FIXME we need defines for the possible values of the context interops,
+			 * for the time being we only show their hex values */
+			szval += snprintf(strbuf + szval, bufsz - szval - 1, "0x%" PRIX32, val[cursor]);
+		}
+	}
+	show_strbuf(pname, 0);
+	free(val);
+	return had_error;
+}
+
 
 /*
  * Device info traits
@@ -2068,9 +2092,7 @@ struct device_info_traits dinfo_traits[] = {
 	/* Interop */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_PREFERRED_INTEROP_USER_SYNC, "Prefer user sync for interop", bool), dev_is_12 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_NUM_SIMULTANEOUS_INTEROPS_INTEL, "Number of simultaneous interops (Intel)", int), dev_has_simultaneous_sharing },
-	/* TODO: this needs defines for the possible values of the context interops,
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SIMULTANEOUS_INTEROPS_INTEL, "Simultaneous interops", interop_list), dev_has_simultaneous_sharing },
-	 */
 
 	/* P2P buffer copy */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_NUM_P2P_DEVICES_AMD, "Number of P2P devices (AMD)", int), dev_has_p2p },
