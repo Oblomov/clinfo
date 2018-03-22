@@ -28,10 +28,12 @@
 #include "ms_support.h"
 #endif
 
-#include "ext.h"
 #include "error.h"
 #include "memory.h"
 #include "strbuf.h"
+
+#include "ext.h"
+#include "ctx_prop.h"
 
 #define ARRAY_SIZE(ar) (sizeof(ar)/sizeof(*ar))
 
@@ -306,6 +308,71 @@ const char *no_dev_avail(void)
 		"No devices available in platform" :
 		"CL_DEVICE_NOT_AVAILABLE";
 }
+
+/* OpenCL context interop names */
+
+typedef struct cl_interop_name {
+	cl_uint from;
+	cl_uint to;
+	/* 5 because that's the largest we know of,
+	 * 2 because it's HUMAN, RAW */
+	const char *value[5][2];
+} cl_interop_name;
+
+static const cl_interop_name cl_interop_names[] = {
+	{ /* cl_khr_gl_sharing */
+		.from = CL_GL_CONTEXT_KHR,
+		.to = CL_CGL_SHAREGROUP_KHR,
+		.value = {
+			{ "GL", "CL_GL_CONTEXT_KHR" },
+			{ "EGL", "CL_EGL_DISPALY_KHR" },
+			{ "GLX", "CL_GLX_DISPLAY_KHR" },
+			{ "WGL", "CL_WGL_HDC_KHR" },
+			{ "CGL", "CL_CGL_SHAREGROUP_KHR" }
+		}
+	},
+	{ /* cl_khr_dx9_media_sharing */
+		.from = CL_CONTEXT_ADAPTER_D3D9_KHR,
+		.to = CL_CONTEXT_ADAPTER_DXVA_KHR,
+		.value = {
+			{ "D3D9 (KHR)", "CL_CONTEXT_ADAPTER_D3D9_KHR" },
+			{ "D3D9Ex (KHR)", "CL_CONTEXT_ADAPTER_D3D9EX_KHR" },
+			{ "DXVA (KHR)", "CL_CONTEXT_ADAPTER_DXVA_KHR" }
+		}
+	},
+	{ /* cl_khr_d3d10_sharing */
+		.from = CL_CONTEXT_D3D10_DEVICE_KHR,
+		.to = CL_CONTEXT_D3D10_DEVICE_KHR,
+		.value = {
+			{ "D3D10", "CL_CONTEXT_D3D10_DEVICE_KHR" }
+		}
+	},
+	{ /* cl_khr_d3d11_sharing */
+		.from = CL_CONTEXT_D3D11_DEVICE_KHR,
+		.to = CL_CONTEXT_D3D11_DEVICE_KHR,
+		.value = {
+			{ "D3D11", "CL_CONTEXT_D3D11_DEVICE_KHR" }
+		}
+	},
+	{ /* cl_intel_dx9_media_sharing */
+		.from = CL_CONTEXT_D3D9_DEVICE_INTEL,
+		.to = CL_CONTEXT_DXVA_DEVICE_INTEL,
+		.value = {
+			{ "D3D9 (INTEL)", "CL_CONTEXT_D3D9_DEVICE_INTEL" },
+			{ "D3D9Ex (INTEL)", "CL_CONTEXT_D3D9EX_DEVICE_INTEL" },
+			{ "DXVA (INTEL)", "CL_CONTEXT_DXVA_DEVICE_INTEL" }
+		}
+	},
+	{ /* cl_intel_va_api_media_sharing */
+		.from = CL_CONTEXT_VA_API_DISPLAY_INTEL,
+		.to = CL_CONTEXT_VA_API_DISPLAY_INTEL,
+		.value = {
+			{ "VA-API", "CL_CONTEXT_VA_API_DISPLAY_INTEL" }
+		}
+	}
+};
+
+const size_t num_known_interops = ARRAY_SIZE(cl_interop_names);
 
 
 /* preferred workgroup size multiple for each kernel
@@ -1861,15 +1928,43 @@ int device_info_interop_list(cl_device_id dev, cl_device_info param, const char 
 	GET_VAL_ARRAY;
 	if (!had_error) {
 		size_t cursor = 0;
+		const cl_interop_name *interop_name_end = cl_interop_names + num_known_interops;
+		cl_uint human_raw = output_mode - CLINFO_HUMAN;
+		const char *groupsep = (output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
+		cl_uint first = CL_TRUE;
 		szval = 0;
-		for (cursor= 0; cursor < numval; ++cursor) {
-			if (szval > 0) {
-				strbuf[szval] = ' ';
-				++szval;
+		for (cursor = 0; cursor < numval; ++cursor) {
+			cl_uint current = val[cursor];
+			if (!current) {/* terminator is 0x0 */
+				szval += snprintf(strbuf + szval, bufsz - szval - 1, "%s", groupsep);
+				first = CL_TRUE;
+			} else {
+				if (first) {
+					strbuf[szval] = ' ';
+					++szval;
+				}
+
+				cl_bool found = CL_FALSE;
+				const cl_interop_name *n = cl_interop_names;
+				while (n < interop_name_end) {
+					if (current >= n->from && current <= n->to) {
+						found = CL_TRUE;
+						break;
+					}
+					++n;
+				}
+				if (found) {
+					cl_uint i = current - n->from;
+					szval += snprintf(strbuf + szval, bufsz - szval - 1, "%s", n->value[i][human_raw]);
+				} else {
+					szval += snprintf(strbuf + szval, bufsz - szval - 1, "0x%" PRIX32, val[cursor]);
+				}
+				first = CL_FALSE;
 			}
-			/* TODO FIXME we need defines for the possible values of the context interops,
-			 * for the time being we only show their hex values */
-			szval += snprintf(strbuf + szval, bufsz - szval - 1, "0x%" PRIX32, val[cursor]);
+			if (szval >= bufsz) {
+				trunc_strbuf();
+				break;
+			}
 		}
 	}
 	show_strbuf(pname, 0);

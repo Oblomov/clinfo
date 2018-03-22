@@ -207,6 +207,11 @@ is experimental (see also
 .BR LIMITATIONS ).
 
 .P
+Support for the interop lists exposed by
+.B cl_intel_simultaneous_sharing
+is experimental.
+
+.P
 The highest OpenCL version supported by the ICD loader is detected
 with some trivial heuristics (symbols found); a notice is output
 if this is lower than the highest platform OpenCL version, or
@@ -248,12 +253,6 @@ extension specification, but not reported by drivers supporting other v3
 properties. This has now been enabled for drivers
 .I assumed
 to support v4 of the same extension;
-.TP
-.B CL_DEVICE_SIMULTANEOUS_INTEROPS_INTEL
-exposed by the
-.B cl_intel_simultaneous_sharing
-extension only reports hex values, due to lack of knowledge on the names
-of the possible values the list elements can have;
 .TP
 .B CL_DEVICE_TERMINATE_CAPABILITY_KHR
 exposed by the
