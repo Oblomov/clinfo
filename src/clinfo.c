@@ -922,7 +922,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 #define _GET_VAL_ARRAY \
 	error = clGetDeviceInfo(dev, param, 0, NULL, &szval); \
 	had_error = REPORT_ERROR2("get number of %s"); \
-	numval = szval/sizeof(val); \
+	numval = szval/sizeof(*val); \
 	if (!had_error) { \
 		REALLOC(val, numval, current_param); \
 		error = clGetDeviceInfo(dev, param, szval, val, NULL); \
