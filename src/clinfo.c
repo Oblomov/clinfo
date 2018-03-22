@@ -321,9 +321,9 @@ typedef struct cl_interop_name {
 
 static const cl_interop_name cl_interop_names[] = {
 	{ /* cl_khr_gl_sharing */
-		.from = CL_GL_CONTEXT_KHR,
-		.to = CL_CGL_SHAREGROUP_KHR,
-		.value = {
+		 CL_GL_CONTEXT_KHR,
+		 CL_CGL_SHAREGROUP_KHR,
+		 {
 			{ "GL", "CL_GL_CONTEXT_KHR" },
 			{ "EGL", "CL_EGL_DISPALY_KHR" },
 			{ "GLX", "CL_GLX_DISPLAY_KHR" },
@@ -332,41 +332,41 @@ static const cl_interop_name cl_interop_names[] = {
 		}
 	},
 	{ /* cl_khr_dx9_media_sharing */
-		.from = CL_CONTEXT_ADAPTER_D3D9_KHR,
-		.to = CL_CONTEXT_ADAPTER_DXVA_KHR,
-		.value = {
+		CL_CONTEXT_ADAPTER_D3D9_KHR,
+		CL_CONTEXT_ADAPTER_DXVA_KHR,
+		{
 			{ "D3D9 (KHR)", "CL_CONTEXT_ADAPTER_D3D9_KHR" },
 			{ "D3D9Ex (KHR)", "CL_CONTEXT_ADAPTER_D3D9EX_KHR" },
 			{ "DXVA (KHR)", "CL_CONTEXT_ADAPTER_DXVA_KHR" }
 		}
 	},
 	{ /* cl_khr_d3d10_sharing */
-		.from = CL_CONTEXT_D3D10_DEVICE_KHR,
-		.to = CL_CONTEXT_D3D10_DEVICE_KHR,
-		.value = {
+		CL_CONTEXT_D3D10_DEVICE_KHR,
+		CL_CONTEXT_D3D10_DEVICE_KHR,
+		{
 			{ "D3D10", "CL_CONTEXT_D3D10_DEVICE_KHR" }
 		}
 	},
 	{ /* cl_khr_d3d11_sharing */
-		.from = CL_CONTEXT_D3D11_DEVICE_KHR,
-		.to = CL_CONTEXT_D3D11_DEVICE_KHR,
-		.value = {
+		CL_CONTEXT_D3D11_DEVICE_KHR,
+		CL_CONTEXT_D3D11_DEVICE_KHR,
+		{
 			{ "D3D11", "CL_CONTEXT_D3D11_DEVICE_KHR" }
 		}
 	},
 	{ /* cl_intel_dx9_media_sharing */
-		.from = CL_CONTEXT_D3D9_DEVICE_INTEL,
-		.to = CL_CONTEXT_DXVA_DEVICE_INTEL,
-		.value = {
+		CL_CONTEXT_D3D9_DEVICE_INTEL,
+		CL_CONTEXT_DXVA_DEVICE_INTEL,
+		{
 			{ "D3D9 (INTEL)", "CL_CONTEXT_D3D9_DEVICE_INTEL" },
 			{ "D3D9Ex (INTEL)", "CL_CONTEXT_D3D9EX_DEVICE_INTEL" },
 			{ "DXVA (INTEL)", "CL_CONTEXT_DXVA_DEVICE_INTEL" }
 		}
 	},
 	{ /* cl_intel_va_api_media_sharing */
-		.from = CL_CONTEXT_VA_API_DISPLAY_INTEL,
-		.to = CL_CONTEXT_VA_API_DISPLAY_INTEL,
-		.value = {
+		CL_CONTEXT_VA_API_DISPLAY_INTEL,
+		CL_CONTEXT_VA_API_DISPLAY_INTEL,
+		{
 			{ "VA-API", "CL_CONTEXT_VA_API_DISPLAY_INTEL" }
 		}
 	}
@@ -1931,7 +1931,7 @@ int device_info_interop_list(cl_device_id dev, cl_device_info param, const char 
 		const cl_interop_name *interop_name_end = cl_interop_names + num_known_interops;
 		cl_uint human_raw = output_mode - CLINFO_HUMAN;
 		const char *groupsep = (output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
-		cl_uint first = CL_TRUE;
+		cl_bool first = CL_TRUE;
 		szval = 0;
 		for (cursor = 0; cursor < numval; ++cursor) {
 			cl_uint current = val[cursor];
@@ -1939,13 +1939,14 @@ int device_info_interop_list(cl_device_id dev, cl_device_info param, const char 
 				szval += snprintf(strbuf + szval, bufsz - szval - 1, "%s", groupsep);
 				first = CL_TRUE;
 			} else {
+				cl_bool found = CL_FALSE;
+				const cl_interop_name *n = cl_interop_names;
+
 				if (first) {
 					strbuf[szval] = ' ';
 					++szval;
 				}
 
-				cl_bool found = CL_FALSE;
-				const cl_interop_name *n = cl_interop_names;
 				while (n < interop_name_end) {
 					if (current >= n->from && current <= n->to) {
 						found = CL_TRUE;

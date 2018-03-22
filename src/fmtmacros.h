@@ -17,7 +17,7 @@
 # define PRIu64 "I64u"
 # define PRIX64 "I64x"
 # define PRIuS "Iu"
-#if sizeof(intptr_t) == sizeof(int32_t)
+#if INTPTR_MAX <= INT32_MAX
 # define PRIXPTR PRIX32
 #else
 # define PRIXPTR PRIX64
