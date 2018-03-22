@@ -24,7 +24,19 @@ HDR =	src/error.h \
 
 CFLAGS = /GL /Ox /W4 /Zi /I"$(OPENCLDIR)\include" /nologo
 LIBS = libOpenCL.a
-LINKOPTS = /LTCG /LIBPATH:"$(OPENCLDIR)\lib" /LIBPATH:"$(OPENCLDIR)\lib\x64" /LIBPATH:"$(OPENCLDIR)\lib\x86" /LIBPATH:"$(OPENCLDIR)\lib\x86_64" /LIBPATH:"$(OPENCLDIR)\lib\x86_amd64" /LIBPATH:"$(OPENCLDIR)\lib\amd64" /nologo
+LIBPATH32 = /LIBPATH:"$(OPENCLDIR)\lib" /LIBPATH:"$(OPENCLDIR)\lib\x86"
+LIBPATH64 = /LIBPATH:"$(OPENCLDIR)\lib\x64" /LIBPATH:"$(OPENCLDIR)\lib\x86_64" /LIBPATH:"$(OPENCLDIR)\lib\x86_amd64"
+
+
+!IF "$(PLATFORM)" == "x64"
+ARCH=64
+LINKOPTS = /LTCG $(LIBPATH64) /nologo
+!ELSE
+ARCH=32
+LINKOPTS = /LTCG $(LIBPATH32) /nologo
+!ENDIF
+
+!MESSAGE Building for $(ARCH)-bit
 
 clinfo.exe: clinfo.obj
 	link $(LINKOPTS) $(LIBS) clinfo.obj /out:clinfo.exe
