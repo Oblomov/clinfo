@@ -12,6 +12,8 @@
 /* TODO FIXME WIN64 support */
 # include <stdint.h>
 # include <stddef.h> // size_t
+# define PRIu32 "I32u"
+# define PRIX32 "I32x"
 # define PRIu64 "I64u"
 # define PRIX64 "I64x"
 # define PRIXPTR "p"
