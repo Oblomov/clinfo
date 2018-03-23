@@ -1935,10 +1935,14 @@ int device_info_interop_list(cl_device_id dev, cl_device_info param, const char 
 		szval = 0;
 		for (cursor = 0; cursor < numval; ++cursor) {
 			cl_uint current = val[cursor];
-			if (!current) {/* terminator is 0x0 */
+			if (!current && cursor < numval - 1) {
+				/* A null value is used as group terminator, but we only print it
+				 * if it's not the final one
+				 */
 				szval += snprintf(strbuf + szval, bufsz - szval - 1, "%s", groupsep);
 				first = CL_TRUE;
-			} else {
+			}
+			if (current) {
 				cl_bool found = CL_FALSE;
 				const cl_interop_name *n = cl_interop_names;
 
