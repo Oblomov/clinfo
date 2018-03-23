@@ -1942,7 +1942,7 @@ int device_info_interop_list(cl_device_id dev, cl_device_info param, const char 
 				cl_bool found = CL_FALSE;
 				const cl_interop_name *n = cl_interop_names;
 
-				if (first) {
+				if (!first) {
 					strbuf[szval] = ' ';
 					++szval;
 				}
