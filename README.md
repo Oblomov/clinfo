@@ -39,7 +39,6 @@ Precompiled Windows executable are available as artefacts of the
 AppVeyor CI.
 
 <table style='margin: 1em auto; width: 100%; max-width: 33em'>
-<style>th,td{text-align: center}</style>
 <tr><th>Build status</th><th colspan=2>Windows binaries</th></tr>
 <tr>
 <td><a href='https://ci.appveyor.com/project/Oblomov/clinfo/'><img
