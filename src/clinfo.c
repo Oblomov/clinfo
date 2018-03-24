@@ -295,7 +295,22 @@ const char *no_plat(void)
 		"CL_INVALID_PLATFORM";
 }
 
-const char *no_dev(void)
+const char *invalid_dev_type(void)
+{
+	return output_mode == CLINFO_HUMAN ?
+		"Invalid device type for platform" :
+		"CL_INVALID_DEVICE_TYPE";
+}
+
+const char *invalid_dev_value(void)
+{
+	return output_mode == CLINFO_HUMAN ?
+		"Invalid device type value for platform" :
+		"CL_INVALID_VALUE";
+}
+
+
+const char *no_dev_found(void)
 {
 	return output_mode == CLINFO_HUMAN ?
 		"No devices found in platform" :
@@ -2724,8 +2739,11 @@ void checkNullCtxFromType(void)
 		case CL_INVALID_PLATFORM:
 			bufcpy(0, no_plat()); break;
 		case CL_DEVICE_NOT_FOUND:
+			bufcpy(0, no_dev_found()); break;
 		case CL_INVALID_DEVICE_TYPE: /* e.g. _CUSTOM device on 1.1 platform */
-			bufcpy(0, no_dev()); break;
+			bufcpy(0, invalid_dev_type()); break;
+		case CL_INVALID_VALUE: /* This is what apple returns for the case above */
+			bufcpy(0, invalid_dev_type()); break;
 		case CL_DEVICE_NOT_AVAILABLE:
 			bufcpy(0, no_dev_avail()); break;
 		default:
@@ -2834,7 +2852,7 @@ void checkNullBehavior(void)
 	if (pidx == num_platforms) {
 		bufcpy(0, no_plat());
 	} else if (pdata[pidx].ndevs == 0) {
-		bufcpy(0, no_dev());
+		bufcpy(0, no_dev_found());
 	} else {
 		p = 0;
 		dev = all_devices;
