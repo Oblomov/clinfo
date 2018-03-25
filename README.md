@@ -22,6 +22,11 @@ Refer to the man page for further information.
 
 # Building
 
+<img
+src='https://api.travis-ci.org/Oblomov/clinfo.svg?branch=master'
+alt='Build status on Travis'
+style='float: right'>
+
 Building requires an OpenCL SDK (or at least OpenCL headers and
 development files), and the standard build environment for the
 platform. No special build system is used (autotools, CMake, meson,
