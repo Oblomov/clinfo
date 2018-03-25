@@ -309,7 +309,6 @@ const char *invalid_dev_value(void)
 		"CL_INVALID_VALUE";
 }
 
-
 const char *no_dev_found(void)
 {
 	return output_mode == CLINFO_HUMAN ?
