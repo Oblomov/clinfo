@@ -39,10 +39,10 @@ alt='Build status on Travis'
 style='float: right'>
 
 Building requires an OpenCL SDK (or at least OpenCL headers and
-development files), and the standard build environment for the
-platform. No special build system is used (autotools, CMake, meson,
-ninja, etc), as I feel it would be overengineering for such a simple
-program. Simply running `make` at the project root should work.
+development files), and the standard build environment for the platform.
+No special build system is used (autotools, CMake, meson, ninja, etc),
+as I feel adding more dependencies for such a simple program would be
+excessive. Simply running `make` at the project root should work.
 
 ## Windows support
 
