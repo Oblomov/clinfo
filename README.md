@@ -20,6 +20,17 @@ by the platform or device.
 
 Refer to the man page for further information.
 
+## Use cases
+
+* verify that your OpenCL environment is set up correctly;
+  if `clinfo` cannot find any platform or devices (or fails to load
+  the OpenCL dispatcher library), chances are high no other OpenCL
+  application will run;
+* verify that your OpenCL _development_ environment is set up
+  correctly: if `clinfo` fails to build, chances are high no
+  other OpenCL application will build;
+* explore/report the actual properties of the available device(s).
+
 # Building
 
 <img
