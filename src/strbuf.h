@@ -21,7 +21,7 @@ size_t bufsz, nusz;
 	REPORT_ERROR("get " param_str); \
 } while (0)
 
-#define GET_STRING2(cmd, ...) do { \
+#define GET_STRING2(had_error, cmd, ...) do { \
 	error = cmd(__VA_ARGS__, 0, NULL, &nusz); \
 	had_error = REPORT_ERROR2("get %s size"); \
 	if (!had_error) { \

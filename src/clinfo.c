@@ -111,7 +111,9 @@ enum cond_prop_modes cond_prop_mode = COND_PROP_CHECK;
  * unsatisfied, there was an error retrieving it and cond_prop_mode is not
  * COND_PROP_SHOW.
  */
-#define CHECK_SKIP(checked) if (!checked && had_error && cond_prop_mode != COND_PROP_SHOW) return had_error
+#define CHECK_SKIP_(checked, had_error, ret) if (!checked && had_error && cond_prop_mode != COND_PROP_SHOW) return ret
+#define CHECK_SKIP_PLAT(checked) CHECK_SKIP_(checked, had_error, had_error)
+#define CHECK_SKIP_DEV(checked) CHECK_SKIP_(checked, ret.had_error, ret)
 
 /* clGetDeviceInfo returns CL_INVALID_VALUE both for unknown properties
  * and when the destinaiton variable is too small. Set the following to CL_TRUE
@@ -407,7 +409,6 @@ static const char times_str[] = "x";
 static const char comma_str[] = ", ";
 static const char vbar_str[] = " | ";
 
-int had_error = 0;
 const char *cur_sfx = empty_str;
 
 /* parse a CL_DEVICE_VERSION or CL_PLATFORM_VERSION info to determine the OpenCL version.
@@ -437,7 +438,7 @@ getOpenCLVersion(const char *version)
 /* print strbuf, prefixed by pname, skipping leading whitespace if skip is nonzero,
  * affixing cur_sfx */
 static inline
-void show_strbuf(const char *pname, int skip)
+void show_strbuf(const char *pname, int skip, cl_int had_error)
 {
 	printf("%s" I1_STR "%s%s\n",
 		line_pfx, pname,
@@ -448,31 +449,33 @@ void show_strbuf(const char *pname, int skip)
 int
 platform_info_str(cl_platform_id pid, cl_platform_info param, const char* pname, const struct platform_info_checks* UNUSED(chk), int checked)
 {
-	GET_STRING2(clGetPlatformInfo, pid, param);
-	CHECK_SKIP(checked);
+	cl_int had_error;
+	GET_STRING2(had_error, clGetPlatformInfo, pid, param);
+	CHECK_SKIP_PLAT(checked);
 	/* when only listing, do not print anything, we're just gathering
 	 * information
 	 */
 	if (!list_only)
-		show_strbuf(pname, 1);
+		show_strbuf(pname, 1, had_error);
 	return had_error;
 }
 
 int
 platform_info_ulong(cl_platform_id pid, cl_platform_info param, const char* pname, const struct platform_info_checks* UNUSED(chk), int checked)
 {
+	cl_int had_error;
 	cl_ulong val = 0;
 
 	error = clGetPlatformInfo(pid, param, sizeof(val), &val, NULL);
 	had_error = REPORT_ERROR2("get %s");
 	CHECK_SIZE(clGetPlatformInfo, pid, param);
-	CHECK_SKIP(checked);
+	CHECK_SKIP_PLAT(checked);
 	/* when only listing, do not print anything, we're just gathering
 	 * information
 	 */
 	if (!list_only) {
 		if (had_error)
-			show_strbuf(pname, 0);
+			show_strbuf(pname, 0, had_error);
 		else
 			printf("%s" I1_STR "%" PRIu64 "%s\n", line_pfx, pname, val, cur_sfx);
 	}
@@ -482,18 +485,19 @@ platform_info_ulong(cl_platform_id pid, cl_platform_info param, const char* pnam
 int
 platform_info_sz(cl_platform_id pid, cl_platform_info param, const char* pname, const struct platform_info_checks* UNUSED(chk), int checked)
 {
+	cl_int had_error;
 	size_t val = 0;
 
 	error = clGetPlatformInfo(pid, param, sizeof(val), &val, NULL);
 	had_error = REPORT_ERROR2("get %s");
 	CHECK_SIZE(clGetPlatformInfo, pid, param);
-	CHECK_SKIP(checked);
+	CHECK_SKIP_PLAT(checked);
 	/* when only listing, do not print anything, we're just gathering
 	 * information
 	 */
 	if (!list_only) {
 		if (had_error)
-			show_strbuf(pname, 0);
+			show_strbuf(pname, 0, had_error);
 		else
 			printf("%s" I1_STR "%" PRIuS "%s\n", line_pfx, pname, val, cur_sfx);
 	}
@@ -550,6 +554,7 @@ struct platform_info_traits pinfo_traits[] = {
 void
 printPlatformInfo(cl_uint p)
 {
+	cl_int had_error;
 	cl_platform_id pid = platform[p];
 	size_t len = 0;
 
@@ -648,6 +653,7 @@ printPlatformInfo(cl_uint p)
 int
 getWGsizes(cl_platform_id pid, cl_device_id dev)
 {
+	cl_int had_error;
 	int ret = 0;
 
 #define RR_ERROR(what) do { \
@@ -924,39 +930,63 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 }
 
 
+/* Return type of the functions that print device info */
+struct device_info_ret {
+	cl_int had_error;
+	union {
+		size_t s;
+		cl_long i64;
+		cl_ulong u64;
+		cl_int i32;
+		cl_uint u32;
+		cl_uint4 u32v;
+		cl_bool b;
+		cl_device_type devtype;
+		cl_device_mem_cache_type cachetype;
+		cl_device_local_mem_type lmemtype;
+		cl_device_topology_amd devtopo;
+		cl_device_affinity_domain affinity_domain;
+		cl_device_fp_config fpconfig;
+		cl_device_exec_capabilities execap;
+		cl_device_svm_capabilities svmcap;
+		cl_device_terminate_capability_khr termcap;
+	} value;
+};
+
+
 /*
  * Device info print functions
  */
 
 #define _GET_VAL \
 	error = clGetDeviceInfo(dev, param, sizeof(val), &val, NULL); \
-	had_error = REPORT_ERROR2("get %s"); \
+	ret.had_error = REPORT_ERROR2("get %s"); \
 	CHECK_SIZE(clGetDeviceInfo, dev, param);
 
 #define _GET_VAL_ARRAY \
 	error = clGetDeviceInfo(dev, param, 0, NULL, &szval); \
-	had_error = REPORT_ERROR2("get number of %s"); \
+	ret.had_error = REPORT_ERROR2("get number of %s"); \
 	numval = szval/sizeof(*val); \
-	if (!had_error) { \
+	if (!ret.had_error) { \
 		REALLOC(val, numval, current_param); \
 		error = clGetDeviceInfo(dev, param, szval, val, NULL); \
-		had_error = REPORT_ERROR("get %s"); \
-		if (had_error) { free(val); val = NULL; } \
+		ret.had_error = REPORT_ERROR("get %s"); \
+		if (ret.had_error) { free(val); val = NULL; } \
 	}
 
 #define GET_VAL do { \
 	_GET_VAL \
-	CHECK_SKIP(checked); \
+	CHECK_SKIP_DEV(checked); \
 } while (0)
 
 #define GET_VAL_ARRAY do { \
 	_GET_VAL_ARRAY \
-	CHECK_SKIP(checked); \
+	CHECK_SKIP_DEV(checked); \
 } while (0)
 
 #define _FMT_VAL(fmt) \
-	if (had_error) \
-		show_strbuf(pname, 0); \
+	if (ret.had_error) \
+		show_strbuf(pname, 0, ret.had_error); \
 	else \
 		printf("%s" I1_STR fmt "%s\n", line_pfx, pname, val, cur_sfx);
 
@@ -966,70 +996,79 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 
 #define SHOW_VAL(fmt) do { \
 	_GET_VAL \
-	CHECK_SKIP(checked); \
+	CHECK_SKIP_DEV(checked); \
 	_FMT_VAL(fmt) \
 } while (0)
 
-#define DEFINE_DEVINFO_SHOW(how, type, fmt) \
-int device_info_##how(cl_device_id dev, cl_device_info param, const char *pname, \
+#define DEFINE_DEVINFO_SHOW(how, type, field, fmt) \
+struct device_info_ret \
+device_info_##how(cl_device_id dev, cl_device_info param, const char *pname, \
 	const struct device_info_checks* UNUSED(chk), int checked) \
 { \
+	struct device_info_ret ret; \
 	type val = 0; \
 	SHOW_VAL(fmt); \
-	return had_error; \
+	if (!ret.had_error) ret.value.field = val; \
+	return ret; \
 }
 
 /* Get string-type info without showing it */
-int device_info_str_get(cl_device_id dev, cl_device_info param, const char *sname,
+struct device_info_ret
+device_info_str_get(cl_device_id dev, cl_device_info param, const char *sname,
 	const struct device_info_checks* UNUSED(chk), int UNUSED(checked))
 {
+	struct device_info_ret ret;
 	current_param = sname;
-	GET_STRING2(clGetDeviceInfo, dev, param);
-	return had_error;
+	GET_STRING2(ret.had_error, clGetDeviceInfo, dev, param);
+	return ret;
 }
 
-int device_info_str(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_str(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk, int checked)
 {
-	had_error = device_info_str_get(dev, param, current_param, chk, checked);
-	CHECK_SKIP(checked);
-	show_strbuf(pname, 1);
-	return had_error;
+	struct device_info_ret ret;
+	ret = device_info_str_get(dev, param, current_param, chk, checked);
+	CHECK_SKIP_DEV(checked);
+	show_strbuf(pname, 1, ret.had_error);
+	return ret;
 }
 
-DEFINE_DEVINFO_SHOW(int, cl_uint, "%u")
-DEFINE_DEVINFO_SHOW(hex, cl_uint, "0x%x")
-DEFINE_DEVINFO_SHOW(long, cl_ulong, "%" PRIu64)
-DEFINE_DEVINFO_SHOW(sz, size_t, "%" PRIuS)
+DEFINE_DEVINFO_SHOW(int, cl_uint, u32, "%u")
+DEFINE_DEVINFO_SHOW(hex, cl_uint, u32, "0x%x")
+DEFINE_DEVINFO_SHOW(long, cl_ulong, u64, "%" PRIu64)
+DEFINE_DEVINFO_SHOW(sz, size_t, s, "%" PRIuS)
 
-int device_info_bool(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_bool(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
+	struct device_info_ret ret;
 	cl_bool val = 0;
 	const char * const * str = (output_mode == CLINFO_HUMAN ?
 		bool_str : bool_raw_str);
 	GET_VAL;
-	if (had_error)
-		show_strbuf(pname, 0);
+	if (ret.had_error)
+		show_strbuf(pname, 0, ret.had_error);
 	else {
 		printf("%s" I1_STR "%s%s\n", line_pfx, pname, str[val], cur_sfx);
-		/* abuse strbuf to pass the bool value up to the caller,
-		 * this is used e.g. by CL_DEVICE_IMAGE_SUPPORT
-		 */
-		memcpy(strbuf, &val, sizeof(val));
+		ret.value.b = val;
 	}
-	return had_error;
+	return ret;
 }
 
-int device_info_bits(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_bits(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
+	struct device_info_ret ret;
 	cl_uint val;
 	GET_VAL;
-	if (!had_error)
+	if (!ret.had_error)
 		sprintf(strbuf, "%u bits (%u bytes)", val, val/8);
-	show_strbuf(pname, 0);
-	return had_error;
+	show_strbuf(pname, 0, ret.had_error);
+	ret.value.u32 = val;
+	return ret;
 }
 
 
@@ -1045,58 +1084,69 @@ size_t strbuf_mem(cl_ulong val, size_t szval)
 		dbl, memsfx[sfx]);
 }
 
-int device_info_mem(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_mem(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
+	struct device_info_ret ret;
 	cl_ulong val = 0;
 	size_t szval = 0;
 	GET_VAL;
-	if (!had_error) {
+	if (!ret.had_error) {
 		szval += sprintf(strbuf, "%" PRIu64, val);
 		if (output_mode == CLINFO_HUMAN && val > 1024)
 			strbuf_mem(val, szval);
+		ret.value.u64 = val;
 	}
-	show_strbuf(pname, 0);
-	return had_error;
+	show_strbuf(pname, 0, ret.had_error);
+	return ret;
 }
 
-int device_info_mem_int(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_mem_int(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
+	struct device_info_ret ret;
 	cl_uint val = 0;
 	size_t szval = 0;
 	GET_VAL;
-	if (!had_error) {
+	if (!ret.had_error) {
 		szval += sprintf(strbuf, "%u", val);
 		if (output_mode == CLINFO_HUMAN && val > 1024)
 			strbuf_mem(val, szval);
+		ret.value.u32 = val;
 	}
-	show_strbuf(pname, 0);
-	return had_error;
+	show_strbuf(pname, 0, ret.had_error);
+	return ret;
 }
 
-int device_info_mem_sz(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_mem_sz(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
+	struct device_info_ret ret;
 	size_t val = 0;
 	size_t szval = 0;
 	GET_VAL;
-	if (!had_error) {
+	if (!ret.had_error) {
 		szval += sprintf(strbuf, "%" PRIuS, val);
 		if (output_mode == CLINFO_HUMAN && val > 1024)
 			strbuf_mem(val, szval);
+		ret.value.s = val;
 	}
-	show_strbuf(pname, 0);
-	return had_error;
+	show_strbuf(pname, 0, ret.had_error);
+	return ret;
 }
 
-int device_info_free_mem_amd(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_free_mem_amd(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
+	struct device_info_ret ret;
 	size_t *val = NULL;
 	size_t szval = 0, numval = 0;
 	GET_VAL_ARRAY;
-	if (!had_error) {
+	if (!ret.had_error) {
 		size_t cursor = 0;
 		szval = 0;
 		for (cursor = 0; cursor < numval; ++cursor) {
@@ -1108,18 +1158,21 @@ int device_info_free_mem_amd(cl_device_id dev, cl_device_info param, const char 
 			if (output_mode == CLINFO_HUMAN)
 				szval += strbuf_mem(val[cursor]*UINT64_C(1024), szval);
 		}
+		// TODO: ret.value.??? = val;
 	}
-	show_strbuf(pname, 0);
+	show_strbuf(pname, 0, ret.had_error);
 	free(val);
-	return had_error;
+	return ret;
 }
 
-int device_info_time_offset(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_time_offset(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
+	struct device_info_ret ret;
 	cl_ulong val = 0;
 	GET_VAL;
-	if (!had_error) {
+	if (!ret.had_error) {
 		size_t szval = 0;
 		time_t time = val/UINT64_C(1000000000);
 		szval += snprintf(strbuf, bufsz, "%" PRIu64 "ns (", val);
@@ -1127,18 +1180,21 @@ int device_info_time_offset(cl_device_id dev, cl_device_info param, const char *
 		/* overwrite ctime's newline with the closing parenthesis */
 		if (szval < bufsz)
 			strbuf[szval - 1] = ')';
+		ret.value.u64 = val;
 	}
-	show_strbuf(pname, 0);
-	return had_error;
+	show_strbuf(pname, 0, ret.had_error);
+	return ret;
 }
 
-int device_info_szptr_sep(const char *human_sep, cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_szptr_sep(const char *human_sep, cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
+	struct device_info_ret ret;
 	size_t *val = NULL;
 	size_t szval = 0, numval = 0;
 	GET_VAL_ARRAY;
-	if (!had_error) {
+	if (!ret.had_error) {
 		size_t counter = 0;
 		set_separator(output_mode == CLINFO_HUMAN ? human_sep : spc_str);
 		szval = 0;
@@ -1150,27 +1206,32 @@ int device_info_szptr_sep(const char *human_sep, cl_device_id dev, cl_device_inf
 				break;
 			}
 		}
+		// TODO: ret.value.??? = val;
 	}
-	show_strbuf(pname, 0);
+	show_strbuf(pname, 0, ret.had_error);
 	free(val);
-	return had_error;
+	return ret;
 }
 
-int device_info_szptr_times(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_szptr_times(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks* chk, int checked)
 {
 	return device_info_szptr_sep(times_str, dev, param, pname, chk, checked);
 }
 
-int device_info_szptr_comma(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_szptr_comma(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks* chk, int checked)
 {
 	return device_info_szptr_sep(comma_str, dev, param, pname, chk, checked);
 }
 
-int device_info_wg(cl_device_id dev, cl_device_info UNUSED(param), const char *pname,
+struct device_info_ret
+device_info_wg(cl_device_id dev, cl_device_info UNUSED(param), const char *pname,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
+	struct device_info_ret ret;
 	cl_platform_id val = NULL;
 	{
 		/* shadow */
@@ -1179,87 +1240,104 @@ int device_info_wg(cl_device_id dev, cl_device_info UNUSED(param), const char *p
 		GET_VAL;
 	}
 	current_param = pname;
-	if (!had_error)
-		had_error = getWGsizes(val, dev);
-	if (!had_error) {
+	if (!ret.had_error)
+		ret.had_error = getWGsizes(val, dev);
+	if (!ret.had_error) {
 		sprintf(strbuf, "%" PRIuS, wgm[0]);
+		ret.value.s = wgm[0];
 	}
-	show_strbuf(pname, 0);
-	return had_error;
+	show_strbuf(pname, 0, ret.had_error);
+	return ret;
 }
 
-int device_info_img_sz_2d(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_img_sz_2d(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
+	struct device_info_ret ret;
 	size_t width = 0, height = 0, val = 0;
 	GET_VAL; /* HEIGHT */
-	if (!had_error) {
+	if (!ret.had_error) {
 		height = val;
 		param = CL_DEVICE_IMAGE2D_MAX_WIDTH;
 		current_param = "CL_DEVICE_IMAGE2D_MAX_WIDTH";
 		GET_VAL;
-		if (!had_error) {
+		if (!ret.had_error) {
 			width = val;
 			sprintf(strbuf, "%" PRIuS "x%" PRIuS, width, height);
+			ret.value.u32v.s[0] = width;
+			ret.value.u32v.s[1] = height;
 		}
 	}
-	show_strbuf(pname, 0);
-	return had_error;
+	show_strbuf(pname, 0, ret.had_error);
+	return ret;
 }
 
-int device_info_img_sz_intel_planar_yuv(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_img_sz_intel_planar_yuv(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
+	struct device_info_ret ret;
 	size_t width = 0, height = 0, val = 0;
 	GET_VAL; /* HEIGHT */
-	if (!had_error) {
+	if (!ret.had_error) {
 		height = val;
 		param = CL_DEVICE_PLANAR_YUV_MAX_WIDTH_INTEL;
 		current_param = "CL_DEVICE_PLANAR_YUV_MAX_WIDTH_INTEL";
 		GET_VAL;
-		if (!had_error) {
+		if (!ret.had_error) {
 			width = val;
 			sprintf(strbuf, "%" PRIuS "x%" PRIuS, width, height);
+			ret.value.u32v.s[0] = width;
+			ret.value.u32v.s[1] = height;
 		}
 	}
-	show_strbuf(pname, 0);
-	return had_error;
+	show_strbuf(pname, 0, ret.had_error);
+	return ret;
 }
 
 
-int device_info_img_sz_3d(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_img_sz_3d(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
+	struct device_info_ret ret;
 	size_t width = 0, height = 0, depth = 0, val = 0;
 	GET_VAL; /* HEIGHT */
-	if (!had_error) {
+	if (!ret.had_error) {
 		height = val;
 		param = CL_DEVICE_IMAGE3D_MAX_WIDTH;
 		current_param = "CL_DEVICE_IMAGE3D_MAX_WIDTH";
 		GET_VAL;
-		if (!had_error) {
+		if (!ret.had_error) {
 			width = val;
 			param = CL_DEVICE_IMAGE3D_MAX_DEPTH;
 			current_param = "CL_DEVICE_IMAGE3D_MAX_DEPTH";
 			GET_VAL;
-			if (!had_error) {
+			if (!ret.had_error) {
 				depth = val;
 				sprintf(strbuf, "%" PRIuS "x%" PRIuS "x%" PRIuS,
 					width, height, depth);
+				ret.value.u32v.s[0] = width;
+				ret.value.u32v.s[1] = height;
+				ret.value.u32v.s[2] = depth;
 			}
 		}
+		// TODO: ret.value.??? = val;
 	}
-	show_strbuf(pname, 0);
-	return had_error;
+	show_strbuf(pname, 0, ret.had_error);
+	return ret;
 }
 
 
-int device_info_devtype(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_devtype(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
+	struct device_info_ret ret;
 	cl_device_type val = 0;
 	GET_VAL;
-	if (!had_error) {
+	if (!ret.had_error) {
 		/* iterate over device type strings, appending their textual form
 		 * to strbuf */
 		cl_uint i = (cl_uint)actual_devtype_count;
@@ -1286,46 +1364,44 @@ int device_info_devtype(cl_device_id dev, cl_device_info param, const char *pnam
 				szval += snprintf(strbuf + szval, bufsz - szval - 1, "0x%" PRIX64, extra);
 			}
 		}
+		ret.value.devtype = val;
 	}
-	show_strbuf(pname, 0);
-	/* we abuse global strbuf to pass the device type over to the caller */
-	if (!had_error)
-		memcpy(strbuf, &val, sizeof(val));
-	return had_error;
+	show_strbuf(pname, 0, ret.had_error);
+	return ret;
 }
 
-int device_info_cachetype(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_cachetype(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
+	struct device_info_ret ret;
 	cl_device_mem_cache_type val = 0;
 	GET_VAL;
-	if (!had_error) {
+	if (!ret.had_error) {
 		const char * const *ar = (output_mode == CLINFO_HUMAN ?
 			cache_type_str : cache_type_raw_str);
 		bufcpy(0, ar[val]);
+		ret.value.cachetype = val;
 	}
-	show_strbuf(pname, 0);
-	/* we abuse global strbuf to pass the cache type over to the caller */
-	if (!had_error)
-		memcpy(strbuf, &val, sizeof(val));
-	return had_error;
+	show_strbuf(pname, 0, ret.had_error);
+	return ret;
 }
 
-int device_info_lmemtype(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_lmemtype(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
+	struct device_info_ret ret;
 	cl_device_local_mem_type val = 0;
 	GET_VAL;
-	if (!had_error) {
+	if (!ret.had_error) {
 		const char * const *ar = (output_mode == CLINFO_HUMAN ?
 			lmem_type_str : lmem_type_raw_str);
 		bufcpy(0, ar[val]);
+		ret.value.lmemtype = val;
 	}
-	show_strbuf(pname, 0);
-	/* we abuse global strbuf to pass the lmem type over to the caller */
-	if (!had_error)
-		memcpy(strbuf, &val, sizeof(val));
-	return had_error;
+	show_strbuf(pname, 0, ret.had_error);
+	return ret;
 }
 
 /* stringify a cl_device_topology_amd */
@@ -1352,23 +1428,28 @@ void devtopo_str(const cl_device_topology_amd *devtopo)
 	}
 }
 
-int device_info_devtopo_amd(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_devtopo_amd(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
+	struct device_info_ret ret;
 	cl_device_topology_amd val;
 	GET_VAL;
 	/* TODO how to do this in CLINFO_RAW mode */
-	if (!had_error) {
+	if (!ret.had_error) {
 		devtopo_str(&val);
+		ret.value.devtopo = val;
 	}
-	show_strbuf(pname, 0);
-	return had_error;
+	show_strbuf(pname, 0, ret.had_error);
+	return ret;
 }
 
 /* we assemble a cl_device_topology_amd struct from the NVIDIA info */
-int device_info_devtopo_nv(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_devtopo_nv(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
+	struct device_info_ret ret;
 	cl_device_topology_amd devtopo;
 	cl_uint val = 0;
 
@@ -1376,7 +1457,7 @@ int device_info_devtopo_nv(cl_device_id dev, cl_device_info param, const char *p
 
 	GET_VAL; /* CL_DEVICE_PCI_BUS_ID_NV */
 
-	if (!had_error) {
+	if (!ret.had_error) {
 		devtopo.pcie.bus = val & 0xff;
 
 		param = CL_DEVICE_PCI_SLOT_ID_NV;
@@ -1384,60 +1465,74 @@ int device_info_devtopo_nv(cl_device_id dev, cl_device_info param, const char *p
 
 		GET_VAL;
 
-		if (!had_error) {
+		if (!ret.had_error) {
 			devtopo.pcie.device = (val >> 3) & 0xff;
 			devtopo.pcie.function = val & 7;
 			devtopo_str(&devtopo);
+			ret.value.devtopo = devtopo;
 		}
 	}
 
-	show_strbuf(pname, 0);
-	return had_error;
+	show_strbuf(pname, 0, ret.had_error);
+	return ret;
 }
 
 /* NVIDIA Compute Capability */
-int device_info_cc_nv(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_cc_nv(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
+	struct device_info_ret ret;
 	cl_uint major = 0, val = 0;
 	GET_VAL; /* MAJOR */
-	if (!had_error) {
+	if (!ret.had_error) {
 		major = val;
 		param = CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV;
 		current_param = "CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV";
 		GET_VAL;
-		if (!had_error)
+		if (!ret.had_error) {
 			snprintf(strbuf, bufsz, "%u.%u", major, val);
+			ret.value.u32v.s[0] = major;
+			ret.value.u32v.s[1] = val;
+		}
 	}
 
-	show_strbuf(pname, 0);
-	return had_error;
+	show_strbuf(pname, 0, ret.had_error);
+	return ret;
 }
 
 /* AMD GFXIP */
-int device_info_gfxip_amd(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_gfxip_amd(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
+	struct device_info_ret ret;
 	cl_uint major = 0, val = 0;
 	GET_VAL; /* MAJOR */
-	if (!had_error) {
+	if (!ret.had_error) {
 		major = val;
 		param = CL_DEVICE_GFXIP_MINOR_AMD;
 		current_param = "CL_DEVICE_GFXIP_MINOR_AMD";
 		GET_VAL;
-		if (!had_error)
+		if (!ret.had_error) {
 			snprintf(strbuf, bufsz, "%u.%u", major, val);
+			ret.value.u32v.s[0] = major;
+			ret.value.u32v.s[1] = val;
+		}
 	}
 
-	show_strbuf(pname, 0);
-	return had_error;
+	show_strbuf(pname, 0, ret.had_error);
+	return ret;
 }
 
 
 /* Device Partition, CLINFO_HUMAN header */
-int device_info_partition_header(cl_device_id UNUSED(dev), cl_device_info UNUSED(param),
+struct device_info_ret
+device_info_partition_header(cl_device_id UNUSED(dev), cl_device_info UNUSED(param),
 	const char *pname, const struct device_info_checks *chk, int UNUSED(checked))
 {
+	struct device_info_ret ret;
+	ret.had_error = CL_SUCCESS;
 	int is_12 = dev_is_12(chk);
 	int has_fission = dev_has_fission(chk);
 	size_t szval = snprintf(strbuf, bufsz, "(%s%s%s)",
@@ -1447,15 +1542,16 @@ int device_info_partition_header(cl_device_id UNUSED(dev), cl_device_info UNUSED
 	if (szval >= bufsz)
 		trunc_strbuf();
 
-	show_strbuf(pname, 0);
-	had_error = CL_SUCCESS;
-	return had_error;
+	show_strbuf(pname, 0, ret.had_error);
+	return ret;
 }
 
 /* Device partition properties */
-int device_info_partition_types(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_partition_types(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
+	struct device_info_ret ret;
 	size_t numval = 0, szval = 0, cursor = 0, slen = 0;
 	cl_device_partition_property *val = NULL;
 	const char * const *ptstr = (output_mode == CLINFO_HUMAN ?
@@ -1466,7 +1562,7 @@ int device_info_partition_types(cl_device_id dev, cl_device_info param, const ch
 	GET_VAL_ARRAY;
 
 	szval = 0;
-	if (!had_error) {
+	if (!ret.had_error) {
 		for (cursor = 0; cursor < numval; ++cursor) {
 			int str_idx = -1;
 
@@ -1499,17 +1595,20 @@ int device_info_partition_types(cl_device_id dev, cl_device_info param, const ch
 			bufcpy(szval, ptstr[0]);
 		} else if (szval < bufsz)
 			strbuf[szval] = '\0';
+		// TODO ret.value.??? = val
 	}
 
-	show_strbuf(pname, 0);
+	show_strbuf(pname, 0, ret.had_error);
 
 	free(val);
-	return had_error;
+	return ret;
 }
 
-int device_info_partition_types_ext(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_partition_types_ext(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
+	struct device_info_ret ret;
 	size_t numval = 0, szval = 0, cursor = 0, slen = 0;
 	cl_device_partition_property_ext *val = NULL;
 	const char * const *ptstr = (output_mode == CLINFO_HUMAN ?
@@ -1520,7 +1619,7 @@ int device_info_partition_types_ext(cl_device_id dev, cl_device_info param, cons
 	GET_VAL_ARRAY;
 
 	szval = 0;
-	if (!had_error) {
+	if (!ret.had_error) {
 		for (cursor = 0; cursor < numval; ++cursor) {
 			int str_idx = -1;
 
@@ -1555,22 +1654,27 @@ int device_info_partition_types_ext(cl_device_id dev, cl_device_info param, cons
 		}
 		if (szval < bufsz)
 			strbuf[szval] = '\0';
+		// TODO ret.value.??? = val
 	}
 
-	show_strbuf(pname, 0);
+	show_strbuf(pname, 0, ret.had_error);
 
 	free(val);
-	return had_error;
+	return ret;
 }
 
 
 /* Device partition affinity domains */
-int device_info_partition_affinities(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_partition_affinities(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
+	struct device_info_ret ret;
 	cl_device_affinity_domain val;
 	GET_VAL;
-	if (!had_error && val) {
+	if (!ret.had_error)
+		ret.value.affinity_domain = val;
+	if (!ret.had_error && val) {
 		/* iterate over affinity domain strings appending their textual form
 		 * to strbuf */
 		size_t szval = 0;
@@ -1598,14 +1702,16 @@ int device_info_partition_affinities(cl_device_id dev, cl_device_info param, con
 			}
 		}
 	}
-	if (val || had_error)
-		show_strbuf(pname, 0);
-	return had_error;
+	if (val || ret.had_error)
+		show_strbuf(pname, 0, ret.had_error);
+	return ret;
 }
 
-int device_info_partition_affinities_ext(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_partition_affinities_ext(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
+	struct device_info_ret ret;
 	size_t numval = 0, szval = 0, cursor = 0, slen = 0;
 	cl_device_partition_property_ext *val = NULL;
 	const char * const *ptstr = (output_mode == CLINFO_HUMAN ?
@@ -1616,7 +1722,7 @@ int device_info_partition_affinities_ext(cl_device_id dev, cl_device_info param,
 	GET_VAL_ARRAY;
 
 	szval = 0;
-	if (!had_error) {
+	if (!ret.had_error) {
 		for (cursor = 0; cursor < numval; ++cursor) {
 			int str_idx = -1;
 
@@ -1647,21 +1753,24 @@ int device_info_partition_affinities_ext(cl_device_id dev, cl_device_info param,
 			}
 		}
 		strbuf[szval] = '\0';
+		// TODO: ret.value.??? = val
 	}
 
-	show_strbuf(pname, 0);
+	show_strbuf(pname, 0, ret.had_error);
 
 	free(val);
-	return had_error;
+	return ret;
 }
 
 /* Preferred / native vector widths */
-int device_info_vecwidth(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_vecwidth(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk, int checked)
 {
+	struct device_info_ret ret;
 	cl_uint preferred = 0, val = 0;
 	GET_VAL;
-	if (!had_error) {
+	if (!ret.had_error) {
 		preferred = val;
 
 		/* we get called with PREFERRED, NATIVE is at +0x30 offset, except for HALF,
@@ -1670,7 +1779,7 @@ int device_info_vecwidth(cl_device_id dev, cl_device_info param, const char *pna
 		/* TODO update current_param */
 		GET_VAL;
 
-		if (!had_error) {
+		if (!ret.had_error) {
 			size_t szval = 0;
 			const char *ext = (param == CL_DEVICE_NATIVE_VECTOR_WIDTH_HALF ?
 				chk->has_half : (param == CL_DEVICE_NATIVE_VECTOR_WIDTH_DOUBLE ?
@@ -1678,16 +1787,20 @@ int device_info_vecwidth(cl_device_id dev, cl_device_info param, const char *pna
 			szval = sprintf(strbuf, "%8u / %-8u", preferred, val);
 			if (ext)
 				sprintf(strbuf + szval, " (%s)", *ext ? ext : na);
+			ret.value.u32v.s[0] = preferred;
+			ret.value.u32v.s[1] = val;
 		}
 	}
-	show_strbuf(pname, 0);
-	return had_error;
+	show_strbuf(pname, 0, ret.had_error);
+	return ret;
 }
 
 /* Floating-point configurations */
-int device_info_fpconf(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_fpconf(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk, int checked)
 {
+	struct device_info_ret ret;
 	cl_device_fp_config val = 0;
 	int get_it = (
 		(param == CL_DEVICE_SINGLE_FP_CONFIG) ||
@@ -1696,9 +1809,9 @@ int device_info_fpconf(cl_device_id dev, cl_device_info param, const char *pname
 	if (get_it)
 		GET_VAL;
 	else
-		had_error = CL_SUCCESS;
+		ret.had_error = CL_SUCCESS;
 
-	if (!had_error) {
+	if (!ret.had_error) {
 		size_t szval = 0;
 		cl_uint i = 0;
 		const char * const *fpstr = (output_mode == CLINFO_HUMAN ?
@@ -1745,21 +1858,24 @@ int device_info_fpconf(cl_device_id dev, cl_device_info param, const char *pname
 				}
 			}
 		}
+		ret.value.fpconfig = val;
 	}
 
 	/* only print this for HUMAN output or if we actually got the value */
 	if (output_mode == CLINFO_HUMAN || get_it)
-		show_strbuf(pname, 0);
-	return had_error;
+		show_strbuf(pname, 0, ret.had_error);
+	return ret;
 }
 
 /* Queue properties */
-int device_info_qprop(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_qprop(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk, int checked)
 {
+	struct device_info_ret ret;
 	cl_command_queue_properties val = 0;
 	GET_VAL;
-	if (!had_error) {
+	if (!ret.had_error) {
 		size_t szval = 0;
 		cl_uint i = 0;
 		const char * const *qpstr = (output_mode == CLINFO_HUMAN ?
@@ -1779,18 +1895,21 @@ int device_info_qprop(cl_device_id dev, cl_device_info param, const char *pname,
 			dev_has_intel_local_thread(chk))
 			sprintf(strbuf + szval, "\n%s" I2_STR "%s",
 				line_pfx, "Local thread execution (Intel)", bool_str[CL_TRUE]);
+		// TODO: ret.value.??? = val;
 	}
-	show_strbuf(pname, 0);
-	return had_error;
+	show_strbuf(pname, 0, ret.had_error);
+	return ret;
 }
 
 /* Execution capbilities */
-int device_info_execap(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_execap(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
+	struct device_info_ret ret;
 	cl_device_exec_capabilities val = 0;
 	GET_VAL;
-	if (!had_error) {
+	if (!ret.had_error) {
 		size_t szval = 0;
 		cl_uint i = 0;
 		const char * const *qpstr = (output_mode == CLINFO_HUMAN ?
@@ -1806,45 +1925,54 @@ int device_info_execap(cl_device_id dev, cl_device_info param, const char *pname
 				szval += bufcpy(szval, qpstr[i]);
 			}
 		}
+		ret.value.execap = val;
 	}
-	show_strbuf(pname, 0);
-	return had_error;
+	show_strbuf(pname, 0, ret.had_error);
+	return ret;
 }
 
 /* Arch bits and endianness (HUMAN) */
-int device_info_arch(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_arch(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
+	struct device_info_ret ret;
 	cl_uint bits = 0;
 	{
 		cl_uint val = 0;
 		GET_VAL;
-		if (!had_error)
+		if (!ret.had_error) {
 			bits = val;
+			ret.value.u32 = bits;
+		}
 	}
-	if (!had_error) {
+	if (!ret.had_error) {
 		cl_bool val = 0;
 		param = CL_DEVICE_ENDIAN_LITTLE;
 		current_param = "CL_DEVICE_ENDIAN_LITTLE";
 		GET_VAL;
-		if (!had_error)
+		if (!ret.had_error) {
 			sprintf(strbuf, "%u, %s", bits, endian_str[val]);
+			ret.value.b = val;
+		}
 	}
-	show_strbuf(pname, 0);
-	return had_error;
+	show_strbuf(pname, 0, ret.had_error);
+	return ret;
 }
 
 /* SVM capabilities */
-int device_info_svm_cap(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_svm_cap(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks *chk, int checked)
 {
+	struct device_info_ret ret;
 	cl_device_svm_capabilities val = 0;
 	const int is_20 = dev_is_20(chk);
 	const int has_amd_svm = (param == CL_DEVICE_SVM_CAPABILITIES && dev_has_amd_svm(chk));
 
 	GET_VAL;
 
-	if (!had_error) {
+	if (!ret.had_error) {
 		size_t szval = 0;
 		cl_uint i = 0;
 		const char * const *scstr = (output_mode == CLINFO_HUMAN ?
@@ -1867,19 +1995,24 @@ int device_info_svm_cap(cl_device_id dev, cl_device_info param, const char *pnam
 				szval += bufcpy(szval, scstr[i]);
 			}
 		}
+		ret.value.svmcap = val;
 	}
 
-	show_strbuf(pname, 0);
-	return had_error;
+	show_strbuf(pname, 0, ret.had_error);
+	return ret;
 }
 
 /* Device terminate capability */
-int device_info_terminate_capability(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_terminate_capability(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
+	struct device_info_ret ret;
 	cl_device_terminate_capability_khr val;
 	GET_VAL;
-	if (!had_error && val) {
+	if (!ret.had_error)
+		ret.value.termcap = val;
+	if (!ret.had_error && val) {
 		/* iterate over terminate capability strings appending their textual form
 		 * to strbuf */
 		size_t szval = 0;
@@ -1907,18 +2040,20 @@ int device_info_terminate_capability(cl_device_id dev, cl_device_info param, con
 			}
 		}
 	}
-	if (val || had_error)
-		show_strbuf(pname, 0);
-	return had_error;
+	if (val || ret.had_error)
+		show_strbuf(pname, 0, ret.had_error);
+	return ret;
 }
 
-int device_info_p2p_dev_list(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_p2p_dev_list(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
+	struct device_info_ret ret;
 	cl_device_id *val = NULL;
 	size_t szval = 0, numval = 0;
 	GET_VAL_ARRAY;
-	if (!had_error) {
+	if (!ret.had_error) {
 		size_t cursor = 0;
 		szval = 0;
 		for (cursor= 0; cursor < numval; ++cursor) {
@@ -1928,19 +2063,22 @@ int device_info_p2p_dev_list(cl_device_id dev, cl_device_info param, const char 
 			}
 			szval += snprintf(strbuf + szval, bufsz - szval - 1, "0x%p", (void*)val[cursor]);
 		}
+		// TODO: ret.value.??? = val;
 	}
-	show_strbuf(pname, 0);
+	show_strbuf(pname, 0, ret.had_error);
 	free(val);
-	return had_error;
+	return ret;
 }
 
-int device_info_interop_list(cl_device_id dev, cl_device_info param, const char *pname,
+struct device_info_ret
+device_info_interop_list(cl_device_id dev, cl_device_info param, const char *pname,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
+	struct device_info_ret ret;
 	cl_uint *val = NULL;
 	size_t szval = 0, numval = 0;
 	GET_VAL_ARRAY;
-	if (!had_error) {
+	if (!ret.had_error) {
 		size_t cursor = 0;
 		const cl_interop_name *interop_name_end = cl_interop_names + num_known_interops;
 		cl_uint human_raw = output_mode - CLINFO_HUMAN;
@@ -1985,10 +2123,11 @@ int device_info_interop_list(cl_device_id dev, cl_device_info param, const char 
 				break;
 			}
 		}
+		// TODO: ret.value.??? = val;
 	}
-	show_strbuf(pname, 0);
+	show_strbuf(pname, 0, ret.had_error);
 	free(val);
-	return had_error;
+	return ret;
 }
 
 
@@ -2005,7 +2144,8 @@ struct device_info_traits {
 	const char *pname; // "Device *"
 	const char *sfx; // suffix for the output in non-raw mode
 	/* pointer to function that shows the parameter */
-	int (*show_func)(cl_device_id dev, cl_device_info param, const char *pname, const struct device_info_checks *, int checked);
+	struct device_info_ret (*show_func)(cl_device_id dev, cl_device_info param,
+		const char *pname, const struct device_info_checks *, int checked);
 	/* pointer to function that checks if the parameter should be checked */
 	int (*check_func)(const struct device_info_checks *);
 };
@@ -2269,6 +2409,7 @@ printDeviceInfo(const cl_device_id *device, cl_uint p, cl_uint d,
 		const struct device_info_traits *traits = dinfo_traits + current_line;
 		const char *pname = (output_mode == CLINFO_HUMAN ?
 			traits->pname : traits->sname);
+		struct device_info_ret ret;
 
 		/* checked is true if there was no condition to check for, or if the
 		 * condition was satisfied
@@ -2297,16 +2438,16 @@ printDeviceInfo(const cl_device_id *device, cl_uint p, cl_uint d,
 
 		cur_sfx = (output_mode == CLINFO_HUMAN && traits->sfx) ? traits->sfx : empty_str;
 
+		strbuf[0] = '\0';
+
 		/* Handle headers */
 		if (traits->param == CL_FALSE) {
-			strbuf[0] = '\0';
-			show_strbuf(pname, 0);
-			had_error = CL_FALSE;
+			ret.had_error = CL_SUCCESS;
+			show_strbuf(pname, 0, ret.had_error);
 			continue;
 		}
 
-		strbuf[0] = '\0';
-		had_error = traits->show_func(dev, traits->param,
+		ret = traits->show_func(dev, traits->param,
 			pname, &chk, checked);
 
 		if (traits->param == CL_DEVICE_EXTENSIONS) {
@@ -2319,7 +2460,7 @@ printDeviceInfo(const cl_device_id *device, cl_uint p, cl_uint d,
 			extensions[len] = '\0';
 		}
 
-		if (had_error)
+		if (ret.had_error)
 			continue;
 
 		switch (traits->param) {
@@ -2331,24 +2472,19 @@ printDeviceInfo(const cl_device_id *device, cl_uint p, cl_uint d,
 			identify_device_extensions(extensions, &chk);
 			break;
 		case CL_DEVICE_TYPE:
-			/* strbuf was abused to give us the dev type */
-			memcpy(&(chk.devtype), strbuf, sizeof(chk.devtype));
+			chk.devtype = ret.value.devtype;
 			break;
 		case CL_DEVICE_GLOBAL_MEM_CACHE_TYPE:
-			/* strbuf was abused to give us the cache type */
-			memcpy(&(chk.cachetype), strbuf, sizeof(chk.cachetype));
+			chk.cachetype = ret.value.cachetype;
 			break;
 		case CL_DEVICE_LOCAL_MEM_TYPE:
-			/* strbuf was abused to give us the lmem type */
-			memcpy(&(chk.lmemtype), strbuf, sizeof(chk.lmemtype));
+			chk.lmemtype = ret.value.lmemtype;
 			break;
 		case CL_DEVICE_IMAGE_SUPPORT:
-			/* strbuf was abused to give us boolean value */
-			memcpy(&(chk.image_support), strbuf, sizeof(chk.image_support));
+			chk.image_support = ret.value.b;
 			break;
 		case CL_DEVICE_COMPILER_AVAILABLE:
-			/* strbuf was abused to give us boolean value */
-			memcpy(&(chk.compiler_available), strbuf, sizeof(chk.compiler_available));
+			chk.compiler_available = ret.value.b;
 			break;
 		default:
 			/* do nothing */
@@ -2389,7 +2525,8 @@ static const cl_device_info amd_offline_info_whitelist[] = {
 /* process offline devices from the cl_amd_offline_devices extension */
 int processOfflineDevicesAMD(cl_uint p)
 {
-	int ret = 0;
+	cl_int had_error;
+	cl_int ret = CL_SUCCESS;
 
 	cl_platform_id pid = platform[p];
 	cl_device_id *device = NULL;
@@ -2430,7 +2567,8 @@ int processOfflineDevicesAMD(cl_uint p)
 			*/
 			if (d == num_devs - 1 && output_mode != CLINFO_RAW)
 				line_pfx[1] = '`';
-			had_error = device_info_str_get(device[d], CL_DEVICE_NAME, "CL_DEVICE_NAME", NULL, CL_TRUE);
+			had_error = device_info_str_get(device[d],
+				CL_DEVICE_NAME, "CL_DEVICE_NAME", NULL, CL_TRUE).had_error;
 			printf("%s%u: %s\n", line_pfx, d, strbuf);
 		} else {
 			if (line_pfx_len > 0) {
@@ -2488,7 +2626,7 @@ void listPlatformsAndDevices(cl_bool show_offline)
 					(!show_offline || !pdata[p].has_amd_offline));
 				if (last_device)
 					line_pfx[1] = '`';
-				had_error = device_info_str_get(device[d], CL_DEVICE_NAME, "CL_DEVICE_NAME", NULL, CL_TRUE);
+				device_info_str_get(device[d], CL_DEVICE_NAME, "CL_DEVICE_NAME", NULL, CL_TRUE);
 				printf("%s%u: %s\n", line_pfx, d, strbuf);
 				fflush(stdout);
 				fflush(stderr);
@@ -2500,8 +2638,7 @@ void listPlatformsAndDevices(cl_bool show_offline)
 				sprintf(line_pfx, "%u*", p);
 			else
 				sprintf(line_pfx, " +-- Offline Device #");
-			had_error = processOfflineDevicesAMD(p);
-			if (had_error)
+			if (processOfflineDevicesAMD(p))
 				puts(strbuf);
 		}
 	}
@@ -2552,8 +2689,7 @@ void showDevices(cl_bool show_offline)
 		}
 		if (show_offline && pdata[p].has_amd_offline) {
 			puts("");
-			had_error = processOfflineDevicesAMD(p);
-			if (had_error)
+			if (processOfflineDevicesAMD(p))
 				puts(strbuf);
 		}
 		puts("");
@@ -2570,7 +2706,7 @@ void checkNullGetPlatformName(void)
 		bufcpy(0, no_plat());
 	} else {
 		current_line = __LINE__+1;
-		had_error = REPORT_ERROR2("get %s");
+		REPORT_ERROR2("get %s");
 	}
 	printf(I1_STR "%s\n",
 		"clGetPlatformInfo(NULL, CL_PLATFORM_NAME, ...)", strbuf);
@@ -2645,25 +2781,19 @@ cl_uint checkNullGetDevices(void)
 		break;
 	default:
 		current_line = __LINE__+1;
-		had_error = REPORT_ERROR2("get number of %s");
-		if (had_error)
-			break;
+		if (REPORT_ERROR2("get number of %s")) break;
 
 		/* Determine platform by looking at the CL_DEVICE_PLATFORM of
 		 * one of the devices */
 		error = clGetDeviceIDs(NULL, CL_DEVICE_TYPE_ALL, 1, &dev, NULL);
 		current_line = __LINE__+1;
-		had_error = REPORT_ERROR2("get %s");
-		if (had_error)
-			break;
+		if (REPORT_ERROR2("get %s")) break;
 
 		current_param = "CL_DEVICE_PLATFORM";
 		error = clGetDeviceInfo(dev, CL_DEVICE_PLATFORM,
 			sizeof(plat), &plat, NULL);
 		current_line = __LINE__+1;
-		had_error = REPORT_ERROR2("get %s");
-		if (had_error)
-			break;
+		if (REPORT_ERROR2("get %s")) break;
 
 		for (i = 0; i < num_platforms; ++i) {
 			if (platform[i] == plat) {
@@ -2691,8 +2821,7 @@ void checkNullCtx(cl_uint pidx, const cl_device_id *dev, const char *which)
 	current_param = which;
 	current_line = __LINE__+2;
 
-	had_error = REPORT_ERROR2("create context with device from %s platform");
-	if (!had_error)
+	if (!REPORT_ERROR2("create context with device from %s platform"))
 		sprintf(strbuf, "%s [%s]",
 			(output_mode == CLINFO_HUMAN ? "Success" : "CL_SUCCESS"),
 			pdata[pidx].sname);
@@ -2748,18 +2877,14 @@ void checkNullCtxFromType(void)
 		case CL_DEVICE_NOT_AVAILABLE:
 			bufcpy(0, no_dev_avail()); break;
 		default:
-			had_error = REPORT_ERROR2("create context from type %s");
-			if (had_error)
-				break;
+			if (REPORT_ERROR2("create context from type %s")) break;
 
 			/* get the devices */
 			current_param = "CL_CONTEXT_DEVICES";
 			current_line = __LINE__+2;
 
 			error = clGetContextInfo(ctx, CL_CONTEXT_DEVICES, 0, NULL, &szval);
-			had_error = REPORT_ERROR2("get %s size");
-			if (had_error)
-				break;
+			if (REPORT_ERROR2("get %s size")) break;
 			if (szval > cursz) {
 				REALLOC(devs, szval, "context devices");
 				cursz = szval;
@@ -2767,9 +2892,7 @@ void checkNullCtxFromType(void)
 
 			current_line = __LINE__+1;
 			error = clGetContextInfo(ctx, CL_CONTEXT_DEVICES, cursz, devs, NULL);
-			had_error = REPORT_ERROR2("get %s");
-			if (had_error)
-				break;
+			if (REPORT_ERROR2("get %s")) break;
 			ndevs = szval/sizeof(cl_device_id);
 			if (ndevs < 1) {
 				bufcpy(0, "<error: context created with no devices>");
@@ -2779,9 +2902,7 @@ void checkNullCtxFromType(void)
 			current_param = "CL_DEVICE_PLATFORM";
 			current_line = __LINE__+1;
 			error = clGetDeviceInfo(*devs, CL_DEVICE_PLATFORM, sizeof(plat), &plat, NULL);
-			had_error = REPORT_ERROR2("get %s");
-			if (had_error)
-				break;
+			if (REPORT_ERROR2("get %s")) break;
 
 			szval = 0;
 			for (i = 0; i < num_platforms; ++i) {
@@ -2812,9 +2933,7 @@ void checkNullCtxFromType(void)
 				current_param = "CL_DEVICE_NAME";
 				current_line = __LINE__+1;
 				error = clGetDeviceInfo(devs[i], CL_DEVICE_NAME, bufsz - szval, strbuf + szval, &szname);
-				had_error = REPORT_ERROR2("get %s");
-				if (had_error)
-					break;
+				if (REPORT_ERROR2("get %s")) break;
 				szval += szname - 1;
 
 
@@ -2920,11 +3039,12 @@ struct icd_loader_test {
 	{ 0, NULL }
 };
 
-int
+cl_int
 icdl_info_str(cl_icdl_info param, const char* pname)
 {
-	GET_STRING2(clGetICDLoaderInfoOCLICD, param);
-	show_strbuf(pname, 1);
+	cl_int had_error;
+	GET_STRING2(had_error, clGetICDLoaderInfoOCLICD, param);
+	show_strbuf(pname, 1, had_error);
 	return had_error;
 }
 
@@ -2999,6 +3119,7 @@ void oclIcdProps(void)
 
 		for (current_line = 0; current_line < ARRAY_SIZE(linfo_traits); ++current_line) {
 			const struct icdl_info_traits *traits = linfo_traits + current_line;
+			cl_int had_error;
 			current_param = traits->sname;
 
 			had_error = icdl_info_str(traits->param,
