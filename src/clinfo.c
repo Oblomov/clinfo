@@ -2380,8 +2380,10 @@ static const cl_device_info amd_offline_info_whitelist[] = {
 	*/
 	CL_DEVICE_EXTENSIONS,
 	CL_DEVICE_TYPE,
+	CL_DEVICE_GFXIP_MAJOR_AMD,
+	CL_DEVICE_GFXIP_MINOR_AMD,
 	CL_DEVICE_MAX_WORK_GROUP_SIZE,
-	CL_DEVICE_AVAILABLE
+	CL_FALSE
 };
 
 /* process offline devices from the cl_amd_offline_devices extension */
