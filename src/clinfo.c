@@ -116,7 +116,7 @@ enum cond_prop_modes cond_prop_mode = COND_PROP_CHECK;
 #define CHECK_SKIP_DEV(checked) CHECK_SKIP_(checked, ret.had_error, ret)
 
 /* clGetDeviceInfo returns CL_INVALID_VALUE both for unknown properties
- * and when the destinaiton variable is too small. Set the following to CL_TRUE
+ * and when the destination variable is too small. Set the following to CL_TRUE
  * to check which one is the case
  */
 static const cl_bool check_size = CL_FALSE;
