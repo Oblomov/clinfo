@@ -34,6 +34,7 @@
 
 #include "ext.h"
 #include "ctx_prop.h"
+#include "info_loc.h"
 
 #define ARRAY_SIZE(ar) (sizeof(ar)/sizeof(*ar))
 
@@ -111,9 +112,9 @@ enum cond_prop_modes cond_prop_mode = COND_PROP_CHECK;
  * unsatisfied, there was an error retrieving it and cond_prop_mode is not
  * COND_PROP_SHOW.
  */
-#define CHECK_SKIP_(checked, had_error, ret) if (!checked && had_error && cond_prop_mode != COND_PROP_SHOW) return ret
-#define CHECK_SKIP_PLAT(checked) CHECK_SKIP_(checked, had_error, had_error)
-#define CHECK_SKIP_DEV(checked) CHECK_SKIP_(checked, ret.had_error, ret)
+#define CHECK_SKIP_(checked, err, ret) if (!checked && err && cond_prop_mode != COND_PROP_SHOW) return ret
+#define CHECK_SKIP_PLAT(checked) CHECK_SKIP_(checked, err, err)
+#define CHECK_SKIP_DEV(checked) CHECK_SKIP_(checked, ret.err, ret)
 
 /* clGetDeviceInfo returns CL_INVALID_VALUE both for unknown properties
  * and when the destination variable is too small. Set the following to CL_TRUE
@@ -121,11 +122,11 @@ enum cond_prop_modes cond_prop_mode = COND_PROP_CHECK;
  */
 static const cl_bool check_size = CL_FALSE;
 
-#define CHECK_SIZE(cmd, ...) do { \
+#define CHECK_SIZE(error, loc, cmd, ...) do { \
 	/* check if the issue is with param size */ \
 	if (check_size && error == CL_INVALID_VALUE) { \
 		size_t _actual_sz; \
-		if (cmd(__VA_ARGS__, 0, NULL, &_actual_sz) == CL_SUCCESS) { REPORT_SIZE_MISMATCH(_actual_sz, sizeof(val)); } \
+		if (cmd(__VA_ARGS__, 0, NULL, &_actual_sz) == CL_SUCCESS) { REPORT_SIZE_MISMATCH(loc, _actual_sz, sizeof(val)); } \
 	} \
 } while (0)
 
@@ -438,70 +439,68 @@ getOpenCLVersion(const char *version)
 /* print strbuf, prefixed by pname, skipping leading whitespace if skip is nonzero,
  * affixing cur_sfx */
 static inline
-void show_strbuf(const char *pname, int skip, cl_int had_error)
+void show_strbuf(const char *pname, int skip, cl_int err)
 {
 	printf("%s" I1_STR "%s%s\n",
 		line_pfx, pname,
 		(skip ? skip_leading_ws(strbuf) : strbuf),
-		had_error ? empty_str : cur_sfx);
+		err ? empty_str : cur_sfx);
 }
 
-int
-platform_info_str(cl_platform_id pid, cl_platform_info param, const char* pname, const struct platform_info_checks* UNUSED(chk), int checked)
+cl_int
+platform_info_str(const struct info_loc *loc, const struct platform_info_checks* UNUSED(chk), int checked)
 {
-	cl_int had_error;
-	GET_STRING2(had_error, clGetPlatformInfo, pid, param);
+	cl_int err;
+	GET_STRING_LOC(err, loc, clGetPlatformInfo, loc->plat, loc->param.plat);
 	CHECK_SKIP_PLAT(checked);
 	/* when only listing, do not print anything, we're just gathering
 	 * information
 	 */
 	if (!list_only)
-		show_strbuf(pname, 1, had_error);
-	return had_error;
+		show_strbuf(loc->pname, 1, err);
+	return err;
 }
 
-int
-platform_info_ulong(cl_platform_id pid, cl_platform_info param, const char* pname, const struct platform_info_checks* UNUSED(chk), int checked)
+cl_int
+platform_info_ulong(const struct info_loc *loc, const struct platform_info_checks* UNUSED(chk), int checked)
 {
-	cl_int had_error;
 	cl_ulong val = 0;
-
-	error = clGetPlatformInfo(pid, param, sizeof(val), &val, NULL);
-	had_error = REPORT_ERROR2("get %s");
-	CHECK_SIZE(clGetPlatformInfo, pid, param);
+	cl_int err = REPORT_ERROR_LOC(
+		clGetPlatformInfo(loc->plat, loc->param.plat, sizeof(val), &val, NULL),
+		loc, "get %s");
+	CHECK_SIZE(err, loc, clGetPlatformInfo, loc->plat, loc->param.plat);
 	CHECK_SKIP_PLAT(checked);
 	/* when only listing, do not print anything, we're just gathering
 	 * information
 	 */
 	if (!list_only) {
-		if (had_error)
-			show_strbuf(pname, 0, had_error);
+		if (err)
+			show_strbuf(loc->pname, 0, err);
 		else
-			printf("%s" I1_STR "%" PRIu64 "%s\n", line_pfx, pname, val, cur_sfx);
+			printf("%s" I1_STR "%" PRIu64 "%s\n", line_pfx, loc->pname, val, cur_sfx);
 	}
-	return had_error;
+	return err;
 }
 
-int
-platform_info_sz(cl_platform_id pid, cl_platform_info param, const char* pname, const struct platform_info_checks* UNUSED(chk), int checked)
+cl_int
+platform_info_sz(const struct info_loc *loc, const struct platform_info_checks* UNUSED(chk), int checked)
 {
-	cl_int had_error;
 	size_t val = 0;
-
-	error = clGetPlatformInfo(pid, param, sizeof(val), &val, NULL);
-	had_error = REPORT_ERROR2("get %s");
-	CHECK_SIZE(clGetPlatformInfo, pid, param);
+	cl_int err = REPORT_ERROR_LOC(
+		clGetPlatformInfo(loc->plat, loc->param.plat, sizeof(val), &val, NULL),
+		loc, "get %s");
+	CHECK_SIZE(err, loc, clGetPlatformInfo, loc->plat, loc->param.plat);
 	CHECK_SKIP_PLAT(checked);
 	/* when only listing, do not print anything, we're just gathering
 	 * information
 	 */
 	if (!list_only) {
-		if (had_error)
-			show_strbuf(pname, 0, had_error);
+		if (err)
+			show_strbuf(loc->pname, 0, err);
 		else
-			printf("%s" I1_STR "%" PRIuS "%s\n", line_pfx, pname, val, cur_sfx);
+			printf("%s" I1_STR "%" PRIuS "%s\n", line_pfx, loc->pname, val, cur_sfx);
 	}
-	return had_error;
+	return err;
 }
 
 
@@ -511,7 +510,7 @@ struct platform_info_traits {
 	const char *pname; // "Platform *"
 	const char *sfx; // suffix for the output in non-raw mode
 	/* pointer to function that shows the parameter */
-	int (*show_func)(cl_platform_id pid, cl_platform_info param, const char *pname, const struct platform_info_checks *, int checked);
+	cl_int (*show_func)(const struct info_loc *, const struct platform_info_checks *, int checked);
 	/* pointer to function that checks if the parameter should be checked */
 	int (*check_func)(const struct platform_info_checks *);
 };
@@ -554,36 +553,39 @@ struct platform_info_traits pinfo_traits[] = {
 void
 printPlatformInfo(cl_uint p)
 {
-	cl_int had_error;
-	cl_platform_id pid = platform[p];
+	cl_int err;
 	size_t len = 0;
 
 	struct platform_info_checks *pinfo_checks = platform_checks + p;
+	struct info_loc loc;
+
 	pinfo_checks->plat_version = 10;
 
-	current_function = __func__;
+	reset_loc(&loc, __func__);
+	loc.plat = platform[p];
 
-	for (current_line = 0; current_line < ARRAY_SIZE(pinfo_traits); ++current_line) {
-		const struct platform_info_traits *traits = pinfo_traits + current_line;
-		const char *pname = (output_mode == CLINFO_HUMAN ?
-			traits->pname : traits->sname);
+	for (loc.line = 0; loc.line < ARRAY_SIZE(pinfo_traits); ++loc.line) {
+		const struct platform_info_traits *traits = pinfo_traits + loc.line;
 
 		/* checked is true if there was no condition to check for, or if the
 		 * condition was satisfied
 		 */
 		int checked = !(traits->check_func && !traits->check_func(pinfo_checks));
-		current_param = traits->sname;
 
 		if (cond_prop_mode == COND_PROP_CHECK && !checked)
 			continue;
 
+		loc.sname = traits->sname;
+		loc.pname = (output_mode == CLINFO_HUMAN ?
+			traits->pname : traits->sname);
+		loc.param.plat = traits->param;
+
 		cur_sfx = (output_mode == CLINFO_HUMAN && traits->sfx) ? traits->sfx : empty_str;
 
 		strbuf[0] = '\0';
-		had_error = traits->show_func(pid, traits->param,
-			pname, pinfo_checks, checked);
+		err = traits->show_func(&loc, pinfo_checks, checked);
 
-		if (had_error)
+		if (err)
 			continue;
 
 		/* post-processing */
@@ -636,11 +638,11 @@ printPlatformInfo(cl_uint p)
 	if (len > platform_sname_maxlen)
 		platform_sname_maxlen = len;
 
-	error = clGetDeviceIDs(pid, CL_DEVICE_TYPE_ALL, 0, NULL, &(pdata[p].ndevs));
-	if (error == CL_DEVICE_NOT_FOUND)
+	err = clGetDeviceIDs(loc.plat, CL_DEVICE_TYPE_ALL, 0, NULL, &(pdata[p].ndevs));
+	if (err == CL_DEVICE_NOT_FOUND)
 		pdata[p].ndevs = 0;
 	else
-		CHECK_ERROR("number of devices");
+		CHECK_ERROR(err, "number of devices");
 
 	num_devs_all += pdata[p].ndevs;
 
@@ -650,20 +652,11 @@ printPlatformInfo(cl_uint p)
 
 }
 
-int
+cl_int
 getWGsizes(cl_platform_id pid, cl_device_id dev)
 {
-	cl_int had_error;
-	int ret = 0;
-
-#define RR_ERROR(what) do { \
-	had_error = REPORT_ERROR(what); \
-	if (had_error) { \
-		ret = error; \
-		goto out; \
-	} \
-} while(0)
-
+	cl_int err = CL_SUCCESS;
+	cl_int log_err;
 
 	cl_context_properties ctxpft[] = {
 		CL_CONTEXT_PLATFORM, (cl_context_properties)pid,
@@ -673,22 +666,20 @@ getWGsizes(cl_platform_id pid, cl_device_id dev)
 	cl_program prg = NULL;
 	cl_kernel krn = NULL;
 
-	ctx = clCreateContext(ctxpft, 1, &dev, NULL, NULL, &error);
-	RR_ERROR("create context");
-	prg = clCreateProgramWithSource(ctx, ARRAY_SIZE(sources), sources, NULL, &error);
-	RR_ERROR("create program");
-	error = clBuildProgram(prg, 1, &dev, NULL, NULL, NULL);
-	had_error = REPORT_ERROR("build program");
-	if (had_error)
-		ret = error;
+	ctx = clCreateContext(ctxpft, 1, &dev, NULL, NULL, &err);
+	if (REPORT_ERROR(err, "create context")) goto out;
+	prg = clCreateProgramWithSource(ctx, ARRAY_SIZE(sources), sources, NULL, &err);
+	if (REPORT_ERROR(err, "create program")) goto out;
+	err = clBuildProgram(prg, 1, &dev, NULL, NULL, NULL);
+	log_err = REPORT_ERROR(err, "build program");
 
 	/* for a program build failure, dump the log to stderr before bailing */
-	if (error == CL_BUILD_PROGRAM_FAILURE) {
+	if (log_err == CL_BUILD_PROGRAM_FAILURE) {
 		/* Do not clobber strbuf, shadow it */
 		char *strbuf = NULL;
 		size_t bufsz = 0, nusz = 0;
-		GET_STRING(clGetProgramBuildInfo, CL_PROGRAM_BUILD_LOG, "CL_PROGRAM_BUILD_LOG", prg, dev);
-		if (error == CL_SUCCESS) {
+		GET_STRING(err, clGetProgramBuildInfo, CL_PROGRAM_BUILD_LOG, "CL_PROGRAM_BUILD_LOG", prg, dev);
+		if (err == CL_SUCCESS) {
 			fflush(stdout);
 			fflush(stderr);
 			fputs("=== CL_PROGRAM_BUILD_LOG ===\n", stderr);
@@ -697,18 +688,18 @@ getWGsizes(cl_platform_id pid, cl_device_id dev)
 		}
 		free(strbuf);
 	}
-	if (had_error)
+	if (err)
 		goto out;
 
 	for (cursor = 0; cursor < NUM_KERNELS; ++cursor) {
 		snprintf(strbuf, bufsz, "sum%u", 1<<cursor);
 		if (cursor == 0)
 			strbuf[3] = 0; // scalar kernel is called 'sum'
-		krn = clCreateKernel(prg, strbuf, &error);
-		RR_ERROR("create kernel");
-		error = clGetKernelWorkGroupInfo(krn, dev, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE,
+		krn = clCreateKernel(prg, strbuf, &err);
+		if (REPORT_ERROR(err, "create kernel")) goto out;
+		err = clGetKernelWorkGroupInfo(krn, dev, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE,
 			sizeof(*wgm), wgm + cursor, NULL);
-		RR_ERROR("get kernel info");
+		if (REPORT_ERROR(err, "get kernel info")) goto out;
 		clReleaseKernel(krn);
 		krn = NULL;
 	}
@@ -720,7 +711,7 @@ out:
 		clReleaseProgram(prg);
 	if (ctx)
 		clReleaseContext(ctx);
-	return ret;
+	return err;
 }
 
 /*
@@ -932,7 +923,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 
 /* Return type of the functions that print device info */
 struct device_info_ret {
-	cl_int had_error;
+	cl_int err;
 	union {
 		size_t s;
 		cl_long i64;
@@ -958,79 +949,81 @@ struct device_info_ret {
  * Device info print functions
  */
 
-#define _GET_VAL \
-	error = clGetDeviceInfo(dev, param, sizeof(val), &val, NULL); \
-	ret.had_error = REPORT_ERROR2("get %s"); \
-	CHECK_SIZE(clGetDeviceInfo, dev, param);
+#define _GET_VAL(loc) \
+	ret.err = REPORT_ERROR_LOC( \
+		clGetDeviceInfo(loc->dev, loc->param.dev, sizeof(val), &val, NULL), \
+		loc, "get %s"); \
+	CHECK_SIZE(ret.err, loc, clGetDeviceInfo, loc->dev, loc->param.dev);
 
-#define _GET_VAL_ARRAY \
-	error = clGetDeviceInfo(dev, param, 0, NULL, &szval); \
-	ret.had_error = REPORT_ERROR2("get number of %s"); \
+#define _GET_VAL_ARRAY(loc) \
+	ret.err = REPORT_ERROR_LOC (\
+		clGetDeviceInfo(loc->dev, loc->param.dev, 0, NULL, &szval), \
+		loc, "get number of %s"); \
 	numval = szval/sizeof(*val); \
-	if (!ret.had_error) { \
-		REALLOC(val, numval, current_param); \
-		error = clGetDeviceInfo(dev, param, szval, val, NULL); \
-		ret.had_error = REPORT_ERROR("get %s"); \
-		if (ret.had_error) { free(val); val = NULL; } \
+	if (!ret.err) { \
+		REALLOC(val, numval, loc->sname); \
+		ret.err = REPORT_ERROR_LOC( \
+			clGetDeviceInfo(loc->dev, loc->param.dev, szval, val, NULL), \
+			loc, "get %s"); \
+		if (ret.err) { free(val); val = NULL; } \
 	}
 
-#define GET_VAL do { \
-	_GET_VAL \
+#define GET_VAL(loc) do { \
+	_GET_VAL((loc)) \
 	CHECK_SKIP_DEV(checked); \
 } while (0)
 
-#define GET_VAL_ARRAY do { \
-	_GET_VAL_ARRAY \
+#define GET_VAL_ARRAY(loc) do { \
+	_GET_VAL_ARRAY((loc)) \
 	CHECK_SKIP_DEV(checked); \
 } while (0)
 
-#define _FMT_VAL(fmt) \
-	if (ret.had_error) \
-		show_strbuf(pname, 0, ret.had_error); \
+#define _FMT_VAL(loc, fmt) \
+	if (ret.err) \
+		show_strbuf(loc->pname, 0, ret.err); \
 	else \
-		printf("%s" I1_STR fmt "%s\n", line_pfx, pname, val, cur_sfx);
+		printf("%s" I1_STR fmt "%s\n", line_pfx, loc->pname, val, cur_sfx);
 
-#define FMT_VAL(fmt) do { \
-	_FMT_VAL(fmt) \
+#define FMT_VAL(loc, fmt) do { \
+	_FMT_VAL((loc), fmt) \
 } while (0)
 
-#define SHOW_VAL(fmt) do { \
-	_GET_VAL \
+#define SHOW_VAL(loc, fmt) do { \
+	_GET_VAL((loc)) \
 	CHECK_SKIP_DEV(checked); \
-	_FMT_VAL(fmt) \
+	_FMT_VAL((loc), fmt) \
 } while (0)
 
 #define DEFINE_DEVINFO_SHOW(how, type, field, fmt) \
 struct device_info_ret \
-device_info_##how(cl_device_id dev, cl_device_info param, const char *pname, \
+device_info_##how(const struct info_loc *loc, \
 	const struct device_info_checks* UNUSED(chk), int checked) \
 { \
 	struct device_info_ret ret; \
 	type val = 0; \
-	SHOW_VAL(fmt); \
-	if (!ret.had_error) ret.value.field = val; \
+	SHOW_VAL(loc, fmt); \
+	if (!ret.err) ret.value.field = val; \
 	return ret; \
 }
 
 /* Get string-type info without showing it */
 struct device_info_ret
-device_info_str_get(cl_device_id dev, cl_device_info param, const char *sname,
+device_info_str_get(const struct info_loc *loc,
 	const struct device_info_checks* UNUSED(chk), int UNUSED(checked))
 {
 	struct device_info_ret ret;
-	current_param = sname;
-	GET_STRING2(ret.had_error, clGetDeviceInfo, dev, param);
+	GET_STRING_LOC(ret.err, loc, clGetDeviceInfo, loc->dev, loc->param.dev);
 	return ret;
 }
 
 struct device_info_ret
-device_info_str(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_str(const struct info_loc *loc,
 	const struct device_info_checks *chk, int checked)
 {
 	struct device_info_ret ret;
-	ret = device_info_str_get(dev, param, current_param, chk, checked);
+	ret = device_info_str_get(loc, chk, checked);
 	CHECK_SKIP_DEV(checked);
-	show_strbuf(pname, 1, ret.had_error);
+	show_strbuf(loc->pname, 1, ret.err);
 	return ret;
 }
 
@@ -1040,33 +1033,33 @@ DEFINE_DEVINFO_SHOW(long, cl_ulong, u64, "%" PRIu64)
 DEFINE_DEVINFO_SHOW(sz, size_t, s, "%" PRIuS)
 
 struct device_info_ret
-device_info_bool(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_bool(const struct info_loc *loc,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
 	struct device_info_ret ret;
 	cl_bool val = 0;
 	const char * const * str = (output_mode == CLINFO_HUMAN ?
 		bool_str : bool_raw_str);
-	GET_VAL;
-	if (ret.had_error)
-		show_strbuf(pname, 0, ret.had_error);
+	GET_VAL(loc);
+	if (ret.err)
+		show_strbuf(loc->pname, 0, ret.err);
 	else {
-		printf("%s" I1_STR "%s%s\n", line_pfx, pname, str[val], cur_sfx);
+		printf("%s" I1_STR "%s%s\n", line_pfx, loc->pname, str[val], cur_sfx);
 		ret.value.b = val;
 	}
 	return ret;
 }
 
 struct device_info_ret
-device_info_bits(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_bits(const struct info_loc *loc,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
 	struct device_info_ret ret;
 	cl_uint val;
-	GET_VAL;
-	if (!ret.had_error)
+	GET_VAL(loc);
+	if (!ret.err)
 		sprintf(strbuf, "%u bits (%u bytes)", val, val/8);
-	show_strbuf(pname, 0, ret.had_error);
+	show_strbuf(loc->pname, 0, ret.err);
 	ret.value.u32 = val;
 	return ret;
 }
@@ -1085,68 +1078,68 @@ size_t strbuf_mem(cl_ulong val, size_t szval)
 }
 
 struct device_info_ret
-device_info_mem(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_mem(const struct info_loc *loc,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
 	struct device_info_ret ret;
 	cl_ulong val = 0;
 	size_t szval = 0;
-	GET_VAL;
-	if (!ret.had_error) {
+	GET_VAL(loc);
+	if (!ret.err) {
 		szval += sprintf(strbuf, "%" PRIu64, val);
 		if (output_mode == CLINFO_HUMAN && val > 1024)
 			strbuf_mem(val, szval);
 		ret.value.u64 = val;
 	}
-	show_strbuf(pname, 0, ret.had_error);
+	show_strbuf(loc->pname, 0, ret.err);
 	return ret;
 }
 
 struct device_info_ret
-device_info_mem_int(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_mem_int(const struct info_loc *loc,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
 	struct device_info_ret ret;
 	cl_uint val = 0;
 	size_t szval = 0;
-	GET_VAL;
-	if (!ret.had_error) {
+	GET_VAL(loc);
+	if (!ret.err) {
 		szval += sprintf(strbuf, "%u", val);
 		if (output_mode == CLINFO_HUMAN && val > 1024)
 			strbuf_mem(val, szval);
 		ret.value.u32 = val;
 	}
-	show_strbuf(pname, 0, ret.had_error);
+	show_strbuf(loc->pname, 0, ret.err);
 	return ret;
 }
 
 struct device_info_ret
-device_info_mem_sz(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_mem_sz(const struct info_loc *loc,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
 	struct device_info_ret ret;
 	size_t val = 0;
 	size_t szval = 0;
-	GET_VAL;
-	if (!ret.had_error) {
+	GET_VAL(loc);
+	if (!ret.err) {
 		szval += sprintf(strbuf, "%" PRIuS, val);
 		if (output_mode == CLINFO_HUMAN && val > 1024)
 			strbuf_mem(val, szval);
 		ret.value.s = val;
 	}
-	show_strbuf(pname, 0, ret.had_error);
+	show_strbuf(loc->pname, 0, ret.err);
 	return ret;
 }
 
 struct device_info_ret
-device_info_free_mem_amd(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_free_mem_amd(const struct info_loc *loc,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
 	struct device_info_ret ret;
 	size_t *val = NULL;
 	size_t szval = 0, numval = 0;
-	GET_VAL_ARRAY;
-	if (!ret.had_error) {
+	GET_VAL_ARRAY(loc);
+	if (!ret.err) {
 		size_t cursor = 0;
 		szval = 0;
 		for (cursor = 0; cursor < numval; ++cursor) {
@@ -1160,19 +1153,19 @@ device_info_free_mem_amd(cl_device_id dev, cl_device_info param, const char *pna
 		}
 		// TODO: ret.value.??? = val;
 	}
-	show_strbuf(pname, 0, ret.had_error);
+	show_strbuf(loc->pname, 0, ret.err);
 	free(val);
 	return ret;
 }
 
 struct device_info_ret
-device_info_time_offset(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_time_offset(const struct info_loc *loc,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
 	struct device_info_ret ret;
 	cl_ulong val = 0;
-	GET_VAL;
-	if (!ret.had_error) {
+	GET_VAL(loc);
+	if (!ret.err) {
 		size_t szval = 0;
 		time_t time = val/UINT64_C(1000000000);
 		szval += snprintf(strbuf, bufsz, "%" PRIu64 "ns (", val);
@@ -1182,19 +1175,19 @@ device_info_time_offset(cl_device_id dev, cl_device_info param, const char *pnam
 			strbuf[szval - 1] = ')';
 		ret.value.u64 = val;
 	}
-	show_strbuf(pname, 0, ret.had_error);
+	show_strbuf(loc->pname, 0, ret.err);
 	return ret;
 }
 
 struct device_info_ret
-device_info_szptr_sep(const char *human_sep, cl_device_id dev, cl_device_info param, const char *pname,
+device_info_szptr_sep(const char *human_sep, const struct info_loc *loc,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
 	struct device_info_ret ret;
 	size_t *val = NULL;
 	size_t szval = 0, numval = 0;
-	GET_VAL_ARRAY;
-	if (!ret.had_error) {
+	GET_VAL_ARRAY(loc);
+	if (!ret.err) {
 		size_t counter = 0;
 		set_separator(output_mode == CLINFO_HUMAN ? human_sep : spc_str);
 		szval = 0;
@@ -1208,113 +1201,103 @@ device_info_szptr_sep(const char *human_sep, cl_device_id dev, cl_device_info pa
 		}
 		// TODO: ret.value.??? = val;
 	}
-	show_strbuf(pname, 0, ret.had_error);
+	show_strbuf(loc->pname, 0, ret.err);
 	free(val);
 	return ret;
 }
 
 struct device_info_ret
-device_info_szptr_times(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_szptr_times(const struct info_loc *loc,
 	const struct device_info_checks* chk, int checked)
 {
-	return device_info_szptr_sep(times_str, dev, param, pname, chk, checked);
+	return device_info_szptr_sep(times_str, loc, chk, checked);
 }
 
 struct device_info_ret
-device_info_szptr_comma(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_szptr_comma(const struct info_loc *loc,
 	const struct device_info_checks* chk, int checked)
 {
-	return device_info_szptr_sep(comma_str, dev, param, pname, chk, checked);
+	return device_info_szptr_sep(comma_str, loc, chk, checked);
 }
 
 struct device_info_ret
-device_info_wg(cl_device_id dev, cl_device_info UNUSED(param), const char *pname,
-	const struct device_info_checks* UNUSED(chk), int checked)
+device_info_wg(const struct info_loc *loc,
+	const struct device_info_checks* UNUSED(chk), int UNUSED(checked))
 {
 	struct device_info_ret ret;
-	cl_platform_id val = NULL;
-	{
-		/* shadow */
-		cl_device_info param = CL_DEVICE_PLATFORM;
-		current_param = "CL_DEVICE_PLATFORM";
-		GET_VAL;
-	}
-	current_param = pname;
-	if (!ret.had_error)
-		ret.had_error = getWGsizes(val, dev);
-	if (!ret.had_error) {
+	ret.err = getWGsizes(loc->plat, loc->dev);
+	if (!ret.err) {
 		sprintf(strbuf, "%" PRIuS, wgm[0]);
 		ret.value.s = wgm[0];
 	}
-	show_strbuf(pname, 0, ret.had_error);
+	show_strbuf(loc->pname, 0, ret.err);
 	return ret;
 }
 
 struct device_info_ret
-device_info_img_sz_2d(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_img_sz_2d(const struct info_loc *loc,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
 	struct device_info_ret ret;
+	struct info_loc loc2 = *loc;
 	size_t width = 0, height = 0, val = 0;
-	GET_VAL; /* HEIGHT */
-	if (!ret.had_error) {
+	GET_VAL(loc); /* HEIGHT */
+	if (!ret.err) {
 		height = val;
-		param = CL_DEVICE_IMAGE2D_MAX_WIDTH;
-		current_param = "CL_DEVICE_IMAGE2D_MAX_WIDTH";
-		GET_VAL;
-		if (!ret.had_error) {
+		RESET_LOC_PARAM(loc2, dev, CL_DEVICE_IMAGE2D_MAX_WIDTH);
+		GET_VAL(&loc2);
+		if (!ret.err) {
 			width = val;
 			sprintf(strbuf, "%" PRIuS "x%" PRIuS, width, height);
 			ret.value.u32v.s[0] = width;
 			ret.value.u32v.s[1] = height;
 		}
 	}
-	show_strbuf(pname, 0, ret.had_error);
+	show_strbuf(loc->pname, 0, ret.err);
 	return ret;
 }
 
 struct device_info_ret
-device_info_img_sz_intel_planar_yuv(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_img_sz_intel_planar_yuv(const struct info_loc *loc,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
 	struct device_info_ret ret;
+	struct info_loc loc2 = *loc;
 	size_t width = 0, height = 0, val = 0;
-	GET_VAL; /* HEIGHT */
-	if (!ret.had_error) {
+	GET_VAL(loc); /* HEIGHT */
+	if (!ret.err) {
 		height = val;
-		param = CL_DEVICE_PLANAR_YUV_MAX_WIDTH_INTEL;
-		current_param = "CL_DEVICE_PLANAR_YUV_MAX_WIDTH_INTEL";
-		GET_VAL;
-		if (!ret.had_error) {
+		RESET_LOC_PARAM(loc2, dev, CL_DEVICE_PLANAR_YUV_MAX_WIDTH_INTEL);
+		GET_VAL(&loc2);
+		if (!ret.err) {
 			width = val;
 			sprintf(strbuf, "%" PRIuS "x%" PRIuS, width, height);
 			ret.value.u32v.s[0] = width;
 			ret.value.u32v.s[1] = height;
 		}
 	}
-	show_strbuf(pname, 0, ret.had_error);
+	show_strbuf(loc->pname, 0, ret.err);
 	return ret;
 }
 
 
 struct device_info_ret
-device_info_img_sz_3d(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_img_sz_3d(const struct info_loc *loc,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
 	struct device_info_ret ret;
+	struct info_loc loc2 = *loc;
 	size_t width = 0, height = 0, depth = 0, val = 0;
-	GET_VAL; /* HEIGHT */
-	if (!ret.had_error) {
+	GET_VAL(loc); /* HEIGHT */
+	if (!ret.err) {
 		height = val;
-		param = CL_DEVICE_IMAGE3D_MAX_WIDTH;
-		current_param = "CL_DEVICE_IMAGE3D_MAX_WIDTH";
-		GET_VAL;
-		if (!ret.had_error) {
+		RESET_LOC_PARAM(loc2, dev, CL_DEVICE_IMAGE3D_MAX_WIDTH);
+		GET_VAL(&loc2);
+		if (!ret.err) {
 			width = val;
-			param = CL_DEVICE_IMAGE3D_MAX_DEPTH;
-			current_param = "CL_DEVICE_IMAGE3D_MAX_DEPTH";
-			GET_VAL;
-			if (!ret.had_error) {
+			RESET_LOC_PARAM(loc2, dev, CL_DEVICE_IMAGE3D_MAX_DEPTH);
+			GET_VAL(&loc2);
+			if (!ret.err) {
 				depth = val;
 				sprintf(strbuf, "%" PRIuS "x%" PRIuS "x%" PRIuS,
 					width, height, depth);
@@ -1325,19 +1308,19 @@ device_info_img_sz_3d(cl_device_id dev, cl_device_info param, const char *pname,
 		}
 		// TODO: ret.value.??? = val;
 	}
-	show_strbuf(pname, 0, ret.had_error);
+	show_strbuf(loc->pname, 0, ret.err);
 	return ret;
 }
 
 
 struct device_info_ret
-device_info_devtype(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_devtype(const struct info_loc *loc,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
 	struct device_info_ret ret;
 	cl_device_type val = 0;
-	GET_VAL;
-	if (!ret.had_error) {
+	GET_VAL(loc);
+	if (!ret.err) {
 		/* iterate over device type strings, appending their textual form
 		 * to strbuf */
 		cl_uint i = (cl_uint)actual_devtype_count;
@@ -1366,41 +1349,41 @@ device_info_devtype(cl_device_id dev, cl_device_info param, const char *pname,
 		}
 		ret.value.devtype = val;
 	}
-	show_strbuf(pname, 0, ret.had_error);
+	show_strbuf(loc->pname, 0, ret.err);
 	return ret;
 }
 
 struct device_info_ret
-device_info_cachetype(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_cachetype(const struct info_loc *loc,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
 	struct device_info_ret ret;
 	cl_device_mem_cache_type val = 0;
-	GET_VAL;
-	if (!ret.had_error) {
+	GET_VAL(loc);
+	if (!ret.err) {
 		const char * const *ar = (output_mode == CLINFO_HUMAN ?
 			cache_type_str : cache_type_raw_str);
 		bufcpy(0, ar[val]);
 		ret.value.cachetype = val;
 	}
-	show_strbuf(pname, 0, ret.had_error);
+	show_strbuf(loc->pname, 0, ret.err);
 	return ret;
 }
 
 struct device_info_ret
-device_info_lmemtype(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_lmemtype(const struct info_loc *loc,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
 	struct device_info_ret ret;
 	cl_device_local_mem_type val = 0;
-	GET_VAL;
-	if (!ret.had_error) {
+	GET_VAL(loc);
+	if (!ret.err) {
 		const char * const *ar = (output_mode == CLINFO_HUMAN ?
 			lmem_type_str : lmem_type_raw_str);
 		bufcpy(0, ar[val]);
 		ret.value.lmemtype = val;
 	}
-	show_strbuf(pname, 0, ret.had_error);
+	show_strbuf(loc->pname, 0, ret.err);
 	return ret;
 }
 
@@ -1429,43 +1412,41 @@ void devtopo_str(const cl_device_topology_amd *devtopo)
 }
 
 struct device_info_ret
-device_info_devtopo_amd(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_devtopo_amd(const struct info_loc *loc,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
 	struct device_info_ret ret;
 	cl_device_topology_amd val;
-	GET_VAL;
+	GET_VAL(loc);
 	/* TODO how to do this in CLINFO_RAW mode */
-	if (!ret.had_error) {
+	if (!ret.err) {
 		devtopo_str(&val);
 		ret.value.devtopo = val;
 	}
-	show_strbuf(pname, 0, ret.had_error);
+	show_strbuf(loc->pname, 0, ret.err);
 	return ret;
 }
 
 /* we assemble a cl_device_topology_amd struct from the NVIDIA info */
 struct device_info_ret
-device_info_devtopo_nv(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_devtopo_nv(const struct info_loc *loc,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
 	struct device_info_ret ret;
+	struct info_loc loc2 = *loc;
 	cl_device_topology_amd devtopo;
 	cl_uint val = 0;
 
 	devtopo.raw.type = CL_DEVICE_TOPOLOGY_TYPE_PCIE_AMD;
 
-	GET_VAL; /* CL_DEVICE_PCI_BUS_ID_NV */
+	GET_VAL(loc); /* CL_DEVICE_PCI_BUS_ID_NV */
 
-	if (!ret.had_error) {
+	if (!ret.err) {
 		devtopo.pcie.bus = val & 0xff;
+		RESET_LOC_PARAM(loc2, dev, CL_DEVICE_PCI_SLOT_ID_NV);
+		GET_VAL(&loc2);
 
-		param = CL_DEVICE_PCI_SLOT_ID_NV;
-		current_param = "CL_DEVICE_PCI_SLOT_ID_NV";
-
-		GET_VAL;
-
-		if (!ret.had_error) {
+		if (!ret.err) {
 			devtopo.pcie.device = (val >> 3) & 0xff;
 			devtopo.pcie.function = val & 7;
 			devtopo_str(&devtopo);
@@ -1473,82 +1454,84 @@ device_info_devtopo_nv(cl_device_id dev, cl_device_info param, const char *pname
 		}
 	}
 
-	show_strbuf(pname, 0, ret.had_error);
+	show_strbuf(loc->pname, 0, ret.err);
 	return ret;
 }
 
 /* NVIDIA Compute Capability */
 struct device_info_ret
-device_info_cc_nv(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_cc_nv(const struct info_loc *loc,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
 	struct device_info_ret ret;
+	struct info_loc loc2 = *loc;
 	cl_uint major = 0, val = 0;
-	GET_VAL; /* MAJOR */
-	if (!ret.had_error) {
+	GET_VAL(loc); /* MAJOR */
+	if (!ret.err) {
 		major = val;
-		param = CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV;
-		current_param = "CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV";
-		GET_VAL;
-		if (!ret.had_error) {
+		RESET_LOC_PARAM(loc2, dev, CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV);
+		GET_VAL(&loc2);
+		if (!ret.err) {
 			snprintf(strbuf, bufsz, "%u.%u", major, val);
 			ret.value.u32v.s[0] = major;
 			ret.value.u32v.s[1] = val;
 		}
 	}
 
-	show_strbuf(pname, 0, ret.had_error);
+	show_strbuf(loc->pname, 0, ret.err);
 	return ret;
 }
 
 /* AMD GFXIP */
 struct device_info_ret
-device_info_gfxip_amd(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_gfxip_amd(const struct info_loc *loc,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
 	struct device_info_ret ret;
+	struct info_loc loc2 = *loc;
 	cl_uint major = 0, val = 0;
-	GET_VAL; /* MAJOR */
-	if (!ret.had_error) {
+	GET_VAL(loc); /* MAJOR */
+	if (!ret.err) {
 		major = val;
-		param = CL_DEVICE_GFXIP_MINOR_AMD;
-		current_param = "CL_DEVICE_GFXIP_MINOR_AMD";
-		GET_VAL;
-		if (!ret.had_error) {
+		RESET_LOC_PARAM(loc2, dev, CL_DEVICE_GFXIP_MINOR_AMD);
+		GET_VAL(&loc2);
+		if (!ret.err) {
 			snprintf(strbuf, bufsz, "%u.%u", major, val);
 			ret.value.u32v.s[0] = major;
 			ret.value.u32v.s[1] = val;
 		}
 	}
 
-	show_strbuf(pname, 0, ret.had_error);
+	show_strbuf(loc->pname, 0, ret.err);
 	return ret;
 }
 
 
 /* Device Partition, CLINFO_HUMAN header */
 struct device_info_ret
-device_info_partition_header(cl_device_id UNUSED(dev), cl_device_info UNUSED(param),
-	const char *pname, const struct device_info_checks *chk, int UNUSED(checked))
+device_info_partition_header(const struct info_loc *loc,
+	const struct device_info_checks *chk, int UNUSED(checked))
 {
 	struct device_info_ret ret;
-	ret.had_error = CL_SUCCESS;
 	int is_12 = dev_is_12(chk);
 	int has_fission = dev_has_fission(chk);
 	size_t szval = snprintf(strbuf, bufsz, "(%s%s%s)",
 		(is_12 ? core : empty_str),
 		(is_12 && has_fission ? comma_str : empty_str),
 		chk->has_fission);
+
+	ret.err = CL_SUCCESS;
+
 	if (szval >= bufsz)
 		trunc_strbuf();
 
-	show_strbuf(pname, 0, ret.had_error);
+	show_strbuf(loc->pname, 0, ret.err);
 	return ret;
 }
 
 /* Device partition properties */
 struct device_info_ret
-device_info_partition_types(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_partition_types(const struct info_loc *loc,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
 	struct device_info_ret ret;
@@ -1559,10 +1542,10 @@ device_info_partition_types(cl_device_id dev, cl_device_info param, const char *
 
 	set_separator(output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
 
-	GET_VAL_ARRAY;
+	GET_VAL_ARRAY(loc);
 
 	szval = 0;
-	if (!ret.had_error) {
+	if (!ret.err) {
 		for (cursor = 0; cursor < numval; ++cursor) {
 			int str_idx = -1;
 
@@ -1598,14 +1581,14 @@ device_info_partition_types(cl_device_id dev, cl_device_info param, const char *
 		// TODO ret.value.??? = val
 	}
 
-	show_strbuf(pname, 0, ret.had_error);
+	show_strbuf(loc->pname, 0, ret.err);
 
 	free(val);
 	return ret;
 }
 
 struct device_info_ret
-device_info_partition_types_ext(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_partition_types_ext(const struct info_loc *loc,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
 	struct device_info_ret ret;
@@ -1616,10 +1599,10 @@ device_info_partition_types_ext(cl_device_id dev, cl_device_info param, const ch
 
 	set_separator(output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
 
-	GET_VAL_ARRAY;
+	GET_VAL_ARRAY(loc);
 
 	szval = 0;
-	if (!ret.had_error) {
+	if (!ret.err) {
 		for (cursor = 0; cursor < numval; ++cursor) {
 			int str_idx = -1;
 
@@ -1657,7 +1640,7 @@ device_info_partition_types_ext(cl_device_id dev, cl_device_info param, const ch
 		// TODO ret.value.??? = val
 	}
 
-	show_strbuf(pname, 0, ret.had_error);
+	show_strbuf(loc->pname, 0, ret.err);
 
 	free(val);
 	return ret;
@@ -1666,15 +1649,15 @@ device_info_partition_types_ext(cl_device_id dev, cl_device_info param, const ch
 
 /* Device partition affinity domains */
 struct device_info_ret
-device_info_partition_affinities(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_partition_affinities(const struct info_loc *loc,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
 	struct device_info_ret ret;
 	cl_device_affinity_domain val;
-	GET_VAL;
-	if (!ret.had_error)
+	GET_VAL(loc);
+	if (!ret.err)
 		ret.value.affinity_domain = val;
-	if (!ret.had_error && val) {
+	if (!ret.err && val) {
 		/* iterate over affinity domain strings appending their textual form
 		 * to strbuf */
 		size_t szval = 0;
@@ -1702,13 +1685,13 @@ device_info_partition_affinities(cl_device_id dev, cl_device_info param, const c
 			}
 		}
 	}
-	if (val || ret.had_error)
-		show_strbuf(pname, 0, ret.had_error);
+	if (val || ret.err)
+		show_strbuf(loc->pname, 0, ret.err);
 	return ret;
 }
 
 struct device_info_ret
-device_info_partition_affinities_ext(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_partition_affinities_ext(const struct info_loc *loc,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
 	struct device_info_ret ret;
@@ -1719,10 +1702,10 @@ device_info_partition_affinities_ext(cl_device_id dev, cl_device_info param, con
 
 	set_separator(output_mode == CLINFO_HUMAN ? comma_str : vbar_str);
 
-	GET_VAL_ARRAY;
+	GET_VAL_ARRAY(loc);
 
 	szval = 0;
-	if (!ret.had_error) {
+	if (!ret.err) {
 		for (cursor = 0; cursor < numval; ++cursor) {
 			int str_idx = -1;
 
@@ -1756,7 +1739,7 @@ device_info_partition_affinities_ext(cl_device_id dev, cl_device_info param, con
 		// TODO: ret.value.??? = val
 	}
 
-	show_strbuf(pname, 0, ret.had_error);
+	show_strbuf(loc->pname, 0, ret.err);
 
 	free(val);
 	return ret;
@@ -1764,25 +1747,27 @@ device_info_partition_affinities_ext(cl_device_id dev, cl_device_info param, con
 
 /* Preferred / native vector widths */
 struct device_info_ret
-device_info_vecwidth(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_vecwidth(const struct info_loc *loc,
 	const struct device_info_checks *chk, int checked)
 {
 	struct device_info_ret ret;
+	struct info_loc loc2 = *loc;
 	cl_uint preferred = 0, val = 0;
-	GET_VAL;
-	if (!ret.had_error) {
+	GET_VAL(loc);
+	if (!ret.err) {
 		preferred = val;
 
 		/* we get called with PREFERRED, NATIVE is at +0x30 offset, except for HALF,
 		 * which is at +0x08 */
-		param += (param == CL_DEVICE_PREFERRED_VECTOR_WIDTH_HALF ? 0x08 : 0x30);
-		/* TODO update current_param */
-		GET_VAL;
+		loc2.param.dev +=
+			(loc2.param.dev == CL_DEVICE_PREFERRED_VECTOR_WIDTH_HALF ? 0x08 : 0x30);
+		/* TODO update loc2.sname */
+		GET_VAL(&loc2);
 
-		if (!ret.had_error) {
+		if (!ret.err) {
 			size_t szval = 0;
-			const char *ext = (param == CL_DEVICE_NATIVE_VECTOR_WIDTH_HALF ?
-				chk->has_half : (param == CL_DEVICE_NATIVE_VECTOR_WIDTH_DOUBLE ?
+			const char *ext = (loc2.param.dev == CL_DEVICE_NATIVE_VECTOR_WIDTH_HALF ?
+				chk->has_half : (loc2.param.dev == CL_DEVICE_NATIVE_VECTOR_WIDTH_DOUBLE ?
 				chk->has_double : NULL));
 			szval = sprintf(strbuf, "%8u / %-8u", preferred, val);
 			if (ext)
@@ -1791,27 +1776,27 @@ device_info_vecwidth(cl_device_id dev, cl_device_info param, const char *pname,
 			ret.value.u32v.s[1] = val;
 		}
 	}
-	show_strbuf(pname, 0, ret.had_error);
+	show_strbuf(loc->pname, 0, ret.err);
 	return ret;
 }
 
 /* Floating-point configurations */
 struct device_info_ret
-device_info_fpconf(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_fpconf(const struct info_loc *loc,
 	const struct device_info_checks *chk, int checked)
 {
 	struct device_info_ret ret;
 	cl_device_fp_config val = 0;
 	int get_it = (
-		(param == CL_DEVICE_SINGLE_FP_CONFIG) ||
-		(param == CL_DEVICE_HALF_FP_CONFIG && dev_has_half(chk)) ||
-		(param == CL_DEVICE_DOUBLE_FP_CONFIG && dev_has_double(chk)));
+		(loc->param.dev == CL_DEVICE_SINGLE_FP_CONFIG) ||
+		(loc->param.dev == CL_DEVICE_HALF_FP_CONFIG && dev_has_half(chk)) ||
+		(loc->param.dev == CL_DEVICE_DOUBLE_FP_CONFIG && dev_has_double(chk)));
 	if (get_it)
-		GET_VAL;
+		GET_VAL(loc);
 	else
-		ret.had_error = CL_SUCCESS;
+		ret.err = CL_SUCCESS;
 
-	if (!ret.had_error) {
+	if (!ret.err) {
 		size_t szval = 0;
 		cl_uint i = 0;
 		const char * const *fpstr = (output_mode == CLINFO_HUMAN ?
@@ -1819,7 +1804,7 @@ device_info_fpconf(cl_device_id dev, cl_device_info param, const char *pname,
 		set_separator(vbar_str);
 		if (output_mode == CLINFO_HUMAN) {
 			const char *why = na;
-			switch (param) {
+			switch (loc->param.dev) {
 			case CL_DEVICE_HALF_FP_CONFIG:
 				if (get_it)
 					why = chk->has_half;
@@ -1833,7 +1818,7 @@ device_info_fpconf(cl_device_id dev, cl_device_info param, const char *pname,
 				break;
 			default:
 				/* "this can't happen" (unless OpenCL starts supporting _other_ floating-point formats, maybe) */
-				fprintf(stderr, "unsupported floating-point configuration parameter %s\n", pname);
+				fprintf(stderr, "unsupported floating-point configuration parameter %s\n", loc->pname);
 
 			}
 			/* show 'why' it's being shown */
@@ -1844,7 +1829,7 @@ device_info_fpconf(cl_device_id dev, cl_device_info param, const char *pname,
 			 * in the single-precision case. half and double don't consider it,
 			 * so we skip it altogether */
 			size_t num_flags = fp_conf_count;
-			if (param != CL_DEVICE_SINGLE_FP_CONFIG)
+			if (loc->param.dev != CL_DEVICE_SINGLE_FP_CONFIG)
 				num_flags -= 1;
 
 			for (i = 0; i < num_flags; ++i) {
@@ -1863,19 +1848,19 @@ device_info_fpconf(cl_device_id dev, cl_device_info param, const char *pname,
 
 	/* only print this for HUMAN output or if we actually got the value */
 	if (output_mode == CLINFO_HUMAN || get_it)
-		show_strbuf(pname, 0, ret.had_error);
+		show_strbuf(loc->pname, 0, ret.err);
 	return ret;
 }
 
 /* Queue properties */
 struct device_info_ret
-device_info_qprop(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_qprop(const struct info_loc *loc,
 	const struct device_info_checks *chk, int checked)
 {
 	struct device_info_ret ret;
 	cl_command_queue_properties val = 0;
-	GET_VAL;
-	if (!ret.had_error) {
+	GET_VAL(loc);
+	if (!ret.err) {
 		size_t szval = 0;
 		cl_uint i = 0;
 		const char * const *qpstr = (output_mode == CLINFO_HUMAN ?
@@ -1891,25 +1876,25 @@ device_info_qprop(cl_device_id dev, cl_device_info param, const char *pname,
 				szval += bufcpy(szval, qpstr[i]);
 			}
 		}
-		if (output_mode == CLINFO_HUMAN && param == CL_DEVICE_QUEUE_PROPERTIES &&
+		if (output_mode == CLINFO_HUMAN && loc->param.dev == CL_DEVICE_QUEUE_PROPERTIES &&
 			dev_has_intel_local_thread(chk))
 			sprintf(strbuf + szval, "\n%s" I2_STR "%s",
 				line_pfx, "Local thread execution (Intel)", bool_str[CL_TRUE]);
 		// TODO: ret.value.??? = val;
 	}
-	show_strbuf(pname, 0, ret.had_error);
+	show_strbuf(loc->pname, 0, ret.err);
 	return ret;
 }
 
 /* Execution capbilities */
 struct device_info_ret
-device_info_execap(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_execap(const struct info_loc *loc,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
 	struct device_info_ret ret;
 	cl_device_exec_capabilities val = 0;
-	GET_VAL;
-	if (!ret.had_error) {
+	GET_VAL(loc);
+	if (!ret.err) {
 		size_t szval = 0;
 		cl_uint i = 0;
 		const char * const *qpstr = (output_mode == CLINFO_HUMAN ?
@@ -1927,58 +1912,59 @@ device_info_execap(cl_device_id dev, cl_device_info param, const char *pname,
 		}
 		ret.value.execap = val;
 	}
-	show_strbuf(pname, 0, ret.had_error);
+	show_strbuf(loc->pname, 0, ret.err);
 	return ret;
 }
 
 /* Arch bits and endianness (HUMAN) */
 struct device_info_ret
-device_info_arch(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_arch(const struct info_loc *loc,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
 	struct device_info_ret ret;
+	struct info_loc loc2 = *loc;
 	cl_uint bits = 0;
 	{
 		cl_uint val = 0;
-		GET_VAL;
-		if (!ret.had_error) {
+		GET_VAL(loc);
+		if (!ret.err) {
 			bits = val;
 			ret.value.u32 = bits;
 		}
 	}
-	if (!ret.had_error) {
+	if (!ret.err) {
 		cl_bool val = 0;
-		param = CL_DEVICE_ENDIAN_LITTLE;
-		current_param = "CL_DEVICE_ENDIAN_LITTLE";
-		GET_VAL;
-		if (!ret.had_error) {
+		RESET_LOC_PARAM(loc2, dev, CL_DEVICE_ENDIAN_LITTLE);
+		GET_VAL(&loc2);
+		if (!ret.err) {
 			sprintf(strbuf, "%u, %s", bits, endian_str[val]);
 			ret.value.b = val;
 		}
 	}
-	show_strbuf(pname, 0, ret.had_error);
+	show_strbuf(loc->pname, 0, ret.err);
 	return ret;
 }
 
 /* SVM capabilities */
 struct device_info_ret
-device_info_svm_cap(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_svm_cap(const struct info_loc *loc,
 	const struct device_info_checks *chk, int checked)
 {
 	struct device_info_ret ret;
 	cl_device_svm_capabilities val = 0;
 	const int is_20 = dev_is_20(chk);
-	const int has_amd_svm = (param == CL_DEVICE_SVM_CAPABILITIES && dev_has_amd_svm(chk));
+	cl_int checking_core = (loc->param.dev == CL_DEVICE_SVM_CAPABILITIES);
+	const int has_amd_svm = (checking_core && dev_has_amd_svm(chk));
 
-	GET_VAL;
+	GET_VAL(loc);
 
-	if (!ret.had_error) {
+	if (!ret.err) {
 		size_t szval = 0;
 		cl_uint i = 0;
 		const char * const *scstr = (output_mode == CLINFO_HUMAN ?
 			svm_cap_str : svm_cap_raw_str);
 		set_separator(vbar_str);
-		if (output_mode == CLINFO_HUMAN && param == CL_DEVICE_SVM_CAPABILITIES) {
+		if (output_mode == CLINFO_HUMAN && checking_core) {
 			/* show 'why' it's being shown */
 			szval += sprintf(strbuf, "(%s%s%s)",
 				(is_20 ? core : empty_str),
@@ -1998,21 +1984,21 @@ device_info_svm_cap(cl_device_id dev, cl_device_info param, const char *pname,
 		ret.value.svmcap = val;
 	}
 
-	show_strbuf(pname, 0, ret.had_error);
+	show_strbuf(loc->pname, 0, ret.err);
 	return ret;
 }
 
 /* Device terminate capability */
 struct device_info_ret
-device_info_terminate_capability(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_terminate_capability(const struct info_loc *loc,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
 	struct device_info_ret ret;
 	cl_device_terminate_capability_khr val;
-	GET_VAL;
-	if (!ret.had_error)
+	GET_VAL(loc);
+	if (!ret.err)
 		ret.value.termcap = val;
-	if (!ret.had_error && val) {
+	if (!ret.err && val) {
 		/* iterate over terminate capability strings appending their textual form
 		 * to strbuf */
 		size_t szval = 0;
@@ -2040,20 +2026,20 @@ device_info_terminate_capability(cl_device_id dev, cl_device_info param, const c
 			}
 		}
 	}
-	if (val || ret.had_error)
-		show_strbuf(pname, 0, ret.had_error);
+	if (val || ret.err)
+		show_strbuf(loc->pname, 0, ret.err);
 	return ret;
 }
 
 struct device_info_ret
-device_info_p2p_dev_list(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_p2p_dev_list(const struct info_loc *loc,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
 	struct device_info_ret ret;
 	cl_device_id *val = NULL;
 	size_t szval = 0, numval = 0;
-	GET_VAL_ARRAY;
-	if (!ret.had_error) {
+	GET_VAL_ARRAY(loc);
+	if (!ret.err) {
 		size_t cursor = 0;
 		szval = 0;
 		for (cursor= 0; cursor < numval; ++cursor) {
@@ -2065,20 +2051,20 @@ device_info_p2p_dev_list(cl_device_id dev, cl_device_info param, const char *pna
 		}
 		// TODO: ret.value.??? = val;
 	}
-	show_strbuf(pname, 0, ret.had_error);
+	show_strbuf(loc->pname, 0, ret.err);
 	free(val);
 	return ret;
 }
 
 struct device_info_ret
-device_info_interop_list(cl_device_id dev, cl_device_info param, const char *pname,
+device_info_interop_list(const struct info_loc *loc,
 	const struct device_info_checks* UNUSED(chk), int checked)
 {
 	struct device_info_ret ret;
 	cl_uint *val = NULL;
 	size_t szval = 0, numval = 0;
-	GET_VAL_ARRAY;
-	if (!ret.had_error) {
+	GET_VAL_ARRAY(loc);
+	if (!ret.err) {
 		size_t cursor = 0;
 		const cl_interop_name *interop_name_end = cl_interop_names + num_known_interops;
 		cl_uint human_raw = output_mode - CLINFO_HUMAN;
@@ -2125,7 +2111,7 @@ device_info_interop_list(cl_device_id dev, cl_device_info param, const char *pna
 		}
 		// TODO: ret.value.??? = val;
 	}
-	show_strbuf(pname, 0, ret.had_error);
+	show_strbuf(loc->pname, 0, ret.err);
 	free(val);
 	return ret;
 }
@@ -2144,8 +2130,8 @@ struct device_info_traits {
 	const char *pname; // "Device *"
 	const char *sfx; // suffix for the output in non-raw mode
 	/* pointer to function that shows the parameter */
-	struct device_info_ret (*show_func)(cl_device_id dev, cl_device_info param,
-		const char *pname, const struct device_info_checks *, int checked);
+	struct device_info_ret (*show_func)(const struct info_loc *,
+		const struct device_info_checks *, int checked);
 	/* pointer to function that checks if the parameter should be checked */
 	int (*check_func)(const struct device_info_checks *);
 };
@@ -2390,25 +2376,25 @@ void
 printDeviceInfo(const cl_device_id *device, cl_uint p, cl_uint d,
 	const cl_device_info *param_whitelist) /* list of device info to process, or NULL */
 {
-	cl_device_id dev = device[d];
-
 	char *extensions = NULL;
 
 	/* pointer to the traits for CL_DEVICE_EXTENSIONS */
 	const struct device_info_traits *extensions_traits = NULL;
 
 	struct device_info_checks chk;
+	struct info_loc loc;
+
 	memset(&chk, 0, sizeof(chk));
 	chk.pinfo_checks = platform_checks + p;
 	chk.dev_version = 10;
 
-	current_function = __func__;
+	reset_loc(&loc, __func__);
+	loc.plat = platform[p];
+	loc.dev = device[d];
 
-	for (current_line = 0; current_line < ARRAY_SIZE(dinfo_traits); ++current_line) {
+	for (loc.line = 0; loc.line < ARRAY_SIZE(dinfo_traits); ++loc.line) {
 
-		const struct device_info_traits *traits = dinfo_traits + current_line;
-		const char *pname = (output_mode == CLINFO_HUMAN ?
-			traits->pname : traits->sname);
+		const struct device_info_traits *traits = dinfo_traits + loc.line;
 		struct device_info_ret ret;
 
 		/* checked is true if there was no condition to check for, or if the
@@ -2416,7 +2402,10 @@ printDeviceInfo(const cl_device_id *device, cl_uint p, cl_uint d,
 		 */
 		int checked = !(traits->check_func && !traits->check_func(&chk));
 
-		current_param = traits->sname;
+		loc.sname = traits->sname;
+		loc.pname = (output_mode == CLINFO_HUMAN ?
+			traits->pname : traits->sname);
+		loc.param.dev = traits->param;
 
 		/* Whitelist check: finish if done traversing the list,
 		 * skip current param if it's not the right one
@@ -2442,13 +2431,12 @@ printDeviceInfo(const cl_device_id *device, cl_uint p, cl_uint d,
 
 		/* Handle headers */
 		if (traits->param == CL_FALSE) {
-			ret.had_error = CL_SUCCESS;
-			show_strbuf(pname, 0, ret.had_error);
+			ret.err = CL_SUCCESS;
+			show_strbuf(loc.pname, 0, ret.err);
 			continue;
 		}
 
-		ret = traits->show_func(dev, traits->param,
-			pname, &chk, checked);
+		ret = traits->show_func(&loc, &chk, checked);
 
 		if (traits->param == CL_DEVICE_EXTENSIONS) {
 			/* make a backup of the extensions string, regardless of
@@ -2460,7 +2448,7 @@ printDeviceInfo(const cl_device_id *device, cl_uint p, cl_uint d,
 			extensions[len] = '\0';
 		}
 
-		if (ret.had_error)
+		if (ret.err)
 			continue;
 
 		switch (traits->param) {
@@ -2525,8 +2513,7 @@ static const cl_device_info amd_offline_info_whitelist[] = {
 /* process offline devices from the cl_amd_offline_devices extension */
 int processOfflineDevicesAMD(cl_uint p)
 {
-	cl_int had_error;
-	cl_int ret = CL_SUCCESS;
+	cl_int err;
 
 	cl_platform_id pid = platform[p];
 	cl_device_id *device = NULL;
@@ -2540,21 +2527,27 @@ int processOfflineDevicesAMD(cl_uint p)
 
 	cl_context ctx = NULL;
 
+	struct info_loc loc;
+	reset_loc(&loc, __func__);
+	RESET_LOC_PARAM(loc, dev, CL_DEVICE_NAME);
+
 	if (!list_only)
 		printf("%s" I0_STR, line_pfx,
 			(output_mode == CLINFO_HUMAN ?
 			 "Number of offline devices (AMD)" : "#OFFDEVICES"));
 
-	ctx = clCreateContextFromType(ctxpft, CL_DEVICE_TYPE_ALL, NULL, NULL, &error);
-	RR_ERROR("create context");
+	ctx = clCreateContextFromType(ctxpft, CL_DEVICE_TYPE_ALL, NULL, NULL, &err);
+	if (REPORT_ERROR(err, "create context")) goto out;
 
-	error = clGetContextInfo(ctx, CL_CONTEXT_NUM_DEVICES, sizeof(num_devs), &num_devs, NULL);
-	RR_ERROR("get num devs");
+	if (REPORT_ERROR(
+			clGetContextInfo(ctx, CL_CONTEXT_NUM_DEVICES, sizeof(num_devs), &num_devs, NULL),
+			"get num devs")) goto out;
 
 	ALLOC(device, num_devs, "offline devices");
 
-	error = clGetContextInfo(ctx, CL_CONTEXT_DEVICES, num_devs*sizeof(*device), device, NULL);
-	RR_ERROR("get devs");
+	if (REPORT_ERROR(
+			clGetContextInfo(ctx, CL_CONTEXT_DEVICES, num_devs*sizeof(*device), device, NULL),
+			"get devs")) goto out;
 
 	if (!list_only)
 		printf("%d\n", num_devs);
@@ -2567,8 +2560,8 @@ int processOfflineDevicesAMD(cl_uint p)
 			*/
 			if (d == num_devs - 1 && output_mode != CLINFO_RAW)
 				line_pfx[1] = '`';
-			had_error = device_info_str_get(device[d],
-				CL_DEVICE_NAME, "CL_DEVICE_NAME", NULL, CL_TRUE).had_error;
+			loc.dev = device[d];
+			err = device_info_str_get(&loc, NULL, CL_TRUE).err;
 			printf("%s%u: %s\n", line_pfx, d, strbuf);
 		} else {
 			if (line_pfx_len > 0) {
@@ -2583,12 +2576,12 @@ int processOfflineDevicesAMD(cl_uint p)
 		fflush(stderr);
 	}
 
-	had_error = CL_FALSE;
+	err = CL_SUCCESS;
 out:
 	free(device);
 	if (ctx)
 		clReleaseContext(ctx);
-	return ret;
+	return err;
 
 }
 
@@ -2596,6 +2589,10 @@ void listPlatformsAndDevices(cl_bool show_offline)
 {
 	cl_uint p, d;
 	cl_device_id *device;
+	struct info_loc loc;
+
+	reset_loc(&loc, __func__);
+	RESET_LOC_PARAM(loc, dev, CL_DEVICE_NAME);
 
 	if (output_mode == CLINFO_RAW)
 		sprintf(strbuf, "%u", num_platforms);
@@ -2615,8 +2612,9 @@ void listPlatformsAndDevices(cl_bool show_offline)
 			sprintf(line_pfx, " +-- Device #");
 
 		if (pdata[p].ndevs > 0) {
-			error = clGetDeviceIDs(platform[p], CL_DEVICE_TYPE_ALL, pdata[p].ndevs, device, NULL);
-			CHECK_ERROR("device IDs");
+			CHECK_ERROR(
+				clGetDeviceIDs(platform[p], CL_DEVICE_TYPE_ALL, pdata[p].ndevs, device, NULL),
+				"device IDs");
 			for (d = 0; d < pdata[p].ndevs; ++d) {
 				/*
 				if (output_mode == CLINFO_HUMAN)
@@ -2626,7 +2624,8 @@ void listPlatformsAndDevices(cl_bool show_offline)
 					(!show_offline || !pdata[p].has_amd_offline));
 				if (last_device)
 					line_pfx[1] = '`';
-				device_info_str_get(device[d], CL_DEVICE_NAME, "CL_DEVICE_NAME", NULL, CL_TRUE);
+				loc.dev = device[d];
+				device_info_str_get(&loc, NULL, CL_TRUE);
 				printf("%s%u: %s\n", line_pfx, d, strbuf);
 				fflush(stdout);
 				fflush(stderr);
@@ -2673,8 +2672,9 @@ void showDevices(cl_bool show_offline)
 			pdata[p].ndevs);
 
 		if (pdata[p].ndevs > 0) {
-			error = clGetDeviceIDs(platform[p], CL_DEVICE_TYPE_ALL, pdata[p].ndevs, device, NULL);
-			CHECK_ERROR("device IDs");
+			CHECK_ERROR(
+				clGetDeviceIDs(platform[p], CL_DEVICE_TYPE_ALL, pdata[p].ndevs, device, NULL),
+				"device IDs");
 		}
 		for (d = 0; d < pdata[p].ndevs; ++d) {
 			if (line_pfx_len > 0) {
@@ -2699,14 +2699,18 @@ void showDevices(cl_bool show_offline)
 /* check the behavior of clGetPlatformInfo() when given a NULL platform ID */
 void checkNullGetPlatformName(void)
 {
-	current_param = "CL_PLATFORM_NAME";
+	struct info_loc loc;
+	cl_int err;
 
-	error = clGetPlatformInfo(NULL, CL_PLATFORM_NAME, bufsz, strbuf, NULL);
-	if (error == CL_INVALID_PLATFORM) {
+	reset_loc(&loc, __func__);
+	RESET_LOC_PARAM(loc, plat, CL_PLATFORM_NAME);
+
+	err = clGetPlatformInfo(NULL, CL_PLATFORM_NAME, bufsz, strbuf, NULL);
+	if (err == CL_INVALID_PLATFORM) {
 		bufcpy(0, no_plat());
 	} else {
-		current_line = __LINE__+1;
-		REPORT_ERROR2("get %s");
+		loc.line = __LINE__ + 1;
+		REPORT_ERROR_LOC(err, &loc, "get %s");
 	}
 	printf(I1_STR "%s\n",
 		"clGetPlatformInfo(NULL, CL_PLATFORM_NAME, ...)", strbuf);
@@ -2719,6 +2723,7 @@ void checkNullGetPlatformName(void)
  */
 cl_uint checkNullGetDevices(void)
 {
+	cl_int err;
 	cl_uint i = 0; /* generic iterator */
 	cl_device_id dev = NULL; /* sample device */
 	cl_platform_id plat = NULL; /* detected platform */
@@ -2727,10 +2732,12 @@ cl_uint checkNullGetDevices(void)
 	cl_uint pidx = num_platforms; /* index of the platform found */
 	cl_uint numdevs = 0;
 
-	current_function = __func__;
-	current_param = "device IDs";
+	struct info_loc loc;
 
-	error = clGetDeviceIDs(NULL, CL_DEVICE_TYPE_ALL, 0, NULL, &numdevs);
+	reset_loc(&loc, __func__);
+	loc.sname = "device IDs";
+
+	err = clGetDeviceIDs(NULL, CL_DEVICE_TYPE_ALL, 0, NULL, &numdevs);
 	/* TODO we should check other CL_DEVICE_TYPE_* combinations, since a smart
 	 * implementation might give you a different default platform for GPUs
 	 * and for CPUs.
@@ -2741,7 +2748,7 @@ cl_uint checkNullGetDevices(void)
 	 * of a given type.
 	 */
 
-	switch (error) {
+	switch (err) {
 	case CL_INVALID_PLATFORM:
 		bufcpy(0, no_plat());
 		break;
@@ -2780,20 +2787,20 @@ cl_uint checkNullGetDevices(void)
 		}
 		break;
 	default:
-		current_line = __LINE__+1;
-		if (REPORT_ERROR2("get number of %s")) break;
+		loc.line = __LINE__+1;
+		if (REPORT_ERROR_LOC(err, &loc, "get number of %s")) break;
 
 		/* Determine platform by looking at the CL_DEVICE_PLATFORM of
 		 * one of the devices */
-		error = clGetDeviceIDs(NULL, CL_DEVICE_TYPE_ALL, 1, &dev, NULL);
-		current_line = __LINE__+1;
-		if (REPORT_ERROR2("get %s")) break;
+		err = clGetDeviceIDs(NULL, CL_DEVICE_TYPE_ALL, 1, &dev, NULL);
+		loc.line = __LINE__+1;
+		if (REPORT_ERROR_LOC(err, &loc, "get %s")) break;
 
-		current_param = "CL_DEVICE_PLATFORM";
-		error = clGetDeviceInfo(dev, CL_DEVICE_PLATFORM,
+		RESET_LOC_PARAM(loc, dev, CL_DEVICE_PLATFORM);
+		err = clGetDeviceInfo(dev, CL_DEVICE_PLATFORM,
 			sizeof(plat), &plat, NULL);
-		current_line = __LINE__+1;
-		if (REPORT_ERROR2("get %s")) break;
+		loc.line = __LINE__+1;
+		if (REPORT_ERROR_LOC(err, &loc, "get %s")) break;
 
 		for (i = 0; i < num_platforms; ++i) {
 			if (platform[i] == plat) {
@@ -2815,13 +2822,14 @@ cl_uint checkNullGetDevices(void)
 
 void checkNullCtx(cl_uint pidx, const cl_device_id *dev, const char *which)
 {
-	cl_context ctx = clCreateContext(NULL, 1, dev, NULL, NULL, &error);
+	struct info_loc loc;
+	cl_int err;
+	cl_context ctx = clCreateContext(NULL, 1, dev, NULL, NULL, &err);
+	reset_loc(&loc, __func__);
+	loc.sname = which;
+	loc.line = __LINE__+2;
 
-	current_function = __func__;
-	current_param = which;
-	current_line = __LINE__+2;
-
-	if (!REPORT_ERROR2("create context with device from %s platform"))
+	if (!REPORT_ERROR_LOC(err, &loc, "create context with device from %s platform"))
 		sprintf(strbuf, "%s [%s]",
 			(output_mode == CLINFO_HUMAN ? "Success" : "CL_SUCCESS"),
 			pdata[pidx].sname);
@@ -2844,6 +2852,9 @@ void checkNullCtxFromType(void)
 	size_t cursz = ndevs*sizeof(cl_device_id);
 	cl_platform_id plat = NULL;
 	cl_device_id *devs = NULL;
+	cl_int err;
+
+	struct info_loc loc;
 
 	const char *platname_prop = (output_mode == CLINFO_HUMAN ?
 		pinfo_traits[0].pname :
@@ -2853,19 +2864,20 @@ void checkNullCtxFromType(void)
 		dinfo_traits[0].pname :
 		dinfo_traits[0].sname);
 
+	reset_loc(&loc, __func__);
+
 	ALLOC(devs, ndevs, "context devices");
 
-	current_function = __func__;
 	for (t = 1; t < devtype_count; ++t) { /* we skip 0 */
-		current_param = device_type_raw_str[t];
+		loc.sname = device_type_raw_str[t];
 
-		sprintf(strbuf, "clCreateContextFromType(NULL, %s)", current_param);
+		sprintf(strbuf, "clCreateContextFromType(NULL, %s)", loc.sname);
 		sprintf(def, I1_STR, strbuf);
 
-		current_line = __LINE__+1;
-		ctx = clCreateContextFromType(NULL, devtype[t], NULL, NULL, &error);
+		loc.line = __LINE__+1;
+		ctx = clCreateContextFromType(NULL, devtype[t], NULL, NULL, &err);
 
-		switch (error) {
+		switch (err) {
 		case CL_INVALID_PLATFORM:
 			bufcpy(0, no_plat()); break;
 		case CL_DEVICE_NOT_FOUND:
@@ -2877,32 +2889,33 @@ void checkNullCtxFromType(void)
 		case CL_DEVICE_NOT_AVAILABLE:
 			bufcpy(0, no_dev_avail()); break;
 		default:
-			if (REPORT_ERROR2("create context from type %s")) break;
+			if (REPORT_ERROR_LOC(err, &loc, "create context from type %s")) break;
 
 			/* get the devices */
-			current_param = "CL_CONTEXT_DEVICES";
-			current_line = __LINE__+2;
+			loc.sname = "CL_CONTEXT_DEVICES";
+			loc.line = __LINE__+2;
 
-			error = clGetContextInfo(ctx, CL_CONTEXT_DEVICES, 0, NULL, &szval);
-			if (REPORT_ERROR2("get %s size")) break;
+			err = clGetContextInfo(ctx, CL_CONTEXT_DEVICES, 0, NULL, &szval);
+			if (REPORT_ERROR_LOC(err, &loc, "get %s size")) break;
 			if (szval > cursz) {
 				REALLOC(devs, szval, "context devices");
 				cursz = szval;
 			}
 
-			current_line = __LINE__+1;
-			error = clGetContextInfo(ctx, CL_CONTEXT_DEVICES, cursz, devs, NULL);
-			if (REPORT_ERROR2("get %s")) break;
+			loc.line = __LINE__+1;
+			err = clGetContextInfo(ctx, CL_CONTEXT_DEVICES, cursz, devs, NULL);
+			if (REPORT_ERROR_LOC(err, &loc, "get %s")) break;
 			ndevs = szval/sizeof(cl_device_id);
 			if (ndevs < 1) {
 				bufcpy(0, "<error: context created with no devices>");
 			}
 
 			/* get the platform from the first device */
-			current_param = "CL_DEVICE_PLATFORM";
-			current_line = __LINE__+1;
-			error = clGetDeviceInfo(*devs, CL_DEVICE_PLATFORM, sizeof(plat), &plat, NULL);
-			if (REPORT_ERROR2("get %s")) break;
+			RESET_LOC_PARAM(loc, dev, CL_DEVICE_PLATFORM);
+			loc.line = __LINE__+1;
+			err = clGetDeviceInfo(*devs, CL_DEVICE_PLATFORM, sizeof(plat), &plat, NULL);
+			if (REPORT_ERROR_LOC(err, &loc, "get %s")) break;
+			loc.plat = plat;
 
 			szval = 0;
 			for (i = 0; i < num_platforms; ++i) {
@@ -2930,10 +2943,11 @@ void checkNullCtxFromType(void)
 					break;
 				}
 
-				current_param = "CL_DEVICE_NAME";
-				current_line = __LINE__+1;
-				error = clGetDeviceInfo(devs[i], CL_DEVICE_NAME, bufsz - szval, strbuf + szval, &szname);
-				if (REPORT_ERROR2("get %s")) break;
+				RESET_LOC_PARAM(loc, dev, CL_DEVICE_NAME);
+				loc.dev = devs[i];
+				loc.line = __LINE__+1;
+				err = clGetDeviceInfo(devs[i], CL_DEVICE_NAME, bufsz - szval, strbuf + szval, &szname);
+				if (REPORT_ERROR_LOC(err, &loc, "get %s")) break;
 				szval += szname - 1;
 
 
@@ -3010,12 +3024,6 @@ void checkNullBehavior(void)
 
 /* Get properties of the ocl-icd loader, if available */
 /* All properties are currently char[] */
-typedef enum {
-	CL_ICDL_OCL_VERSION=1,
-	CL_ICDL_VERSION=2,
-	CL_ICDL_NAME=3,
-	CL_ICDL_VENDOR=4,
-} cl_icdl_info;
 
 /* Function pointer to the ICD loader info function */
 
@@ -3040,12 +3048,12 @@ struct icd_loader_test {
 };
 
 cl_int
-icdl_info_str(cl_icdl_info param, const char* pname)
+icdl_info_str(const struct info_loc *loc)
 {
-	cl_int had_error;
-	GET_STRING2(had_error, clGetICDLoaderInfoOCLICD, param);
-	show_strbuf(pname, 1, had_error);
-	return had_error;
+	cl_int err;
+	GET_STRING_LOC(err, loc, clGetICDLoaderInfoOCLICD, loc->param.icdl);
+	show_strbuf(loc->pname, 1, err);
+	return err;
 }
 
 struct icdl_info_traits {
@@ -3105,10 +3113,11 @@ void oclIcdProps(void)
 
 	/* Step #2: query proerties from extension, if available */
 	if (clGetICDLoaderInfoOCLICD != NULL) {
+		struct info_loc loc;
+		reset_loc(&loc, __func__);
 		/* TODO think of a sensible header in CLINFO_RAW */
 		if (output_mode != CLINFO_RAW)
 			puts("\nICD loader properties");
-		current_function = __func__;
 
 		if (output_mode == CLINFO_RAW) {
 			line_pfx_len = (int)(strlen(oclicdl_pfx) + 5);
@@ -3117,16 +3126,17 @@ void oclIcdProps(void)
 			sprintf(line_pfx, "%*s", -line_pfx_len, strbuf);
 		}
 
-		for (current_line = 0; current_line < ARRAY_SIZE(linfo_traits); ++current_line) {
-			const struct icdl_info_traits *traits = linfo_traits + current_line;
-			cl_int had_error;
-			current_param = traits->sname;
-
-			had_error = icdl_info_str(traits->param,
-				output_mode == CLINFO_HUMAN ?
+		for (loc.line = 0; loc.line < ARRAY_SIZE(linfo_traits); ++loc.line) {
+			const struct icdl_info_traits *traits = linfo_traits + loc.line;
+			cl_int err;
+			loc.sname = traits->sname;
+			loc.pname = (output_mode == CLINFO_HUMAN ?
 				traits->pname : traits->sname);
+			loc.param.icdl = traits->param;
 
-			if (!had_error && traits->param == CL_ICDL_OCL_VERSION) {
+			err = icdl_info_str(&loc);
+
+			if (!err && traits->param == CL_ICDL_OCL_VERSION) {
 				icdl_ocl_version = getOpenCLVersion(strbuf + 7);
 			}
 		}
@@ -3185,6 +3195,7 @@ void usage(void)
 int main(int argc, char *argv[])
 {
 	cl_uint p;
+	cl_int err;
 	int a = 0;
 
 	cl_bool show_offline = CL_FALSE;
@@ -3222,9 +3233,9 @@ int main(int argc, char *argv[])
 	ALLOC(strbuf, 1024, "general string buffer");
 	bufsz = 1024;
 
-	error = clGetPlatformIDs(0, NULL, &num_platforms);
-	if (error != CL_PLATFORM_NOT_FOUND_KHR)
-		CHECK_ERROR("number of platforms");
+	err = clGetPlatformIDs(0, NULL, &num_platforms);
+	if (err != CL_PLATFORM_NOT_FOUND_KHR)
+		CHECK_ERROR(err, "number of platforms");
 
 	if (!list_only)
 		printf(I0_STR "%u\n",
@@ -3235,8 +3246,8 @@ int main(int argc, char *argv[])
 		return 0;
 
 	ALLOC(platform, num_platforms, "platform IDs");
-	error = clGetPlatformIDs(num_platforms, platform, NULL);
-	CHECK_ERROR("platform IDs");
+	err = clGetPlatformIDs(num_platforms, platform, NULL);
+	CHECK_ERROR(err, "platform IDs");
 
 	ALLOC(pdata, num_platforms, "platform data");
 	ALLOC(platform_checks, num_platforms, "platform checks data");

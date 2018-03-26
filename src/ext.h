@@ -222,4 +222,12 @@ typedef cl_ulong  cl_device_partition_property_ext;
 /* cl_intel_required_subgroup_size */
 #define CL_DEVICE_SUB_GROUP_SIZES_INTEL			0x4108
 
+/* clGeICDLoaderInfoOCLICD */
+typedef enum {
+	CL_ICDL_OCL_VERSION=1,
+	CL_ICDL_VERSION=2,
+	CL_ICDL_NAME=3,
+	CL_ICDL_VENDOR=4,
+} cl_icdl_info;
+
 #endif

@@ -5,9 +5,11 @@ MAN = man1/$(PROG).1
 
 HDR =	src/error.h \
 	src/ext.h \
+	src/ctx_prop.h \
 	src/fmtmacros.h \
 	src/memory.h \
 	src/ms_support.h \
+	src/info_loc.h \
 	src/strbuf.h
 
 VPATH = src

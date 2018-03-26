@@ -1,13 +1,15 @@
 /* OpenCL error handling */
 
+#ifndef ERROR_H
+#define ERROR_H
+
 #include <stdio.h>
 
 #include "ext.h"
+#include "info_loc.h"
 #include "fmtmacros.h"
 
-cl_int error;
-
-int
+cl_int
 check_ocl_error(cl_int err, const char *what, const char *func, int line)
 {
 	if (err != CL_SUCCESS) {
@@ -17,47 +19,47 @@ check_ocl_error(cl_int err, const char *what, const char *func, int line)
 			func, line, what, err);
 		fflush(stderr);
 	}
-	return err != CL_SUCCESS;
+	return err;
 }
 
-const char *current_function;
-size_t current_line;
-const char *current_param;
+cl_int
+report_ocl_error_basic(char *dstbuf, size_t sz, cl_int err, const char *what, const char *func, int line)
+{
+	if (err != CL_SUCCESS) {
+		snprintf(dstbuf, sz, "<%s:%d: %s : error %d>",
+			func, line, what, err);
+	}
+	return err;
+}
 
-int
-report_ocl_error(char *dstbuf, size_t sz, cl_int err, const char *fmt)
+
+cl_int
+report_ocl_error_loc(char *dstbuf, size_t sz, cl_int err, const char *fmt,
+	const struct info_loc *loc)
 {
 	static char full_fmt[1024];
 	if (err != CL_SUCCESS) {
 		snprintf(full_fmt, 1024, "<%s:%" PRIuS ": %s : error %d>",
-			current_function, current_line, fmt, err);
-		snprintf(dstbuf, sz, full_fmt, current_param);
+			loc->function, loc->line, fmt, err);
+		snprintf(dstbuf, sz, full_fmt, loc->sname);
 	}
 	return err != CL_SUCCESS;
 }
 
 void
-report_size_mismatch(char *dstbuf, size_t sz, size_t req, size_t ours)
+report_size_mismatch(char *dstbuf, size_t sz, size_t req, size_t ours,
+	const struct info_loc *loc)
 {
 	snprintf(dstbuf, sz, "<%s:%" PRIuS ": %s : size mismatch "
 		"(requested %" PRIuS ", we offer %" PRIuS ")>",
-		current_function, current_line, current_param,
+		loc->function, loc->line, loc->sname,
 		req, ours);
 }
 
-int
-report_ocl_error_old(char *where, size_t sz, cl_int err, const char *what, const char *func, int line)
-{
-	if (err != CL_SUCCESS) {
-		snprintf(where, sz, "<%s:%d: %s : error %d>",
-			func, line, what, err);
-	}
-	return err != CL_SUCCESS;
-}
+#define CHECK_ERROR(error, what) if (check_ocl_error(error, what, __func__, __LINE__)) exit(1)
 
-#define CHECK_ERROR(what) if (check_ocl_error(error, what, __func__, __LINE__)) exit(1)
+#define REPORT_ERROR(error, what) report_ocl_error_basic(strbuf, bufsz, error, what, __func__, __LINE__)
+#define REPORT_ERROR_LOC(error, loc, what) report_ocl_error_loc(strbuf, bufsz, error, what, loc)
+#define REPORT_SIZE_MISMATCH(loc, req, ours) report_size_mismatch(strbuf, bufsz, req, ours, loc)
 
-#define REPORT_ERROR(what) report_ocl_error_old(strbuf, bufsz, error, what, __func__, __LINE__)
-#define REPORT_ERROR2(what) report_ocl_error(strbuf, bufsz, error, what)
-#define REPORT_SIZE_MISMATCH(req, ours) report_size_mismatch(strbuf, bufsz, req, ours)
-
+#endif
