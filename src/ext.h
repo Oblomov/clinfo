@@ -1,8 +1,8 @@
 /* Include OpenCL header, and define OpenCL extensions, since what is and is not
  * available in the official headers is very system-dependent */
 
-#ifndef _EXT_H
-#define _EXT_H
+#ifndef EXT_H
+#define EXT_H
 
 /* We will use the deprecated clGetExtensionFunctionAddress,
  * so let the headers know that we don't care about it being deprecated.

@@ -1,5 +1,8 @@
 /* List of OpenCL context properties used to interoperate with a different API */
 
+#ifndef CTX_PROP
+#define CTX_PROP
+
 /* cl_khr_gl_sharing */
 #define CL_GL_CONTEXT_KHR			0x2008
 #define CL_EGL_DISPLAY_KHR			0x2009
@@ -25,3 +28,5 @@
 
 /* cl_intel_va_api_media_sharing */
 #define CL_CONTEXT_VA_API_DISPLAY_INTEL		0x4097
+
+#endif

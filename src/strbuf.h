@@ -2,6 +2,9 @@
  * at least 1024 bytes long.
  */
 
+#ifndef STRBUF_H
+#define STRBUF_H
+
 #include <ctype.h>
 #include <string.h>
 #include <stdio.h>
@@ -109,3 +112,5 @@ void add_separator(size_t *offset)
 	if (*offset)
 		*offset += bufcpy_len(*offset, sep, sepsz);
 }
+
+#endif

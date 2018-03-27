@@ -1,5 +1,8 @@
 /* Memory handling */
 
+#ifndef MEMORY_H
+#define MEMORY_H
+
 #include <stdlib.h>
 
 #define CHECK_MEM(var, what) do { \
@@ -19,3 +22,5 @@
 	var = realloc(var, (num)*sizeof(*var)); \
 	CHECK_MEM(var, what); \
 } while (0)
+
+#endif

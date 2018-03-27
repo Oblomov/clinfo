@@ -5,8 +5,8 @@
    easier.
  */
 
-#ifndef _FMT_MACROS_H
-#define _FMT_MACROS_H
+#ifndef FMT_MACROS_H
+#define FMT_MACROS_H
 
 #ifdef _WIN32
 /* TODO FIXME WIN64 support */

@@ -4,6 +4,9 @@
  * TODO could be improved by version-checking for C99 support
  */
 
+#ifndef MS_SUPPORT
+#define MS_SUPPORT
+
 // disable warning about unsafe strncpy vs strncpy_s usage
 #pragma warning(disable : 4996)
 // disable warning about constant conditional expressions
@@ -60,3 +63,5 @@ inline int c99_snprintf(char* str, size_t size, const char* format, ...)
 // And no __func__ either
 
 #define __func__ __FUNCTION__
+
+#endif
