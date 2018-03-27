@@ -24,16 +24,16 @@ size_t bufsz, nusz;
 	REPORT_ERROR(err, "get " param_str); \
 } while (0)
 
-#define GET_STRING_LOC(had_error, loc, cmd, ...) do { \
-	had_error = REPORT_ERROR_LOC( \
+#define GET_STRING_LOC(err, loc, cmd, ...) do { \
+	err = REPORT_ERROR_LOC( \
 		cmd(__VA_ARGS__, 0, NULL, &nusz), \
 		loc, "get %s size"); \
-	if (!had_error) { \
+	if (!err) { \
 		if (nusz > bufsz) { \
 			REALLOC(strbuf, nusz, loc->sname); \
 			bufsz = nusz; \
 		} \
-		had_error = REPORT_ERROR_LOC( \
+		err = REPORT_ERROR_LOC( \
 			cmd(__VA_ARGS__, bufsz, strbuf, NULL), \
 			loc, "get %s"); \
 	} \
