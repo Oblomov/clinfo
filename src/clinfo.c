@@ -2504,6 +2504,8 @@ void listPlatformsAndDevices(cl_bool show_offline)
 	cl_device_id *device;
 	struct info_loc loc;
 	struct _strbuf str;
+	init_strbuf(&str);
+	realloc_strbuf(&str, 1024,  "list platforms and devices");
 
 	reset_loc(&loc, __func__);
 	RESET_LOC_PARAM(loc, dev, CL_DEVICE_NAME);
