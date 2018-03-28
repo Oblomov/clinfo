@@ -2589,6 +2589,7 @@ void showDevices(cl_bool show_offline)
 	cl_uint p, d;
 	cl_device_id *device;
 	struct _strbuf str;
+	init_strbuf(&str);
 	realloc_strbuf(&str, 1024, "show devices");
 
 	/* TODO consider enabling this for both output modes */
