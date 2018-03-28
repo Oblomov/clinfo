@@ -135,7 +135,8 @@ static const char unk[] = "Unknown";
 static const char none[] = "None";
 static const char none_raw[] = "CL_NONE";
 static const char na[] = "n/a"; // not available
-static const char core[] = "core"; // not available
+static const char na_wrap[] = "(n/a)"; // not available
+static const char core[] = "core";
 
 static const char bytes_str[] = " bytes";
 static const char pixels_str[] = " pixels";
@@ -161,10 +162,9 @@ static const char* device_type_raw_str[] = { unk,
 };
 
 static const char* partition_type_str[] = {
-	"none specified", none, "equally", "by counts", "by affinity domain", "by names (Intel)"
+	none, "equally", "by counts", "by affinity domain", "by names (Intel)"
 };
 static const char* partition_type_raw_str[] = {
-	"NONE SPECIFIED",
 	none_raw,
 	"CL_DEVICE_PARTITION_EQUALLY_EXT",
 	"CL_DEVICE_PARTITION_BY_COUNTS_EXT",
@@ -291,6 +291,12 @@ static const char* sources[] = {
 	"#define KRN(N) _KRN(float, N)\n",
 	"KRN()\n/* KRN(2)\nKRN(4)\nKRN(8)\nKRN(16) */\n",
 };
+
+const char *not_specified(void)
+{
+	return output_mode == CLINFO_HUMAN ?
+		na_wrap : "";
+}
 
 const char *no_plat(void)
 {
@@ -590,8 +596,9 @@ printPlatformInfo(cl_uint p)
 
 		/* when only listing, do not print anything, we're just gathering
 		 * information */
-		if (!list_only)
-			show_strbuf(RET_BUF(ret), loc.pname, 1, ret.err);
+		if (!list_only) {
+			show_strbuf(RET_BUF(ret), loc.pname, 0, ret.err);
+		}
 
 		if (ret.err)
 			continue;
@@ -1355,10 +1362,7 @@ void devtopo_str(struct device_info_ret *ret, const cl_device_topology_amd *devt
 {
 	switch (devtopo->raw.type) {
 	case 0:
-		if (output_mode == CLINFO_HUMAN)
-			strbuf_printf(&ret->str, "(%s)", na);
-		else
-			strbuf_printf(&ret->str, none_raw);
+		/* leave empty */
 		break;
 	case CL_DEVICE_TOPOLOGY_TYPE_PCIE_AMD:
 		strbuf_printf(&ret->str, "PCI-E, %02x:%02x.%u",
@@ -1502,19 +1506,19 @@ device_info_partition_types(struct device_info_ret *ret,
 			add_separator(&ret->str, &szval);
 
 			switch (val[cursor]) {
-			case 0: str_idx = 1; break;
-			case CL_DEVICE_PARTITION_EQUALLY: str_idx = 2; break;
-			case CL_DEVICE_PARTITION_BY_COUNTS: str_idx = 3; break;
-			case CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN: str_idx = 4; break;
-			case CL_DEVICE_PARTITION_BY_NAMES_INTEL: str_idx = 5; break;
+			case 0: str_idx = 0; break;
+			case CL_DEVICE_PARTITION_EQUALLY: str_idx = 1; break;
+			case CL_DEVICE_PARTITION_BY_COUNTS: str_idx = 2; break;
+			case CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN: str_idx = 3; break;
+			case CL_DEVICE_PARTITION_BY_NAMES_INTEL: str_idx = 4; break;
 			default:
 				szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "by <unknown> (0x%" PRIXPTR ")", val[cursor]);
 				break;
 			}
-			if (str_idx > 0) {
+			if (str_idx >= 0) {
 				/* string length, minus _EXT */
 				slen = strlen(ptstr[str_idx]);
-				if (output_mode == CLINFO_RAW && str_idx > 1)
+				if (output_mode == CLINFO_RAW && str_idx > 0)
 					slen -= 4;
 				szval += bufcpy_len(&ret->str, szval, ptstr[str_idx], slen);
 			}
@@ -1523,10 +1527,6 @@ device_info_partition_types(struct device_info_ret *ret,
 				break;
 			}
 		}
-		if (szval == 0) {
-			bufcpy(&ret->str, szval, ptstr[0]);
-		} else if (szval < ret->str.sz)
-			ret->str.buf[szval] = '\0';
 		// TODO ret->value.??? = val
 	}
 	free(val);
@@ -1555,16 +1555,16 @@ device_info_partition_types_ext(struct device_info_ret *ret,
 			add_separator(&ret->str, &szval);
 
 			switch (val[cursor]) {
-			case 0: str_idx = 1; break;
-			case CL_DEVICE_PARTITION_EQUALLY_EXT: str_idx = 2; break;
-			case CL_DEVICE_PARTITION_BY_COUNTS_EXT: str_idx = 3; break;
-			case CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN_EXT: str_idx = 4; break;
-			case CL_DEVICE_PARTITION_BY_NAMES_EXT: str_idx = 5; break;
+			case 0: str_idx = 0; break;
+			case CL_DEVICE_PARTITION_EQUALLY_EXT: str_idx = 1; break;
+			case CL_DEVICE_PARTITION_BY_COUNTS_EXT: str_idx = 2; break;
+			case CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN_EXT: str_idx = 3; break;
+			case CL_DEVICE_PARTITION_BY_NAMES_EXT: str_idx = 4; break;
 			default:
 				szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "by <unknown> (0x%" PRIX64 ")", val[cursor]);
 				break;
 			}
-			if (str_idx > 0) {
+			if (str_idx >= 0) {
 				/* string length */
 				slen = strlen(ptstr[str_idx]);
 				strncpy(ret->str.buf + szval, ptstr[str_idx], slen);
@@ -1574,11 +1574,6 @@ device_info_partition_types_ext(struct device_info_ret *ret,
 				trunc_strbuf(&ret->str);
 				break;
 			}
-		}
-		if (szval == 0) {
-			slen = strlen(ptstr[0]);
-			memcpy(ret->str.buf, ptstr[0], slen);
-			szval += slen;
 		}
 		if (szval < ret->str.sz)
 			ret->str.buf[szval] = '\0';
@@ -2362,6 +2357,9 @@ printDeviceInfo(const cl_device_id *device, cl_uint p, cl_uint d,
 			memcpy(extensions, msg, len);
 			extensions[len] = '\0';
 		} else {
+			/* on success, but empty result, show (n/a) */
+			if (!ret.err && ret.str.buf[0] == '\0')
+				bufcpy(&ret.str, 0, not_specified());
 			show_strbuf(RET_BUF(ret), loc.pname, 0, ret.err);
 		}
 
