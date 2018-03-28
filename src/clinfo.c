@@ -466,6 +466,11 @@ struct platform_info_ret
 	realloc_strbuf(&ret.err_str, 1024, msg " info error values"); \
 } while (0)
 
+#define UNINIT_RET(ret) do { \
+	free_strbuf(&ret.str); \
+	free_strbuf(&ret.err_str); \
+} while (0)
+
 /* print strbuf, prefixed by pname, skipping leading whitespace if skip is nonzero,
  * affixing cur_sfx */
 static inline
@@ -663,6 +668,8 @@ printPlatformInfo(cl_uint p)
 
 	if (pdata[p].ndevs > maxdevs)
 		maxdevs = pdata[p].ndevs;
+
+	UNINIT_RET(ret);
 }
 
 /*
@@ -2402,6 +2409,7 @@ printDeviceInfo(const cl_device_id *device, cl_uint p, cl_uint d,
 				extensions_traits->sname), extensions);
 	free(extensions);
 	extensions = NULL;
+	UNINIT_RET(ret);
 }
 
 /* list of allowed properties for AMD offline devices */
@@ -2548,6 +2556,7 @@ void listPlatformsAndDevices(cl_bool show_offline)
 				fflush(stdout);
 				fflush(stderr);
 			}
+			UNINIT_RET(ret);
 		}
 
 		if (show_offline && pdata[p].has_amd_offline) {
@@ -2559,8 +2568,10 @@ void listPlatformsAndDevices(cl_bool show_offline)
 				sprintf(line_pfx, " +-- Offline Device #");
 			if (processOfflineDevicesAMD(p, &ret))
 				puts(ret.err_str.buf);
+			UNINIT_RET(ret);
 		}
 	}
+	free_strbuf(&str);
 }
 
 void showDevices(cl_bool show_offline)
@@ -2615,9 +2626,11 @@ void showDevices(cl_bool show_offline)
 			puts("");
 			if (processOfflineDevicesAMD(p, &ret))
 				puts(ret.err_str.buf);
+			UNINIT_RET(ret);
 		}
 		puts("");
 	}
+	free_strbuf(&str);
 }
 
 /* check the behavior of clGetPlatformInfo() when given a NULL platform ID */
@@ -2639,6 +2652,7 @@ void checkNullGetPlatformName(void)
 	}
 	printf(I1_STR "%s\n",
 		"clGetPlatformInfo(NULL, CL_PLATFORM_NAME, ...)", RET_BUF(ret)->buf);
+	UNINIT_RET(ret);
 }
 
 /* check the behavior of clGetDeviceIDs() when given a NULL platform ID;
@@ -2745,6 +2759,8 @@ cl_uint checkNullGetDevices(void)
 	}
 	printf(I1_STR "%s\n",
 		"clGetDeviceIDs(NULL, CL_DEVICE_TYPE_ALL, ...)", RET_BUF(ret)->buf);
+
+	UNINIT_RET(ret);
 	return pidx;
 }
 
@@ -2893,6 +2909,7 @@ void checkNullCtxFromType(void)
 		printf("%s%s\n", def, RET_BUF(ret)->buf);
 	}
 	free(devs);
+	UNINIT_RET(ret);
 }
 
 /* check the behavior of NULL platform in clGetDeviceIDs (see checkNullGetDevices)
@@ -2955,6 +2972,7 @@ void checkNullBehavior(void)
 
 	checkNullCtxFromType();
 
+	UNINIT_RET(ret);
 }
 
 
@@ -3090,6 +3108,7 @@ void oclIcdProps(void)
 				icdl_ocl_version = getOpenCLVersion(ret.str.buf + 7);
 			}
 		}
+		UNINIT_RET(ret);
 	}
 
 	/* Step #3: show it */
