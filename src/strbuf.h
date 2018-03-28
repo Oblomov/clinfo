@@ -18,8 +18,6 @@ struct _strbuf
 	size_t sz;
 };
 
-struct _strbuf *strbuf;
-
 static inline void init_strbuf(struct _strbuf *str)
 {
 	str->buf = NULL;
@@ -51,15 +49,15 @@ static inline void realloc_strbuf(struct _strbuf *str, size_t nusz, const char* 
 	REPORT_ERROR(str, err, "get " param_str); \
 } while (0)
 
-#define GET_STRING_LOC(str, err, loc, cmd, ...) do { \
+#define GET_STRING_LOC(ret, loc, cmd, ...) do { \
 	size_t nusz; \
-	err = REPORT_ERROR_LOC(str, \
+	ret->err = REPORT_ERROR_LOC(ret, \
 		cmd(__VA_ARGS__, 0, NULL, &nusz), \
 		loc, "get %s size"); \
-	if (!err) { \
-		realloc_strbuf(str, nusz, loc->sname); \
-		err = REPORT_ERROR_LOC(str, \
-			cmd(__VA_ARGS__, (str)->sz, (str)->buf, NULL), \
+	if (!ret->err) { \
+		realloc_strbuf(&ret->str, nusz, loc->sname); \
+		ret->err = REPORT_ERROR_LOC(ret, \
+			cmd(__VA_ARGS__, ret->str.sz, ret->str.buf, NULL), \
 			loc, "get %s"); \
 	} \
 } while (0)
