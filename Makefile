@@ -10,6 +10,7 @@ HDR =	src/error.h \
 	src/memory.h \
 	src/ms_support.h \
 	src/info_loc.h \
+	src/info_ret.h \
 	src/strbuf.h
 
 VPATH = src
