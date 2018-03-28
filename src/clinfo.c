@@ -2364,9 +2364,19 @@ printDeviceInfo(const cl_device_id *device, cl_uint p, cl_uint d,
 			memcpy(extensions, msg, len);
 			extensions[len] = '\0';
 		} else {
-			/* on success, but empty result, show (n/a) */
-			if (!ret.err && ret.str.buf[0] == '\0')
-				bufcpy(&ret.str, 0, not_specified());
+			if (ret.err) {
+				/* if there was an error retrieving the property,
+				 * skip if it wasn't expected to work and we
+				 * weren't asked to show everything regardless of
+				 * error */
+				if (!checked && cond_prop_mode != COND_PROP_SHOW)
+					continue;
+
+			} else {
+				/* on success, but empty result, show (n/a) */
+				if (ret.str.buf[0] == '\0')
+					bufcpy(&ret.str, 0, not_specified());
+			}
 			show_strbuf(RET_BUF(ret), loc.pname, 0, ret.err);
 		}
 
