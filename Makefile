@@ -1,3 +1,10 @@
+# An interesting trick run a shell command:
+# GNU Make uses $(shell cmd), whereas
+# BSD make use $(var:sh), where ${var} holds the command
+OS.exec = uname -s
+OS ?= $(shell $(OS.exec))$(OS.exec:sh)
+OS := $(OS)
+
 # Headers
 
 PROG = clinfo
