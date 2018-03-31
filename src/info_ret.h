@@ -73,4 +73,3 @@ struct icdl_info_ret
 
 
 #endif
-
