@@ -51,9 +51,9 @@ struct platform_data {
 };
 
 struct platform_info_checks {
-	int has_khr_icd;
-	int has_amd_object_metadata;
 	cl_uint plat_version;
+	cl_bool has_khr_icd;
+	cl_bool has_amd_object_metadata;
 };
 
 cl_uint num_platforms;
@@ -494,25 +494,25 @@ struct platform_info_traits {
 	/* pointer to function that shows the parameter */
 	void (*show_func)(struct platform_info_ret *, const struct info_loc *, const struct platform_info_checks *);
 	/* pointer to function that checks if the parameter should be checked */
-	int (*check_func)(const struct platform_info_checks *);
+	cl_bool (*check_func)(const struct platform_info_checks *);
 };
 
-int khr_icd_p(const struct platform_info_checks *chk)
+cl_bool khr_icd_p(const struct platform_info_checks *chk)
 {
 	return chk->has_khr_icd;
 }
 
-int plat_is_20(const struct platform_info_checks *chk)
+cl_bool plat_is_20(const struct platform_info_checks *chk)
 {
 	return !(chk->plat_version < 20);
 }
 
-int plat_is_21(const struct platform_info_checks *chk)
+cl_bool plat_is_21(const struct platform_info_checks *chk)
 {
 	return !(chk->plat_version < 21);
 }
 
-int plat_has_amd_object_metadata(const struct platform_info_checks *chk)
+cl_bool plat_has_amd_object_metadata(const struct platform_info_checks *chk)
 {
 	return chk->has_amd_object_metadata;
 }
@@ -680,7 +680,7 @@ struct device_info_checks {
 	cl_uint dev_version;
 };
 
-#define DEFINE_EXT_CHECK(ext) int dev_has_##ext(const struct device_info_checks *chk) \
+#define DEFINE_EXT_CHECK(ext) cl_bool dev_has_##ext(const struct device_info_checks *chk) \
 { \
 	return !!(chk->has_##ext[0]); \
 }
@@ -713,42 +713,42 @@ DEFINE_EXT_CHECK(terminate_context)
  */
 
 // device supports 1.2
-int dev_is_12(const struct device_info_checks *chk)
+cl_bool dev_is_12(const struct device_info_checks *chk)
 {
 	return !(chk->dev_version < 12);
 }
 
 // device supports 2.0
-int dev_is_20(const struct device_info_checks *chk)
+cl_bool dev_is_20(const struct device_info_checks *chk)
 {
 	return !(chk->dev_version < 20);
 }
 
 // device supports 2.1
-int dev_is_21(const struct device_info_checks *chk)
+cl_bool dev_is_21(const struct device_info_checks *chk)
 {
 	return !(chk->dev_version < 21);
 }
 
 // device does not support 2.0
-int dev_not_20(const struct device_info_checks *chk)
+cl_bool dev_not_20(const struct device_info_checks *chk)
 {
 	return !(chk->dev_version >= 20);
 }
 
 
-int dev_is_gpu(const struct device_info_checks *chk)
+cl_bool dev_is_gpu(const struct device_info_checks *chk)
 {
 	return !!(chk->devtype & CL_DEVICE_TYPE_GPU);
 }
 
-int dev_is_gpu_amd(const struct device_info_checks *chk)
+cl_bool dev_is_gpu_amd(const struct device_info_checks *chk)
 {
 	return dev_is_gpu(chk) && dev_has_amd(chk);
 }
 
 /* Device supports cl_amd_device_attribute_query v4 */
-int dev_has_amd_v4(const struct device_info_checks *chk)
+cl_bool dev_has_amd_v4(const struct device_info_checks *chk)
 {
 	/* We don't actually have a criterion ot check if the device
 	 * supports a specific version of an extension, so for the time
@@ -760,47 +760,47 @@ int dev_has_amd_v4(const struct device_info_checks *chk)
 }
 
 
-int dev_has_svm(const struct device_info_checks *chk)
+cl_bool dev_has_svm(const struct device_info_checks *chk)
 {
 	return dev_is_20(chk) || dev_has_amd_svm(chk);
 }
 
-int dev_has_partition(const struct device_info_checks *chk)
+cl_bool dev_has_partition(const struct device_info_checks *chk)
 {
 	return dev_is_12(chk) || dev_has_fission(chk);
 }
 
-int dev_has_cache(const struct device_info_checks *chk)
+cl_bool dev_has_cache(const struct device_info_checks *chk)
 {
 	return chk->cachetype != CL_NONE;
 }
 
-int dev_has_lmem(const struct device_info_checks *chk)
+cl_bool dev_has_lmem(const struct device_info_checks *chk)
 {
 	return chk->lmemtype != CL_NONE;
 }
 
-int dev_has_il(const struct device_info_checks *chk)
+cl_bool dev_has_il(const struct device_info_checks *chk)
 {
 	return dev_is_21(chk) || dev_has_il_program(chk);
 }
 
-int dev_has_images(const struct device_info_checks *chk)
+cl_bool dev_has_images(const struct device_info_checks *chk)
 {
 	return chk->image_support;
 }
 
-int dev_has_images_12(const struct device_info_checks *chk)
+cl_bool dev_has_images_12(const struct device_info_checks *chk)
 {
 	return dev_has_images(chk) && dev_is_12(chk);
 }
 
-int dev_has_images_20(const struct device_info_checks *chk)
+cl_bool dev_has_images_20(const struct device_info_checks *chk)
 {
 	return dev_has_images(chk) && dev_is_20(chk);
 }
 
-int dev_has_compiler(const struct device_info_checks *chk)
+cl_bool dev_has_compiler(const struct device_info_checks *chk)
 {
 	return chk->compiler_available;
 }
@@ -1989,7 +1989,7 @@ struct device_info_traits {
 	void (*show_func)(struct device_info_ret *, const struct info_loc *,
 		const struct device_info_checks *, int checked);
 	/* pointer to function that checks if the parameter should be checked */
-	int (*check_func)(const struct device_info_checks *);
+	cl_bool (*check_func)(const struct device_info_checks *);
 };
 
 #define DINFO_SFX(symbol, name, sfx, typ) symbol, #symbol, name, sfx, device_info_##typ
