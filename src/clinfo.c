@@ -739,7 +739,7 @@ cl_bool dev_is_gpu_amd(const struct device_info_checks *chk)
 /* Device supports cl_amd_device_attribute_query v4 */
 cl_bool dev_has_amd_v4(const struct device_info_checks *chk)
 {
-	/* We don't actually have a criterion ot check if the device
+	/* We don't actually have a criterion to check if the device
 	 * supports a specific version of an extension, so for the time
 	 * being rely on them being GPU devices with cl_amd_device_attribute_query
 	 * and the platform supporting OpenCL 2.0 or later
@@ -2932,7 +2932,7 @@ void oclIcdProps(void)
 		++i;
 	} while (1);
 
-	/* Step #2: query proerties from extension, if available */
+	/* Step #2: query properties from extension, if available */
 	if (clGetICDLoaderInfoOCLICD != NULL) {
 		struct info_loc loc;
 		struct icdl_info_ret ret;
