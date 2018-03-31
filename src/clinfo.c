@@ -491,9 +491,9 @@ struct platform_info_traits {
 	const char *sname; // "CL_PLATFORM_*"
 	const char *pname; // "Platform *"
 	const char *sfx; // suffix for the output in non-raw mode
-	/* pointer to function that shows the parameter */
+	/* pointer to function that retrieves the parameter */
 	void (*show_func)(struct platform_info_ret *, const struct info_loc *, const struct platform_info_checks *);
-	/* pointer to function that checks if the parameter should be checked */
+	/* pointer to function that checks if the parameter should be retrieved */
 	cl_bool (*check_func)(const struct platform_info_checks *);
 };
 
@@ -1985,10 +1985,10 @@ struct device_info_traits {
 	const char *sname; // "CL_DEVICE_*"
 	const char *pname; // "Device *"
 	const char *sfx; // suffix for the output in non-raw mode
-	/* pointer to function that shows the parameter */
+	/* pointer to function that retrieves the parameter */
 	void (*show_func)(struct device_info_ret *, const struct info_loc *,
 		const struct device_info_checks *, int checked);
-	/* pointer to function that checks if the parameter should be checked */
+	/* pointer to function that checks if the parameter should be retrieved */
 	cl_bool (*check_func)(const struct device_info_checks *);
 };
 
