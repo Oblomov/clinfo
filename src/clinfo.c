@@ -59,10 +59,11 @@ struct platform_info_checks {
 cl_uint num_platforms;
 cl_platform_id *platform;
 struct platform_info_checks *platform_checks;
+struct platform_data *pdata;
 
 /* highest version exposed by any platform: if the OpenCL library (the ICD loader)
  * has a lower version, problems may arise (such as API calls causing segfaults
- * or any other unexpected behavior
+ * or any other unexpected behavior)
  */
 cl_uint max_plat_version;
 /* auto-detected OpenCL version support for the ICD loader */
@@ -70,7 +71,6 @@ cl_uint icdl_ocl_version_found = 10;
 /* OpenCL version support declared by the ICD loader */
 cl_uint icdl_ocl_version;
 
-struct platform_data *pdata;
 /* maximum length of a platform's sname */
 size_t platform_sname_maxlen;
 /* maximum number of devices */
@@ -612,7 +612,7 @@ printPlatformInfo(cl_uint p)
 	if (!pdata[p].sname) {
 #define SNAME_MAX 32
 		ALLOC(pdata[p].sname, SNAME_MAX, "platform symbolic name");
-		snprintf(pdata[p].sname, SNAME_MAX, "P%u", p);
+		snprintf(pdata[p].sname, SNAME_MAX, "P%" PRIu32 "", p);
 	}
 
 	len = strlen(pdata[p].sname);
@@ -1339,7 +1339,7 @@ device_info_cc_nv(struct device_info_ret *ret,
 		RESET_LOC_PARAM(loc2, dev, CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV);
 		_GET_VAL(ret, &loc2, minor);
 		if (!ret->err) {
-			strbuf_printf(&ret->str, "%u.%u", major, minor);
+			strbuf_printf(&ret->str, "%" PRIu32 ".%" PRIu32 "", major, minor);
 		}
 	}
 	ret->value.u32v.s[0] = major;
@@ -1358,7 +1358,7 @@ device_info_gfxip_amd(struct device_info_ret *ret,
 		RESET_LOC_PARAM(loc2, dev, CL_DEVICE_GFXIP_MINOR_AMD);
 		_GET_VAL(ret, &loc2, minor);
 		if (!ret->err) {
-			strbuf_printf(&ret->str, "%u.%u", major, minor);
+			strbuf_printf(&ret->str, "%" PRIu32 ".%" PRIu32 "", major, minor);
 		}
 	}
 	ret->value.u32v.s[0] = major;
@@ -1731,7 +1731,7 @@ device_info_arch(struct device_info_ret *ret,
 	if (!ret->err) {
 		DEV_FETCH_LOC(cl_bool, val, &loc2);
 		if (!ret->err) {
-			strbuf_printf(&ret->str, "%u, %s", bits, endian_str[val]);
+			strbuf_printf(&ret->str, "%" PRIu32 ", %s", bits, endian_str[val]);
 		}
 	}
 }
@@ -2352,10 +2352,10 @@ processOfflineDevicesAMD(cl_uint p, struct device_info_ret *ret)
 				line_pfx[1] = '`';
 			loc.dev = device[d];
 			device_info_str(ret, &loc, NULL);
-			printf("%s%u: %s\n", line_pfx, d, RET_BUF_PTR(ret)->buf);
+			printf("%s%" PRIu32 ": %s\n", line_pfx, d, RET_BUF_PTR(ret)->buf);
 		} else {
 			if (line_pfx_len > 0) {
-				strbuf_printf(&ret->str, "[%s/%u]", pdata[p].sname, -d);
+				strbuf_printf(&ret->str, "[%s/%" PRIu32 "]", pdata[p].sname, -d);
 				sprintf(line_pfx, "%*s", -line_pfx_len, ret->str.buf);
 			}
 			printDeviceInfo(device, p, d, amd_offline_info_whitelist);
@@ -2387,7 +2387,7 @@ void listPlatformsAndDevices(cl_bool show_offline)
 	RESET_LOC_PARAM(loc, dev, CL_DEVICE_NAME);
 
 	if (output_mode == CLINFO_RAW)
-		strbuf_printf(&str, "%u", num_platforms);
+		strbuf_printf(&str, "%" PRIu32, num_platforms);
 	else
 		strbuf_printf(&str, " +-- %sDevice #", (show_offline ? "Offline" : ""));
 
@@ -2395,11 +2395,11 @@ void listPlatformsAndDevices(cl_bool show_offline)
 	REALLOC(line_pfx, line_pfx_len, "line prefix");
 
 	for (p = 0, device = all_devices; p < num_platforms; device += pdata[p++].ndevs) {
-		printf("%s%u: %s\n",
+		printf("%s%" PRIu32 ": %s\n",
 			(output_mode == CLINFO_HUMAN ? "Platform #" : ""),
 			p, pdata[p].pname);
 		if (output_mode == CLINFO_RAW)
-			sprintf(line_pfx, "%u:", p);
+			sprintf(line_pfx, "%" PRIu32 ":", p);
 		else
 			sprintf(line_pfx, " +-- Device #");
 
@@ -2420,7 +2420,7 @@ void listPlatformsAndDevices(cl_bool show_offline)
 					line_pfx[1] = '`';
 				loc.dev = device[d];
 				device_info_str(&ret, &loc, NULL);
-				printf("%s%u: %s\n", line_pfx, d, RET_BUF(ret)->buf);
+				printf("%s%" PRIu32 ": %s\n", line_pfx, d, RET_BUF(ret)->buf);
 				fflush(stdout);
 				fflush(stderr);
 			}
@@ -2431,7 +2431,7 @@ void listPlatformsAndDevices(cl_bool show_offline)
 			struct device_info_ret ret;
 			INIT_RET(ret, "offline device");
 			if (output_mode == CLINFO_RAW)
-				sprintf(line_pfx, "%u*", p);
+				sprintf(line_pfx, "%" PRIu32 "*", p);
 			else
 				sprintf(line_pfx, " +-- Offline Device #");
 			if (processOfflineDevicesAMD(p, &ret))
@@ -2452,7 +2452,7 @@ void showDevices(cl_bool show_offline)
 
 	/* TODO consider enabling this for both output modes */
 	if (output_mode == CLINFO_RAW) {
-		strbuf_printf(&str, "%u", maxdevs);
+		strbuf_printf(&str, "%" PRIu32 "", maxdevs);
 		line_pfx_len = (int)(platform_sname_maxlen + strlen(str.buf) + 4);
 		REALLOC(line_pfx, line_pfx_len, "line prefix");
 	}
@@ -2467,7 +2467,7 @@ void showDevices(cl_bool show_offline)
 			(output_mode == CLINFO_HUMAN ?
 			 pinfo_traits[0].pname : pinfo_traits[0].sname),
 			pdata[p].pname);
-		printf("%s" I0_STR "%u\n",
+		printf("%s" I0_STR "%" PRIu32 "\n",
 			line_pfx,
 			(output_mode == CLINFO_HUMAN ?
 			 "Number of devices" : "#DEVICES"),
@@ -2480,7 +2480,7 @@ void showDevices(cl_bool show_offline)
 		}
 		for (d = 0; d < pdata[p].ndevs; ++d) {
 			if (line_pfx_len > 0) {
-				strbuf_printf(&str, "[%s/%u]", pdata[p].sname, d);
+				strbuf_printf(&str, "[%s/%" PRIu32 "]", pdata[p].sname, d);
 				sprintf(line_pfx, "%*s", -line_pfx_len, str.buf);
 			}
 			printDeviceInfo(device, p, d, NULL);
@@ -2973,17 +2973,17 @@ void oclIcdProps(void)
 	if (output_mode == CLINFO_HUMAN) {
 		if (icdl_ocl_version &&
 			icdl_ocl_version != icdl_ocl_version_found) {
-			printf(	"\tNOTE:\tyour OpenCL library declares to support OpenCL %u.%u,\n"
-				"\t\tbut it seems to support up to OpenCL %u.%u %s.\n",
+			printf(	"\tNOTE:\tyour OpenCL library declares to support OpenCL %" PRIu32 ".%" PRIu32 ",\n"
+				"\t\tbut it seems to support up to OpenCL %" PRIu32 ".%" PRIu32 " %s.\n",
 				icdl_ocl_version / 10, icdl_ocl_version % 10,
 				icdl_ocl_version_found / 10, icdl_ocl_version_found % 10,
 				icdl_ocl_version_found < icdl_ocl_version  ?
 				"only" : "too");
 		}
 		if (icdl_ocl_version_found < max_plat_version) {
-			printf(	"\tNOTE:\tyour OpenCL library only supports OpenCL %u.%u,\n"
-				"\t\tbut some installed platforms support OpenCL %u.%u.\n"
-				"\t\tPrograms using %u.%u features may crash\n"
+			printf(	"\tNOTE:\tyour OpenCL library only supports OpenCL %" PRIu32 ".%" PRIu32 ",\n"
+				"\t\tbut some installed platforms support OpenCL %" PRIu32 ".%" PRIu32 ".\n"
+				"\t\tPrograms using %" PRIu32 ".%" PRIu32 " features may crash\n"
 				"\t\tor behave unexepectedly\n",
 				icdl_ocl_version_found / 10, icdl_ocl_version_found % 10,
 				max_plat_version / 10, max_plat_version % 10,
@@ -3062,7 +3062,7 @@ int main(int argc, char *argv[])
 		CHECK_ERROR(err, "number of platforms");
 
 	if (!list_only)
-		printf(I0_STR "%u\n",
+		printf(I0_STR "%" PRIu32 "\n",
 			(output_mode == CLINFO_HUMAN ?
 			 "Number of platforms" : "#PLATFORMS"),
 			num_platforms);
