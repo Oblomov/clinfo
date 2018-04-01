@@ -56,10 +56,73 @@ struct platform_info_checks {
 	cl_bool has_amd_object_metadata;
 };
 
-cl_uint num_platforms;
-cl_platform_id *platform;
-struct platform_info_checks *platform_checks;
-struct platform_data *pdata;
+struct platform_list {
+	cl_uint num_platforms;
+	cl_uint ndevs_total;
+	cl_uint alloc_devs; // allocated devices
+	cl_platform_id *platform;
+	cl_device_id *all_devs;
+	cl_uint *dev_offset; // offset in all_devs where the platform[p] devices start
+	struct platform_data *pdata;
+	struct platform_info_checks *platform_checks;
+};
+
+void
+init_plist(struct platform_list *plist)
+{
+	plist->num_platforms = 0;
+	plist->ndevs_total = 0;
+	plist->alloc_devs = 0;
+	plist->platform = NULL;
+	plist->all_devs = NULL;
+	plist->dev_offset = NULL;
+	plist->pdata = NULL;
+	plist->platform_checks = NULL;
+}
+
+void plist_devs_reserve(struct platform_list *plist, cl_uint amount)
+{
+	if (amount > plist->alloc_devs) {
+		REALLOC(plist->all_devs, amount, "all devices");
+		plist->alloc_devs = amount;
+	}
+}
+
+
+void
+alloc_plist(struct platform_list *plist)
+{
+	ALLOC(plist->platform, plist->num_platforms, "platform IDs");
+	ALLOC(plist->dev_offset, plist->num_platforms, "platform device list offset");
+	/* The actual sizing for this will change as we gather platform info,
+	 * but assume at least one device per platform
+	 */
+	plist_devs_reserve(plist, plist->num_platforms);
+	ALLOC(plist->pdata, plist->num_platforms, "platform data");
+	ALLOC(plist->platform_checks, plist->num_platforms, "platform checks data");
+}
+void
+free_plist(struct platform_list *plist)
+{
+	free(plist->platform);
+	free(plist->all_devs);
+	free(plist->dev_offset);
+	free(plist->pdata);
+	free(plist->platform_checks);
+	init_plist(plist);
+}
+
+const cl_device_id *
+get_platform_devs(const struct platform_list *plist, cl_uint p)
+{
+	return plist->all_devs + plist->dev_offset[p];
+}
+
+cl_device_id
+get_platform_dev(const struct platform_list *plist, cl_uint p, cl_uint d)
+{
+	return get_platform_devs(plist, p)[d];
+}
 
 /* highest version exposed by any platform: if the OpenCL library (the ICD loader)
  * has a lower version, problems may arise (such as API calls causing segfaults
@@ -79,10 +142,6 @@ cl_uint maxdevs;
  * device property in RAW output mode */
 char *line_pfx;
 int line_pfx_len;
-
-cl_uint num_devs_all;
-
-cl_device_id *all_devices;
 
 enum output_modes {
 	CLINFO_HUMAN = 1, /* more human readable */
@@ -515,13 +574,17 @@ struct platform_info_traits pinfo_traits[] = {
 	PINFO_COND(CL_PLATFORM_ICD_SUFFIX_KHR, "Extensions function suffix", NULL, str, khr_icd_p)
 };
 
-/* Print platform info and prepare arrays for device info */
+/* Collect (and optionally show) infomation on a specific platform,
+ * initializing relevant arrays and optionally showing the collected
+ * information
+ */
 void
-printPlatformInfo(cl_uint p)
+gatherPlatformInfo(struct platform_list *plist, cl_uint p, cl_bool show)
 {
 	size_t len = 0;
 
-	struct platform_info_checks *pinfo_checks = platform_checks + p;
+	struct platform_data *pdata = plist->pdata + p;
+	struct platform_info_checks *pinfo_checks = plist->platform_checks + p;
 	struct platform_info_ret ret;
 	struct info_loc loc;
 
@@ -529,7 +592,7 @@ printPlatformInfo(cl_uint p)
 
 	INIT_RET(ret, "platform");
 	reset_loc(&loc, __func__);
-	loc.plat = platform[p];
+	loc.plat = plist->platform[p];
 
 	for (loc.line = 0; loc.line < ARRAY_SIZE(pinfo_traits); ++loc.line) {
 		const struct platform_info_traits *traits = pinfo_traits + loc.line;
@@ -562,7 +625,7 @@ printPlatformInfo(cl_uint p)
 
 		/* when only listing, do not print anything, we're just gathering
 		 * information */
-		if (!list_only) {
+		if (show) {
 			show_strbuf(RET_BUF(ret), loc.pname, 0, ret.err);
 		}
 
@@ -575,11 +638,11 @@ printPlatformInfo(cl_uint p)
 		case CL_PLATFORM_NAME:
 			/* Store name for future reference */
 			len = strlen(ret.str.buf);
-			ALLOC(pdata[p].pname, len+1, "platform name copy");
+			ALLOC(pdata->pname, len+1, "platform name copy");
 			/* memcpy instead of strncpy since we already have the len
 			 * and memcpy is possibly more optimized */
-			memcpy(pdata[p].pname, ret.str.buf, len);
-			pdata[p].pname[len] = '\0';
+			memcpy(pdata->pname, ret.str.buf, len);
+			pdata->pname[len] = '\0';
 			break;
 		case CL_PLATFORM_VERSION:
 			/* compute numeric value for OpenCL version */
@@ -588,16 +651,16 @@ printPlatformInfo(cl_uint p)
 		case CL_PLATFORM_EXTENSIONS:
 			pinfo_checks->has_khr_icd = !!strstr(ret.str.buf, "cl_khr_icd");
 			pinfo_checks->has_amd_object_metadata = !!strstr(ret.str.buf, "cl_amd_object_metadata");
-			pdata[p].has_amd_offline = !!strstr(ret.str.buf, "cl_amd_offline_devices");
+			pdata->has_amd_offline = !!strstr(ret.str.buf, "cl_amd_offline_devices");
 			break;
 		case CL_PLATFORM_ICD_SUFFIX_KHR:
 			/* Store ICD suffix for future reference */
 			len = strlen(ret.str.buf);
-			ALLOC(pdata[p].sname, len+1, "platform ICD suffix copy");
+			ALLOC(pdata->sname, len+1, "platform ICD suffix copy");
 			/* memcpy instead of strncpy since we already have the len
 			 * and memcpy is possibly more optimized */
-			memcpy(pdata[p].sname, ret.str.buf, len);
-			pdata[p].sname[len] = '\0';
+			memcpy(pdata->sname, ret.str.buf, len);
+			pdata->sname[len] = '\0';
 		default:
 			/* do nothing */
 			break;
@@ -609,26 +672,33 @@ printPlatformInfo(cl_uint p)
 		max_plat_version = pinfo_checks->plat_version;
 
 	/* if no CL_PLATFORM_ICD_SUFFIX_KHR, use P### as short/symbolic name */
-	if (!pdata[p].sname) {
+	if (!pdata->sname) {
 #define SNAME_MAX 32
-		ALLOC(pdata[p].sname, SNAME_MAX, "platform symbolic name");
-		snprintf(pdata[p].sname, SNAME_MAX, "P%" PRIu32 "", p);
+		ALLOC(pdata->sname, SNAME_MAX, "platform symbolic name");
+		snprintf(pdata->sname, SNAME_MAX, "P%" PRIu32 "", p);
 	}
 
-	len = strlen(pdata[p].sname);
+	len = strlen(pdata->sname);
 	if (len > platform_sname_maxlen)
 		platform_sname_maxlen = len;
 
-	ret.err = clGetDeviceIDs(loc.plat, CL_DEVICE_TYPE_ALL, 0, NULL, &(pdata[p].ndevs));
+	ret.err = clGetDeviceIDs(loc.plat, CL_DEVICE_TYPE_ALL, 0, NULL, &pdata->ndevs);
 	if (ret.err == CL_DEVICE_NOT_FOUND)
-		pdata[p].ndevs = 0;
+		pdata->ndevs = 0;
 	else
 		CHECK_ERROR(ret.err, "number of devices");
+	plist->ndevs_total += pdata->ndevs;
+	plist->dev_offset[p] = p ? plist->dev_offset[p-1] + (pdata-1)->ndevs : 0;
+	plist_devs_reserve(plist, plist->ndevs_total);
 
-	num_devs_all += pdata[p].ndevs;
+	if (pdata->ndevs > 0) {
+		ret.err = clGetDeviceIDs(loc.plat, CL_DEVICE_TYPE_ALL,
+			pdata->ndevs,
+			plist->all_devs + plist->dev_offset[p], NULL);
+	}
 
-	if (pdata[p].ndevs > maxdevs)
-		maxdevs = pdata[p].ndevs;
+	if (pdata->ndevs > maxdevs)
+		maxdevs = pdata->ndevs;
 
 	UNINIT_RET(ret);
 }
@@ -2144,7 +2214,9 @@ struct device_info_traits dinfo_traits[] = {
  */
 
 void
-printDeviceInfo(const cl_device_id *device, cl_uint p, cl_uint d,
+printDeviceInfo(const struct platform_list *plist,
+	const cl_device_id *device, /* list from which to take device to process, or NULL for plist's one */
+	cl_uint p, cl_uint d,
 	const cl_device_info *param_whitelist) /* list of device info to process, or NULL */
 {
 	char *extensions = NULL;
@@ -2157,14 +2229,14 @@ printDeviceInfo(const cl_device_id *device, cl_uint p, cl_uint d,
 	struct info_loc loc;
 
 	memset(&chk, 0, sizeof(chk));
-	chk.pinfo_checks = platform_checks + p;
+	chk.pinfo_checks = plist->platform_checks + p;
 	chk.dev_version = 10;
 
 	INIT_RET(ret, "device");
 
 	reset_loc(&loc, __func__);
-	loc.plat = platform[p];
-	loc.dev = device[d];
+	loc.plat = plist->platform[p];
+	loc.dev = device ? device[d] : get_platform_dev(plist, p, d);
 
 	for (loc.line = 0; loc.line < ARRAY_SIZE(dinfo_traits); ++loc.line) {
 
@@ -2303,9 +2375,9 @@ static const cl_device_info amd_offline_info_whitelist[] = {
 
 /* process offline devices from the cl_amd_offline_devices extension */
 cl_int
-processOfflineDevicesAMD(cl_uint p, struct device_info_ret *ret)
+processOfflineDevicesAMD(const struct platform_list *plist, cl_uint p, struct device_info_ret *ret)
 {
-	cl_platform_id pid = platform[p];
+	cl_platform_id pid = plist->platform[p];
 	cl_device_id *device = NULL;
 	cl_int num_devs, d;
 
@@ -2355,10 +2427,10 @@ processOfflineDevicesAMD(cl_uint p, struct device_info_ret *ret)
 			printf("%s%" PRIu32 ": %s\n", line_pfx, d, RET_BUF_PTR(ret)->buf);
 		} else {
 			if (line_pfx_len > 0) {
-				strbuf_printf(&ret->str, "[%s/%" PRIu32 "]", pdata[p].sname, -d);
+				strbuf_printf(&ret->str, "[%s/%" PRIu32 "]", plist->pdata[p].sname, -d);
 				sprintf(line_pfx, "%*s", -line_pfx_len, ret->str.buf);
 			}
-			printDeviceInfo(device, p, d, amd_offline_info_whitelist);
+			printDeviceInfo(plist, device, p, d, amd_offline_info_whitelist);
 			if (d < num_devs - 1)
 				puts("");
 		}
@@ -2374,12 +2446,15 @@ out:
 	return ret->err;
 }
 
-void listPlatformsAndDevices(cl_bool show_offline)
+void listPlatformsAndDevices(const struct platform_list *plist, cl_bool show_offline)
 {
+	const cl_uint num_platforms = plist->num_platforms;
+	const struct platform_data *pdata = plist->pdata;
+
 	cl_uint p, d;
-	cl_device_id *device;
 	struct info_loc loc;
 	struct _strbuf str;
+
 	init_strbuf(&str);
 	realloc_strbuf(&str, 1024,  "list platforms and devices");
 
@@ -2389,12 +2464,13 @@ void listPlatformsAndDevices(cl_bool show_offline)
 	if (output_mode == CLINFO_RAW)
 		strbuf_printf(&str, "%" PRIu32, num_platforms);
 	else
-		strbuf_printf(&str, " +-- %sDevice #", (show_offline ? "Offline" : ""));
+		strbuf_printf(&str, " +-- %sDevice #", (show_offline ? "Offline " : ""));
 
 	line_pfx_len = (int)(strlen(str.buf) + 1);
 	REALLOC(line_pfx, line_pfx_len, "line prefix");
 
-	for (p = 0, device = all_devices; p < num_platforms; device += pdata[p++].ndevs) {
+	for (p = 0; p < num_platforms; ++p)
+	{
 		printf("%s%" PRIu32 ": %s\n",
 			(output_mode == CLINFO_HUMAN ? "Platform #" : ""),
 			p, pdata[p].pname);
@@ -2406,9 +2482,6 @@ void listPlatformsAndDevices(cl_bool show_offline)
 		if (pdata[p].ndevs > 0) {
 			struct device_info_ret ret;
 			INIT_RET(ret, "platform and device list");
-			CHECK_ERROR(
-				clGetDeviceIDs(platform[p], CL_DEVICE_TYPE_ALL, pdata[p].ndevs, device, NULL),
-				"device IDs");
 			for (d = 0; d < pdata[p].ndevs; ++d) {
 				/*
 				if (output_mode == CLINFO_HUMAN)
@@ -2418,7 +2491,7 @@ void listPlatformsAndDevices(cl_bool show_offline)
 					(!show_offline || !pdata[p].has_amd_offline));
 				if (last_device)
 					line_pfx[1] = '`';
-				loc.dev = device[d];
+				loc.dev = get_platform_dev(plist, p, d);
 				device_info_str(&ret, &loc, NULL);
 				printf("%s%" PRIu32 ": %s\n", line_pfx, d, RET_BUF(ret)->buf);
 				fflush(stdout);
@@ -2434,7 +2507,7 @@ void listPlatformsAndDevices(cl_bool show_offline)
 				sprintf(line_pfx, "%" PRIu32 "*", p);
 			else
 				sprintf(line_pfx, " +-- Offline Device #");
-			if (processOfflineDevicesAMD(p, &ret))
+			if (processOfflineDevicesAMD(plist, p, &ret))
 				puts(ret.err_str.buf);
 			UNINIT_RET(ret);
 		}
@@ -2442,10 +2515,12 @@ void listPlatformsAndDevices(cl_bool show_offline)
 	free_strbuf(&str);
 }
 
-void showDevices(cl_bool show_offline)
+void showDevices(const struct platform_list *plist, cl_bool show_offline)
 {
+	const cl_uint num_platforms = plist->num_platforms;
+	const struct platform_data *pdata = plist->pdata;
+
 	cl_uint p, d;
-	cl_device_id *device;
 	struct _strbuf str;
 	init_strbuf(&str);
 	realloc_strbuf(&str, 1024, "show devices");
@@ -2457,7 +2532,7 @@ void showDevices(cl_bool show_offline)
 		REALLOC(line_pfx, line_pfx_len, "line prefix");
 	}
 
-	for (p = 0, device = all_devices; p < num_platforms; device += pdata[p++].ndevs) {
+	for (p = 0; p < num_platforms; ++p) {
 		if (line_pfx_len > 0) {
 			strbuf_printf(&str, "[%s/*]", pdata[p].sname);
 			sprintf(line_pfx, "%*s", -line_pfx_len, str.buf);
@@ -2473,17 +2548,12 @@ void showDevices(cl_bool show_offline)
 			 "Number of devices" : "#DEVICES"),
 			pdata[p].ndevs);
 
-		if (pdata[p].ndevs > 0) {
-			CHECK_ERROR(
-				clGetDeviceIDs(platform[p], CL_DEVICE_TYPE_ALL, pdata[p].ndevs, device, NULL),
-				"device IDs");
-		}
 		for (d = 0; d < pdata[p].ndevs; ++d) {
 			if (line_pfx_len > 0) {
 				strbuf_printf(&str, "[%s/%" PRIu32 "]", pdata[p].sname, d);
 				sprintf(line_pfx, "%*s", -line_pfx_len, str.buf);
 			}
-			printDeviceInfo(device, p, d, NULL);
+			printDeviceInfo(plist, NULL, p, d, NULL);
 			if (d < pdata[p].ndevs - 1)
 				puts("");
 			fflush(stdout);
@@ -2493,7 +2563,7 @@ void showDevices(cl_bool show_offline)
 			struct device_info_ret ret;
 			INIT_RET(ret, "offline device");
 			puts("");
-			if (processOfflineDevicesAMD(p, &ret))
+			if (processOfflineDevicesAMD(plist, p, &ret))
 				puts(ret.err_str.buf);
 			UNINIT_RET(ret);
 		}
@@ -2529,8 +2599,15 @@ void checkNullGetPlatformName(void)
  * or num_platforms (which is an invalid platform index) in case of errors
  * or no platform or device found.
  */
-cl_uint checkNullGetDevices(void)
+cl_uint checkNullGetDevices(const struct platform_list *plist)
 {
+	const cl_uint num_platforms = plist->num_platforms;
+	const struct platform_data *pdata = plist->pdata;
+	const cl_platform_id *platform = plist->platform;
+
+	struct device_info_ret ret;
+	struct info_loc loc;
+
 	cl_uint i = 0; /* generic iterator */
 	cl_device_id dev = NULL; /* sample device */
 	cl_platform_id plat = NULL; /* detected platform */
@@ -2538,9 +2615,6 @@ cl_uint checkNullGetDevices(void)
 	cl_uint found = 0; /* number of platforms found */
 	cl_uint pidx = num_platforms; /* index of the platform found */
 	cl_uint numdevs = 0;
-
-	struct device_info_ret ret;
-	struct info_loc loc;
 
 	INIT_RET(ret, "null get devices");
 
@@ -2633,8 +2707,10 @@ cl_uint checkNullGetDevices(void)
 	return pidx;
 }
 
-void checkNullCtx(struct device_info_ret *ret, cl_uint pidx, const cl_device_id *dev, const char *which)
+void checkNullCtx(struct device_info_ret *ret,
+	const struct platform_list *plist, cl_uint pidx, const char *which)
 {
+	const cl_device_id *dev = plist->all_devs + plist->dev_offset[pidx];
 	struct info_loc loc;
 	cl_context ctx = clCreateContext(NULL, 1, dev, NULL, NULL, &ret->err);
 
@@ -2645,7 +2721,7 @@ void checkNullCtx(struct device_info_ret *ret, cl_uint pidx, const cl_device_id 
 	if (!REPORT_ERROR_LOC(ret, ret->err, &loc, "create context with device from %s platform"))
 		strbuf_printf(&ret->str, "%s [%s]",
 			(output_mode == CLINFO_HUMAN ? "Success" : "CL_SUCCESS"),
-			pdata[pidx].sname);
+			plist->pdata[pidx].sname);
 	if (ctx) {
 		clReleaseContext(ctx);
 		ctx = NULL;
@@ -2653,8 +2729,12 @@ void checkNullCtx(struct device_info_ret *ret, cl_uint pidx, const cl_device_id 
 }
 
 /* check behavior of clCreateContextFromType() with NULL cl_context_properties */
-void checkNullCtxFromType(void)
+void checkNullCtxFromType(const struct platform_list *plist)
 {
+	const cl_uint num_platforms = plist->num_platforms;
+	const struct platform_data *pdata = plist->pdata;
+	const cl_platform_id *platform = plist->platform;
+
 	size_t t; /* type iterator */
 	size_t i; /* generic iterator */
 	char def[1024];
@@ -2783,11 +2863,12 @@ void checkNullCtxFromType(void)
 
 /* check the behavior of NULL platform in clGetDeviceIDs (see checkNullGetDevices)
  * and in clCreateContext() */
-void checkNullBehavior(void)
+void checkNullBehavior(const struct platform_list *plist)
 {
-	cl_device_id *dev = NULL;
+	const cl_uint num_platforms = plist->num_platforms;
+	const struct platform_data *pdata = plist->pdata;
+
 	cl_uint p = 0;
-	cl_uint pidx;
 	struct device_info_ret ret;
 
 	INIT_RET(ret, "null behavior");
@@ -2796,25 +2877,20 @@ void checkNullBehavior(void)
 
 	checkNullGetPlatformName();
 
-	pidx = checkNullGetDevices();
+	p = checkNullGetDevices(plist);
 
 	/* If there's a default platform, and it has devices, try
 	 * creating a context with its first device and see if it works */
 
-	if (pidx == num_platforms) {
+	if (p == num_platforms) {
 		ret.err = CL_INVALID_PLATFORM;
 		bufcpy(&ret.err_str, 0, no_plat());
-	} else if (pdata[pidx].ndevs == 0) {
+	} else if (pdata[p].ndevs == 0) {
 		ret.err = CL_DEVICE_NOT_FOUND;
 		bufcpy(&ret.err_str, 0, no_dev_found());
 	} else {
-		p = 0;
-		dev = all_devices;
-		while (p < num_platforms && p != pidx) {
-			dev += pdata[p++].ndevs;
-		}
 		if (p < num_platforms) {
-			checkNullCtx(&ret, pidx, dev, "default");
+			checkNullCtx(&ret, plist, p, "default");
 		} else {
 			/* this shouldn't happen, but still ... */
 			ret.err = CL_OUT_OF_HOST_MEMORY;
@@ -2824,14 +2900,13 @@ void checkNullBehavior(void)
 	printf(I1_STR "%s\n", "clCreateContext(NULL, ...) [default]", RET_BUF(ret)->buf);
 
 	/* Look for a device from a non-default platform, if there are any */
-	if (pidx == num_platforms || num_platforms > 1) {
-		p = 0;
-		dev = all_devices;
-		while (p < num_platforms && (p == pidx || pdata[p].ndevs == 0)) {
-			dev += pdata[p++].ndevs;
+	if (p == num_platforms || num_platforms > 1) {
+		cl_uint p2 = 0;
+		while (p2 < num_platforms && (p2 == p || pdata[p2].ndevs == 0)) {
+			p2++;
 		}
-		if (p < num_platforms) {
-			checkNullCtx(&ret, p, dev, "non-default");
+		if (p2 < num_platforms) {
+			checkNullCtx(&ret, plist, p2, "non-default");
 		} else {
 			ret.err = CL_DEVICE_NOT_FOUND;
 			bufcpy(&ret.str, 0, "<error: no devices in non-default plaforms>");
@@ -2839,7 +2914,7 @@ void checkNullBehavior(void)
 		printf(I1_STR "%s\n", "clCreateContext(NULL, ...) [other]", RET_BUF(ret)->buf);
 	}
 
-	checkNullCtxFromType();
+	checkNullCtxFromType(plist);
 
 	UNINIT_RET(ret);
 }
@@ -3027,6 +3102,9 @@ int main(int argc, char *argv[])
 
 	cl_bool show_offline = CL_FALSE;
 
+	struct platform_list plist;
+	init_plist(&plist);
+
 	/* if there's a 'raw' in the program name, switch to raw output mode */
 	if (strstr(argv[0], "raw"))
 		output_mode = CLINFO_RAW;
@@ -3057,7 +3135,7 @@ int main(int argc, char *argv[])
 	}
 
 
-	err = clGetPlatformIDs(0, NULL, &num_platforms);
+	err = clGetPlatformIDs(0, NULL, &plist.num_platforms);
 	if (err != CL_PLATFORM_NOT_FOUND_KHR)
 		CHECK_ERROR(err, "number of platforms");
 
@@ -3065,36 +3143,30 @@ int main(int argc, char *argv[])
 		printf(I0_STR "%" PRIu32 "\n",
 			(output_mode == CLINFO_HUMAN ?
 			 "Number of platforms" : "#PLATFORMS"),
-			num_platforms);
-	if (!num_platforms)
+			plist.num_platforms);
+	if (!plist.num_platforms)
 		return 0;
 
-	ALLOC(platform, num_platforms, "platform IDs");
-	err = clGetPlatformIDs(num_platforms, platform, NULL);
+	alloc_plist(&plist);
+	err = clGetPlatformIDs(plist.num_platforms, plist.platform, NULL);
 	CHECK_ERROR(err, "platform IDs");
 
-	ALLOC(pdata, num_platforms, "platform data");
-	ALLOC(platform_checks, num_platforms, "platform checks data");
 	ALLOC(line_pfx, 1, "line prefix");
 
-	for (p = 0; p < num_platforms; ++p) {
-		printPlatformInfo(p);
+	for (p = 0; p < plist.num_platforms; ++p) {
+		gatherPlatformInfo(&plist, p, !list_only);
 		if (!list_only)
 			puts("");
 	}
-
-	if (num_devs_all > 0) {
-		ALLOC(all_devices, num_devs_all, "device IDs");
-	}
-
 	if (list_only) {
-		listPlatformsAndDevices(show_offline);
+		listPlatformsAndDevices(&plist, show_offline);
 	} else {
-		showDevices(show_offline);
+		showDevices(&plist, show_offline);
 		if (output_mode != CLINFO_RAW)
-			checkNullBehavior();
+			checkNullBehavior(&plist);
 		oclIcdProps();
 	}
 
+	free_plist(&plist);
 	return 0;
 }
