@@ -2217,7 +2217,8 @@ void
 printDeviceInfo(const struct platform_list *plist,
 	const cl_device_id *device, /* list from which to take device to process, or NULL for plist's one */
 	cl_uint p, cl_uint d,
-	const cl_device_info *param_whitelist) /* list of device info to process, or NULL */
+	const cl_device_info *param_whitelist, /* list of device info to process, or NULL */
+	cl_bool list_only)
 {
 	char *extensions = NULL;
 
@@ -2307,7 +2308,10 @@ printDeviceInfo(const struct platform_list *plist,
 				if (ret.str.buf[0] == '\0')
 					bufcpy(&ret.str, 0, not_specified());
 			}
-			show_strbuf(RET_BUF(ret), loc.pname, 0, ret.err);
+			if (list_only)
+				printf("%s%s\n", line_pfx, RET_BUF(ret)->buf);
+			else
+				show_strbuf(RET_BUF(ret), loc.pname, 0, ret.err);
 		}
 
 		if (ret.err)
@@ -2373,10 +2377,18 @@ static const cl_device_info amd_offline_info_whitelist[] = {
 	CL_FALSE
 };
 
+static const cl_device_info list_info_whitelist[] = {
+	CL_DEVICE_NAME,
+	CL_FALSE
+};
+
 /* process offline devices from the cl_amd_offline_devices extension */
 cl_int
-processOfflineDevicesAMD(const struct platform_list *plist, cl_uint p, struct device_info_ret *ret)
+processOfflineDevicesAMD(const struct platform_list *plist,
+	cl_uint p, struct device_info_ret *ret, cl_bool list_only)
 {
+	const cl_device_info *param_whitelist = list_only ? list_info_whitelist :
+		amd_offline_info_whitelist;
 	cl_platform_id pid = plist->platform[p];
 	cl_device_id *device = NULL;
 	cl_int num_devs, d;
@@ -2388,10 +2400,6 @@ processOfflineDevicesAMD(const struct platform_list *plist, cl_uint p, struct de
 	};
 
 	cl_context ctx = NULL;
-
-	struct info_loc loc;
-	reset_loc(&loc, __func__);
-	RESET_LOC_PARAM(loc, dev, CL_DEVICE_NAME);
 
 	if (!list_only)
 		printf("%s" I0_STR, line_pfx,
@@ -2416,24 +2424,22 @@ processOfflineDevicesAMD(const struct platform_list *plist, cl_uint p, struct de
 
 	for (d = 0; d < num_devs; ++d) {
 		if (list_only) {
-			/*
-			if (output_mode == CLINFO_HUMAN)
-				puts(" |");
-			*/
-			if (d == num_devs - 1 && output_mode != CLINFO_RAW)
-				line_pfx[1] = '`';
-			loc.dev = device[d];
-			device_info_str(ret, &loc, NULL);
-			printf("%s%" PRIu32 ": %s\n", line_pfx, d, RET_BUF_PTR(ret)->buf);
+			if (output_mode == CLINFO_RAW) {
+				sprintf(line_pfx, "%" PRIu32 "*%" PRIu32 ":", p, d);
+			} else {
+				sprintf(line_pfx, " +-- Offline Device #%" PRIu32 ":", d);
+				if (d == num_devs - 1)
+					line_pfx[1] = '`';
+			}
 		} else {
 			if (line_pfx_len > 0) {
-				strbuf_printf(&ret->str, "[%s/%" PRIu32 "]", plist->pdata[p].sname, -d);
+				strbuf_printf(&ret->str, "[%s/%" PRId32 "]", plist->pdata[p].sname, -d);
 				sprintf(line_pfx, "%*s", -line_pfx_len, ret->str.buf);
 			}
-			printDeviceInfo(plist, device, p, d, amd_offline_info_whitelist);
-			if (d < num_devs - 1)
-				puts("");
 		}
+		printDeviceInfo(plist, device, p, d, param_whitelist, list_only);
+		if (!list_only && d < num_devs - 1)
+			puts("");
 		fflush(stdout);
 		fflush(stderr);
 	}
@@ -2446,115 +2452,79 @@ out:
 	return ret->err;
 }
 
-void listPlatformsAndDevices(const struct platform_list *plist, cl_bool show_offline)
+void showDevices(const struct platform_list *plist, cl_bool list_only, cl_bool show_offline)
 {
 	const cl_uint num_platforms = plist->num_platforms;
 	const struct platform_data *pdata = plist->pdata;
-
-	cl_uint p, d;
-	struct info_loc loc;
-	struct _strbuf str;
-
-	init_strbuf(&str);
-	realloc_strbuf(&str, 1024,  "list platforms and devices");
-
-	reset_loc(&loc, __func__);
-	RESET_LOC_PARAM(loc, dev, CL_DEVICE_NAME);
-
-	if (output_mode == CLINFO_RAW)
-		strbuf_printf(&str, "%" PRIu32, num_platforms);
-	else
-		strbuf_printf(&str, " +-- %sDevice #", (show_offline ? "Offline " : ""));
-
-	line_pfx_len = (int)(strlen(str.buf) + 1);
-	REALLOC(line_pfx, line_pfx_len, "line prefix");
-
-	for (p = 0; p < num_platforms; ++p)
-	{
-		printf("%s%" PRIu32 ": %s\n",
-			(output_mode == CLINFO_HUMAN ? "Platform #" : ""),
-			p, pdata[p].pname);
-		if (output_mode == CLINFO_RAW)
-			sprintf(line_pfx, "%" PRIu32 ":", p);
-		else
-			sprintf(line_pfx, " +-- Device #");
-
-		if (pdata[p].ndevs > 0) {
-			struct device_info_ret ret;
-			INIT_RET(ret, "platform and device list");
-			for (d = 0; d < pdata[p].ndevs; ++d) {
-				/*
-				if (output_mode == CLINFO_HUMAN)
-					puts(" |");
-				*/
-				cl_bool last_device = (d == pdata[p].ndevs - 1 && output_mode != CLINFO_RAW &&
-					(!show_offline || !pdata[p].has_amd_offline));
-				if (last_device)
-					line_pfx[1] = '`';
-				loc.dev = get_platform_dev(plist, p, d);
-				device_info_str(&ret, &loc, NULL);
-				printf("%s%" PRIu32 ": %s\n", line_pfx, d, RET_BUF(ret)->buf);
-				fflush(stdout);
-				fflush(stderr);
-			}
-			UNINIT_RET(ret);
-		}
-
-		if (show_offline && pdata[p].has_amd_offline) {
-			struct device_info_ret ret;
-			INIT_RET(ret, "offline device");
-			if (output_mode == CLINFO_RAW)
-				sprintf(line_pfx, "%" PRIu32 "*", p);
-			else
-				sprintf(line_pfx, " +-- Offline Device #");
-			if (processOfflineDevicesAMD(plist, p, &ret))
-				puts(ret.err_str.buf);
-			UNINIT_RET(ret);
-		}
-	}
-	free_strbuf(&str);
-}
-
-void showDevices(const struct platform_list *plist, cl_bool show_offline)
-{
-	const cl_uint num_platforms = plist->num_platforms;
-	const struct platform_data *pdata = plist->pdata;
+	const cl_device_info *param_whitelist = list_only ? list_info_whitelist : NULL;
 
 	cl_uint p, d;
 	struct _strbuf str;
 	init_strbuf(&str);
 	realloc_strbuf(&str, 1024, "show devices");
 
-	/* TODO consider enabling this for both output modes */
 	if (output_mode == CLINFO_RAW) {
-		strbuf_printf(&str, "%" PRIu32 "", maxdevs);
-		line_pfx_len = (int)(platform_sname_maxlen + strlen(str.buf) + 4);
+		if (list_only)
+			strbuf_printf(&str, "%" PRIu32 ".%" PRIu32 ":", num_platforms, maxdevs);
+		else
+			strbuf_printf(&str, "[%*s/%" PRIu32 "] ",
+				(int)platform_sname_maxlen, "", maxdevs);
+	} else {
+		if (list_only)
+			strbuf_printf(&str, " +-- %sDevice #%" PRIu32 ":", (show_offline ? "Offline " : ""), maxdevs);
+		/* TODO we have no prefix in HUMAN detailed output mode,
+		 * consider adding one
+		 */
+	}
+
+	if (str.buf[0]) {
+		line_pfx_len = (int)(strlen(str.buf) + 1);
 		REALLOC(line_pfx, line_pfx_len, "line prefix");
 	}
 
 	for (p = 0; p < num_platforms; ++p) {
-		if (line_pfx_len > 0) {
-			strbuf_printf(&str, "[%s/*]", pdata[p].sname);
-			sprintf(line_pfx, "%*s", -line_pfx_len, str.buf);
+
+		/* Print platform name and number of devices (detailed only) */
+		if (list_only) {
+			printf("%s%" PRIu32 ": %s\n",
+				(output_mode == CLINFO_HUMAN ? "Platform #" : ""),
+				p, pdata[p].pname);
+		} else {
+			/* Prepare the prefix for detailed view */
+			if (line_pfx_len > 0) {
+				strbuf_printf(&str, "[%s/*]", pdata[p].sname);
+				sprintf(line_pfx, "%*s", -line_pfx_len, str.buf);
+			}
+
+			printf("%s" I1_STR "%s\n",
+				line_pfx,
+				(output_mode == CLINFO_HUMAN ?
+				 pinfo_traits[0].pname : pinfo_traits[0].sname),
+				pdata[p].pname);
+			printf("%s" I0_STR "%" PRIu32 "\n",
+				line_pfx,
+				(output_mode == CLINFO_HUMAN ?
+				 "Number of devices" : "#DEVICES"),
+				pdata[p].ndevs);
 		}
-		printf("%s" I1_STR "%s\n",
-			line_pfx,
-			(output_mode == CLINFO_HUMAN ?
-			 pinfo_traits[0].pname : pinfo_traits[0].sname),
-			pdata[p].pname);
-		printf("%s" I0_STR "%" PRIu32 "\n",
-			line_pfx,
-			(output_mode == CLINFO_HUMAN ?
-			 "Number of devices" : "#DEVICES"),
-			pdata[p].ndevs);
 
 		for (d = 0; d < pdata[p].ndevs; ++d) {
-			if (line_pfx_len > 0) {
+			if (list_only) {
+				cl_bool last_device = (d == pdata[p].ndevs - 1 &&
+					output_mode != CLINFO_RAW &&
+					(!show_offline || !pdata[p].has_amd_offline));
+				if (output_mode == CLINFO_RAW)
+					sprintf(line_pfx, "%" PRIu32 ".%" PRIu32 ":", p, d);
+				else
+					sprintf(line_pfx, " +-- Device #%" PRIu32 ":", d);
+				if (last_device)
+					line_pfx[1] = '`';
+			} else if (line_pfx_len > 0) {
 				strbuf_printf(&str, "[%s/%" PRIu32 "]", pdata[p].sname, d);
 				sprintf(line_pfx, "%*s", -line_pfx_len, str.buf);
 			}
-			printDeviceInfo(plist, NULL, p, d, NULL);
-			if (d < pdata[p].ndevs - 1)
+			printDeviceInfo(plist, NULL, p, d, param_whitelist, list_only);
+			if (!list_only && d < pdata[p].ndevs - 1)
 				puts("");
 			fflush(stdout);
 			fflush(stderr);
@@ -2562,12 +2532,14 @@ void showDevices(const struct platform_list *plist, cl_bool show_offline)
 		if (show_offline && pdata[p].has_amd_offline) {
 			struct device_info_ret ret;
 			INIT_RET(ret, "offline device");
-			puts("");
-			if (processOfflineDevicesAMD(plist, p, &ret))
+			if (!list_only)
+				puts("");
+			if (processOfflineDevicesAMD(plist, p, &ret, list_only))
 				puts(ret.err_str.buf);
 			UNINIT_RET(ret);
 		}
-		puts("");
+		if (!list_only)
+			puts("");
 	}
 	free_strbuf(&str);
 }
@@ -3158,10 +3130,8 @@ int main(int argc, char *argv[])
 		if (!list_only)
 			puts("");
 	}
-	if (list_only) {
-		listPlatformsAndDevices(&plist, show_offline);
-	} else {
-		showDevices(&plist, show_offline);
+	showDevices(&plist, list_only, show_offline);
+	if (!list_only) {
 		if (output_mode != CLINFO_RAW)
 			checkNullBehavior(&plist);
 		oclIcdProps();

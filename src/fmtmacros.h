@@ -13,6 +13,7 @@
 # include <stdint.h>
 # include <stddef.h> // size_t
 # define PRIu32 "I32u"
+# define PRId32 "I32d"
 # define PRIX32 "I32x"
 # define PRIu64 "I64u"
 # define PRIX64 "I64x"
