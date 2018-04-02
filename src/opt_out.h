@@ -2,7 +2,7 @@
 #ifndef OPT_OUT_H
 #define OPT_OUT_H
 
-#include <CL/cl.h>
+#include "ext.h"
 
 enum output_modes {
 	CLINFO_HUMAN = 1, /* more human readable */
