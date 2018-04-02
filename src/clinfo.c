@@ -2464,6 +2464,26 @@ out:
 	return ret->err;
 }
 
+void printPlatformName(const struct platform_list *plist, cl_uint p, struct _strbuf *str, const struct opt_out *output)
+{
+	const struct platform_data *pdata = plist->pdata + p;
+	const char *brief_prefix = (output->mode == CLINFO_HUMAN ? "Platform #" : "");
+	const char *title = (output->mode == CLINFO_HUMAN  ? pinfo_traits[0].pname :
+		pinfo_traits[0].sname);
+	const int prefix_width = -line_pfx_len*(!output->brief);
+	if (output->brief) {
+		strbuf_printf(str, "%s%" PRIu32 ": ", brief_prefix, p);
+	} else if (output->mode == CLINFO_RAW) {
+		strbuf_printf(str, "[%s/*]", pdata->sname);
+	}
+	sprintf(line_pfx, "%*s", prefix_width, str->buf);
+
+	if (output->brief)
+		printf("%s%s\n", line_pfx, pdata->pname);
+	else
+		printf("%s" I1_STR "%s\n", line_pfx, title, pdata->pname);
+}
+
 void showDevices(const struct platform_list *plist, const struct opt_out *output)
 {
 	const cl_uint num_platforms = plist->num_platforms;
@@ -2486,7 +2506,7 @@ void showDevices(const struct platform_list *plist, const struct opt_out *output
 			strbuf_printf(&str, " +-- %sDevice #%" PRIu32 ": ",
 				(output->offline ? "Offline " : ""), maxdevs);
 		else
-			str.buf[0] = '\0'; /* truncate */
+			str.buf[0] = '\0'; /* reset */
 		/* TODO we have no prefix in HUMAN detailed output mode,
 		 * consider adding one
 		 */
@@ -2495,33 +2515,18 @@ void showDevices(const struct platform_list *plist, const struct opt_out *output
 	if (str.buf[0]) {
 		line_pfx_len = (int)(strlen(str.buf) + 1);
 		REALLOC(line_pfx, line_pfx_len, "line prefix");
+		str.buf[0] = '\0'; /* reset */
 	}
 
 	for (p = 0; p < num_platforms; ++p) {
+		printPlatformName(plist, p, &str, output);
 
-		/* Print platform name and number of devices (detailed only) */
-		if (output->brief) {
-			printf("%s%" PRIu32 ": %s\n",
-				(output->mode == CLINFO_HUMAN ? "Platform #" : ""),
-				p, pdata[p].pname);
-		} else {
-			/* Prepare the prefix for detailed view */
-			if (line_pfx_len > 0) {
-				strbuf_printf(&str, "[%s/*]", pdata[p].sname);
-				sprintf(line_pfx, "%*s", -line_pfx_len, str.buf);
-			}
-
-			printf("%s" I1_STR "%s\n",
-				line_pfx,
-				(output->mode == CLINFO_HUMAN ?
-				 pinfo_traits[0].pname : pinfo_traits[0].sname),
-				pdata[p].pname);
+		if (output->detailed)
 			printf("%s" I0_STR "%" PRIu32 "\n",
 				line_pfx,
 				(output->mode == CLINFO_HUMAN ?
 				 "Number of devices" : "#DEVICES"),
 				pdata[p].ndevs);
-		}
 
 		for (d = 0; d < pdata[p].ndevs; ++d) {
 			const cl_device_id dev = get_platform_dev(plist, p, d);
