@@ -46,6 +46,11 @@ struct device_info_ret {
 		cl_device_svm_capabilities svmcap;
 		cl_device_terminate_capability_khr termcap;
 	} value;
+	/* pointer base for array data or other auxiliary information */
+	union {
+		void *ptr; // TODO
+		cl_context ctx; // associated context
+	} base;
 };
 
 /* Return type of the functions that gather ICD loader info */

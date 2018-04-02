@@ -315,6 +315,13 @@ static const char* sources[] = {
 	"KRN()\n/* KRN(2)\nKRN(4)\nKRN(8)\nKRN(16) */\n",
 };
 
+const char *num_devs_header(const struct opt_out *output, cl_bool these_are_offline)
+{
+	return output->mode == CLINFO_HUMAN ?
+		(these_are_offline ? "Number of offine devices (AMD)" : "Number of devices") :
+		(these_are_offline ? "#OFFDEVICES" : "#DEVICES");
+}
+
 const char *not_specified(const struct opt_out *output)
 {
 	return output->mode == CLINFO_HUMAN ?
@@ -2394,16 +2401,18 @@ static const cl_device_info list_info_whitelist[] = {
 	CL_FALSE
 };
 
-/* process offline devices from the cl_amd_offline_devices extension */
-cl_int
-processOfflineDevicesAMD(const struct platform_list *plist,
-	cl_uint p, struct device_info_ret *ret, const struct opt_out *output)
+/* return a list of offline devices from the AMD extension */
+cl_device_id *
+fetchOfflineDevicesAMD(const struct platform_list *plist, cl_uint p,
+	/* the number of devices will be returned in ret->value.u32,
+	 * the associated context in ret->base.ctx;
+	 */
+	struct device_info_ret *ret)
 {
-	const cl_device_info *param_whitelist = output->brief ?
-		list_info_whitelist : amd_offline_info_whitelist;
 	cl_platform_id pid = plist->platform[p];
 	cl_device_id *device = NULL;
-	cl_int num_devs, d;
+	cl_uint num_devs = 0;
+	cl_context ctx = NULL;
 
 	cl_context_properties ctxpft[] = {
 		CL_CONTEXT_PLATFORM, (cl_context_properties)pid,
@@ -2411,57 +2420,35 @@ processOfflineDevicesAMD(const struct platform_list *plist,
 		0
 	};
 
-	cl_context ctx = NULL;
+	ctx = clCreateContextFromType(ctxpft, CL_DEVICE_TYPE_ALL,
+		NULL, NULL, &ret->err);
+	REPORT_ERROR(&ret->err_str, ret->err, "create context");
 
-	if (output->detailed)
-		printf("%s" I0_STR, line_pfx,
-			(output->mode == CLINFO_HUMAN ?
-			 "Number of offline devices (AMD)" : "#OFFDEVICES"));
-
-	ctx = clCreateContextFromType(ctxpft, CL_DEVICE_TYPE_ALL, NULL, NULL, &ret->err);
-	if (REPORT_ERROR(&ret->err_str, ret->err, "create context")) goto out;
-
-	if (REPORT_ERROR(&ret->err_str,
-			clGetContextInfo(ctx, CL_CONTEXT_NUM_DEVICES, sizeof(num_devs), &num_devs, NULL),
-			"get num devs")) goto out;
-
-	ALLOC(device, num_devs, "offline devices");
-
-	if (REPORT_ERROR(&ret->err_str,
-			clGetContextInfo(ctx, CL_CONTEXT_DEVICES, num_devs*sizeof(*device), device, NULL),
-			"get devs")) goto out;
-
-	if (output->detailed)
-		printf("%d\n", num_devs);
-
-	for (d = 0; d < num_devs; ++d) {
-		if (output->brief) {
-			if (output->mode == CLINFO_RAW) {
-				sprintf(line_pfx, "%" PRIu32 "*%" PRIu32 ":", p, d);
-			} else {
-				sprintf(line_pfx, " +-- Offline Device #%" PRIu32 ":", d);
-				if (d == num_devs - 1)
-					line_pfx[1] = '`';
-			}
-		} else {
-			if (line_pfx_len > 0) {
-				strbuf_printf(&ret->str, "[%s/%" PRId32 "]", plist->pdata[p].sname, -d);
-				sprintf(line_pfx, "%*s", -line_pfx_len, ret->str.buf);
-			}
-		}
-		printDeviceInfo(device[d], plist, p, param_whitelist, output);
-		if (output->detailed && d < num_devs - 1)
-			puts("");
-		fflush(stdout);
-		fflush(stderr);
+	if (!ret->err) {
+		ret->err = REPORT_ERROR(&ret->err_str,
+			clGetContextInfo(ctx, CL_CONTEXT_NUM_DEVICES,
+				sizeof(num_devs), &num_devs, NULL),
+			"get num devs");
 	}
-	ret->err = CL_SUCCESS;
 
-out:
-	free(device);
-	if (ctx)
-		clReleaseContext(ctx);
-	return ret->err;
+	if (!ret->err) {
+		ALLOC(device, num_devs, "offline devices");
+
+		ret->err = REPORT_ERROR(&ret->err_str,
+			clGetContextInfo(ctx, CL_CONTEXT_DEVICES,
+				num_devs*sizeof(*device), device, NULL),
+			"get devs");
+	}
+
+	if (ret->err) {
+		if (ctx) clReleaseContext(ctx);
+		free(device);
+		device = NULL;
+	} else {
+		ret->value.u32 = num_devs;
+		ret->base.ctx = ctx;
+	}
+	return device;
 }
 
 void printPlatformName(const struct platform_list *plist, cl_uint p, struct _strbuf *str,
@@ -2487,17 +2474,17 @@ void printPlatformName(const struct platform_list *plist, cl_uint p, struct _str
 
 void printPlatformDevices(const struct platform_list *plist, cl_uint p,
 	const cl_device_id *device, cl_uint ndevs,
-	struct _strbuf *str, const struct opt_out *output)
+	struct _strbuf *str, const struct opt_out *output, cl_bool these_are_offline)
 {
 	const struct platform_data *pdata = plist->pdata + p;
-	const cl_device_info *param_whitelist = output->brief ? list_info_whitelist : NULL;
+	const cl_device_info *param_whitelist = output->brief ? list_info_whitelist :
+		these_are_offline ? amd_offline_info_whitelist : NULL;
 	cl_uint d;
 
 	if (output->detailed)
 		printf("%s" I0_STR "%" PRIu32 "\n",
 			line_pfx,
-			(output->mode == CLINFO_HUMAN ?
-			 "Number of devices" : "#DEVICES"),
+			num_devs_header(output, these_are_offline),
 			ndevs);
 
 	for (d = 0; d < ndevs; ++d) {
@@ -2505,15 +2492,23 @@ void printPlatformDevices(const struct platform_list *plist, cl_uint p,
 		if (output->brief) {
 			const cl_bool last_device = (d == ndevs - 1 &&
 				output->mode != CLINFO_RAW &&
-				(!output->offline || !pdata->has_amd_offline));
+				(!output->offline ||
+				 !pdata->has_amd_offline ||
+				 these_are_offline));
 			if (output->mode == CLINFO_RAW)
-				sprintf(line_pfx, "%" PRIu32 ".%" PRIu32 ": ", p, d);
+				sprintf(line_pfx, "%" PRIu32 "%c%" PRIu32 ": ",
+					p,
+					these_are_offline ? '*' : '.',
+					d);
 			else
-				sprintf(line_pfx, " +-- Device #%" PRIu32 ": ", d);
+				sprintf(line_pfx, " +-- %sDevice #%" PRIu32 ": ",
+					these_are_offline ? "Offline " : "",
+					d);
 			if (last_device)
 				line_pfx[1] = '`';
 		} else if (line_pfx_len > 0) {
-			strbuf_printf(str, "[%s/%" PRIu32 "]", pdata->sname, d);
+			cl_int sd = (these_are_offline ? -1 : 1)*(cl_int)d;
+			strbuf_printf(str, "[%s/%" PRId32 "]", pdata->sname, sd);
 			sprintf(line_pfx, "%*s", -line_pfx_len, str->buf);
 		}
 		printDeviceInfo(dev, plist, p, param_whitelist, output);
@@ -2563,15 +2558,25 @@ void showDevices(const struct platform_list *plist, const struct opt_out *output
 
 		printPlatformDevices(plist, p,
 			get_platform_devs(plist, p), pdata[p].ndevs,
-			&str, output);
+			&str, output, CL_FALSE);
 
 		if (output->offline && pdata[p].has_amd_offline) {
 			struct device_info_ret ret;
+			cl_device_id *devs = NULL;
+
 			INIT_RET(ret, "offline device");
 			if (output->detailed)
 				puts("");
-			if (processOfflineDevicesAMD(plist, p, &ret, output))
+
+			devs = fetchOfflineDevicesAMD(plist, p, &ret);
+			if (ret.err) {
 				puts(ret.err_str.buf);
+			} else {
+				printPlatformDevices(plist, p, devs, ret.value.u32,
+					&str, output, CL_TRUE);
+				clReleaseContext(ret.base.ctx);
+				free(devs);
+			}
 			UNINIT_RET(ret);
 		}
 		if (output->detailed)
