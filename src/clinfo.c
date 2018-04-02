@@ -2260,9 +2260,7 @@ struct device_info_traits dinfo_traits[] = {
  */
 
 void
-printDeviceInfo(const struct platform_list *plist,
-	const cl_device_id *device, /* list from which to take device to process, or NULL for plist's one */
-	cl_uint p, cl_uint d,
+printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uint p,
 	const cl_device_info *param_whitelist, /* list of device info to process, or NULL */
 	const struct opt_out *output)
 {
@@ -2283,7 +2281,7 @@ printDeviceInfo(const struct platform_list *plist,
 
 	reset_loc(&loc, __func__);
 	loc.plat = plist->platform[p];
-	loc.dev = device ? device[d] : get_platform_dev(plist, p, d);
+	loc.dev = dev;
 
 	for (loc.line = 0; loc.line < ARRAY_SIZE(dinfo_traits); ++loc.line) {
 
@@ -2483,7 +2481,7 @@ processOfflineDevicesAMD(const struct platform_list *plist,
 				sprintf(line_pfx, "%*s", -line_pfx_len, ret->str.buf);
 			}
 		}
-		printDeviceInfo(plist, device, p, d, param_whitelist, output);
+		printDeviceInfo(device[d], plist, p, param_whitelist, output);
 		if (output->detailed && d < num_devs - 1)
 			puts("");
 		fflush(stdout);
@@ -2558,6 +2556,7 @@ void showDevices(const struct platform_list *plist, const struct opt_out *output
 		}
 
 		for (d = 0; d < pdata[p].ndevs; ++d) {
+			const cl_device_id dev = get_platform_dev(plist, p, d);
 			if (output->brief) {
 				const cl_bool last_device = (d == pdata[p].ndevs - 1 &&
 					output->mode != CLINFO_RAW &&
@@ -2572,7 +2571,7 @@ void showDevices(const struct platform_list *plist, const struct opt_out *output
 				strbuf_printf(&str, "[%s/%" PRIu32 "]", pdata[p].sname, d);
 				sprintf(line_pfx, "%*s", -line_pfx_len, str.buf);
 			}
-			printDeviceInfo(plist, NULL, p, d, param_whitelist, output);
+			printDeviceInfo(dev, plist, p, param_whitelist, output);
 			if (output->detailed && d < pdata[p].ndevs - 1)
 				puts("");
 			fflush(stdout);
