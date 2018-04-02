@@ -18,6 +18,7 @@ HDR =	src/error.h \
 	src/ms_support.h \
 	src/info_loc.h \
 	src/info_ret.h \
+	src/opt_out.h \
 	src/strbuf.h
 
 VPATH = src
