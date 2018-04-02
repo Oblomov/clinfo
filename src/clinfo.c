@@ -2275,7 +2275,7 @@ printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uint p,
 		/* Whitelist check: finish if done traversing the list,
 		 * skip current param if it's not the right one
 		 */
-		if (output->cond == COND_PROP_CHECK && param_whitelist) {
+		if ((output->cond == COND_PROP_CHECK || output->brief) && param_whitelist) {
 			if (*param_whitelist == CL_FALSE)
 				break;
 			if (traits->param != *param_whitelist)
