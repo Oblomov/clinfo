@@ -73,6 +73,8 @@ struct platform_list {
 	cl_uint max_plat_version;
 	/* Largest number of devices on any platform */
 	cl_uint max_devs;
+	/* Length of the longest platform sname */
+	cl_int max_sname_len;
 	/* Array of platform IDs */
 	cl_platform_id *platform;
 	/* Array of device IDs (across all platforms) */
@@ -152,8 +154,6 @@ struct icdl_data {
 	cl_uint reported_version;
 };
 
-/* maximum length of a platform's sname */
-size_t platform_sname_maxlen;
 /* line prefix, used to identify the platform/device for each
  * device property in RAW output mode */
 char *line_pfx;
@@ -579,7 +579,7 @@ struct platform_info_traits pinfo_traits[] = {
 void
 gatherPlatformInfo(struct platform_list *plist, cl_uint p, const struct opt_out *output)
 {
-	size_t len = 0;
+	cl_int len = 0;
 
 	struct platform_data *pdata = plist->pdata + p;
 	struct platform_info_checks *pinfo_checks = plist->platform_checks + p;
@@ -676,9 +676,9 @@ gatherPlatformInfo(struct platform_list *plist, cl_uint p, const struct opt_out 
 		snprintf(pdata->sname, SNAME_MAX, "P%" PRIu32 "", p);
 	}
 
-	len = strlen(pdata->sname);
-	if (len > platform_sname_maxlen)
-		platform_sname_maxlen = len;
+	len = (cl_int)strlen(pdata->sname);
+	if (len > plist->max_sname_len)
+		plist->max_sname_len = len;
 
 	ret.err = clGetDeviceIDs(loc.plat, CL_DEVICE_TYPE_ALL, 0, NULL, &pdata->ndevs);
 	if (ret.err == CL_DEVICE_NOT_FOUND)
@@ -2553,7 +2553,7 @@ void showDevices(const struct platform_list *plist, const struct opt_out *output
 			strbuf_printf(&str, "%" PRIu32 ".%" PRIu32 ": ", num_platforms, maxdevs);
 		else
 			strbuf_printf(&str, "[%*s/%" PRIu32 "] ",
-				(int)platform_sname_maxlen, "", maxdevs);
+				plist->max_sname_len, "", maxdevs);
 	} else {
 		if (output->brief)
 			strbuf_printf(&str, " +-- %sDevice #%" PRIu32 ": ",
