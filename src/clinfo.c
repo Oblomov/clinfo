@@ -58,13 +58,29 @@ struct platform_info_checks {
 };
 
 struct platform_list {
+	/* Number of platforms in the system */
 	cl_uint num_platforms;
+	/* Total number of devices across all platforms */
 	cl_uint ndevs_total;
-	cl_uint alloc_devs; // allocated devices
+	/* Number of devices allocated in all_devs array */
+	cl_uint alloc_devs;
+	/* Highest OpenCL version supported by any platform.
+	 * If the OpenCL library / ICD loader only supports
+	 * a lower version, problems may arise (such as
+	 * API calls causing segfaults or any other unexpected
+	 * behavior
+	 */
+	cl_uint max_plat_version;
+	/* Array of platform IDs */
 	cl_platform_id *platform;
+	/* Array of device IDs (across all platforms) */
 	cl_device_id *all_devs;
-	cl_uint *dev_offset; // offset in all_devs where the platform[p] devices start
+	/* Array of offsets in all_devs where the devices
+	 * of each platform begin */
+	cl_uint *dev_offset;
+	/* Array of clinfo-specific platform data */
 	struct platform_data *pdata;
+	/* Arrau of clinfo-specifici platform checks */
 	struct platform_info_checks *platform_checks;
 };
 
@@ -74,6 +90,7 @@ init_plist(struct platform_list *plist)
 	plist->num_platforms = 0;
 	plist->ndevs_total = 0;
 	plist->alloc_devs = 0;
+	plist->max_plat_version = 0;
 	plist->platform = NULL;
 	plist->all_devs = NULL;
 	plist->dev_offset = NULL;
@@ -125,11 +142,6 @@ get_platform_dev(const struct platform_list *plist, cl_uint p, cl_uint d)
 	return get_platform_devs(plist, p)[d];
 }
 
-/* highest version exposed by any platform: if the OpenCL library (the ICD loader)
- * has a lower version, problems may arise (such as API calls causing segfaults
- * or any other unexpected behavior)
- */
-cl_uint max_plat_version;
 /* auto-detected OpenCL version support for the ICD loader */
 cl_uint icdl_ocl_version_found = 10;
 /* OpenCL version support declared by the ICD loader */
@@ -649,8 +661,8 @@ gatherPlatformInfo(struct platform_list *plist, cl_uint p, const struct opt_out 
 
 	}
 
-	if (pinfo_checks->plat_version > max_plat_version)
-		max_plat_version = pinfo_checks->plat_version;
+	if (pinfo_checks->plat_version > plist->max_plat_version)
+		plist->max_plat_version = pinfo_checks->plat_version;
 
 	/* if no CL_PLATFORM_ICD_SUFFIX_KHR, use P### as short/symbolic name */
 	if (!pdata->sname) {
@@ -2995,8 +3007,9 @@ struct icdl_info_traits linfo_traits[] = {
 #pragma GCC diagnostic ignored "-Wstrict-aliasing"
 #endif
 
-void oclIcdProps(const struct opt_out *output)
+void oclIcdProps(const struct platform_list *plist, const struct opt_out *output)
 {
+	cl_uint max_plat_version = plist->max_plat_version;
 	/* Counter that'll be used to walk the icd_loader_tests */
 	int i = 0;
 
@@ -3182,7 +3195,7 @@ int main(int argc, char *argv[])
 	if (output.detailed) {
 		if (output.mode != CLINFO_RAW)
 			checkNullBehavior(&plist, &output);
-		oclIcdProps(&output);
+		oclIcdProps(&plist, &output);
 	}
 
 	free_plist(&plist);
