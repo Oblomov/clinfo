@@ -142,10 +142,13 @@ get_platform_dev(const struct platform_list *plist, cl_uint p, cl_uint d)
 	return get_platform_devs(plist, p)[d];
 }
 
-/* auto-detected OpenCL version support for the ICD loader */
-cl_uint icdl_ocl_version_found = 10;
-/* OpenCL version support declared by the ICD loader */
-cl_uint icdl_ocl_version;
+/* Data for the OpenCL library / ICD loader */
+struct icdl_data {
+	/* auto-detected OpenCL version support for the ICD loader */
+	cl_uint detected_version;
+	/* OpenCL version support declared by the ICD loader */
+	cl_uint reported_version;
+};
 
 /* maximum length of a platform's sname */
 size_t platform_sname_maxlen;
@@ -476,6 +479,8 @@ getOpenCLVersion(const char *version)
 	}
 	return ret;
 }
+
+#define SPLIT_CL_VERSION(ver) ((ver)/10), ((ver)%10)
 
 /* print strbuf, prefixed by pname, skipping leading whitespace if skip is nonzero,
  * affixing cur_sfx */
@@ -3007,9 +3012,12 @@ struct icdl_info_traits linfo_traits[] = {
 #pragma GCC diagnostic ignored "-Wstrict-aliasing"
 #endif
 
-void oclIcdProps(const struct platform_list *plist, const struct opt_out *output)
+struct icdl_data oclIcdProps(const struct platform_list *plist, const struct opt_out *output)
 {
 	cl_uint max_plat_version = plist->max_plat_version;
+
+	struct icdl_data icdl;
+
 	/* Counter that'll be used to walk the icd_loader_tests */
 	int i = 0;
 
@@ -3023,6 +3031,10 @@ void oclIcdProps(const struct platform_list *plist, const struct opt_out *output
 	void *ptrHack = clGetExtensionFunctionAddress("clGetICDLoaderInfoOCLICD");
 	clGetICDLoaderInfoOCLICD = *(icdl_info_fn_ptr*)(&ptrHack);
 
+	/* Initialize icdl_data ret versions */
+	icdl.detected_version = 10;
+	icdl.reported_version = 0;
+
 	/* Step #1: try to auto-detect the supported ICD loader version */
 	do {
 		struct icd_loader_test check = icd_loader_tests[i];
@@ -3030,7 +3042,7 @@ void oclIcdProps(const struct platform_list *plist, const struct opt_out *output
 			break;
 		if (dlsym(DL_MODULE, check.symbol) == NULL)
 			break;
-		icdl_ocl_version_found = check.version;
+		icdl.detected_version = check.version;
 		++i;
 	} while (1);
 
@@ -3065,7 +3077,7 @@ void oclIcdProps(const struct platform_list *plist, const struct opt_out *output
 			show_strbuf(RET_BUF(ret), loc.pname, 1, ret.err);
 
 			if (!ret.err && traits->param == CL_ICDL_OCL_VERSION) {
-				icdl_ocl_version = getOpenCLVersion(ret.str.buf + 7);
+				icdl.reported_version = getOpenCLVersion(ret.str.buf + 7);
 			}
 		}
 		UNINIT_RET(ret);
@@ -3073,25 +3085,26 @@ void oclIcdProps(const struct platform_list *plist, const struct opt_out *output
 
 	/* Step #3: show it */
 	if (output->mode == CLINFO_HUMAN) {
-		if (icdl_ocl_version &&
-			icdl_ocl_version != icdl_ocl_version_found) {
+		if (icdl.reported_version &&
+			icdl.reported_version != icdl.detected_version) {
 			printf(	"\tNOTE:\tyour OpenCL library declares to support OpenCL %" PRIu32 ".%" PRIu32 ",\n"
 				"\t\tbut it seems to support up to OpenCL %" PRIu32 ".%" PRIu32 " %s.\n",
-				icdl_ocl_version / 10, icdl_ocl_version % 10,
-				icdl_ocl_version_found / 10, icdl_ocl_version_found % 10,
-				icdl_ocl_version_found < icdl_ocl_version  ?
+				SPLIT_CL_VERSION(icdl.reported_version),
+				SPLIT_CL_VERSION(icdl.detected_version),
+				icdl.detected_version < icdl.reported_version  ?
 				"only" : "too");
 		}
-		if (icdl_ocl_version_found < max_plat_version) {
+		if (icdl.detected_version < max_plat_version) {
 			printf(	"\tNOTE:\tyour OpenCL library only supports OpenCL %" PRIu32 ".%" PRIu32 ",\n"
 				"\t\tbut some installed platforms support OpenCL %" PRIu32 ".%" PRIu32 ".\n"
 				"\t\tPrograms using %" PRIu32 ".%" PRIu32 " features may crash\n"
 				"\t\tor behave unexepectedly\n",
-				icdl_ocl_version_found / 10, icdl_ocl_version_found % 10,
-				max_plat_version / 10, max_plat_version % 10,
-				max_plat_version / 10, max_plat_version % 10);
+				SPLIT_CL_VERSION(icdl.detected_version),
+				SPLIT_CL_VERSION(max_plat_version),
+				SPLIT_CL_VERSION(max_plat_version));
 		}
 	}
+	return icdl;
 }
 
 #if defined __GNUC__ && ((__GNUC__*10 + __GNUC_MINOR__) < 46)
