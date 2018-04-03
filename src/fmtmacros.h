@@ -14,14 +14,18 @@
 # include <stddef.h> // size_t
 # define PRIu32 "I32u"
 # define PRId32 "I32d"
-# define PRIX32 "I32x"
+# define PRIx32 "I32x"
+# define PRIX32 "I32X"
 # define PRIu64 "I64u"
-# define PRIX64 "I64x"
+# define PRIx64 "I64x"
+# define PRIX64 "I64X"
 # define PRIuS "Iu"
 #if INTPTR_MAX <= INT32_MAX
 # define PRIXPTR PRIX32
+# define PRIxPTR PRIx32
 #else
 # define PRIXPTR PRIX64
+# define PRIxPTR PRIx64
 #endif
 #else
 # define __STDC_FORMAT_MACROS

@@ -981,7 +981,7 @@ device_info_##how(struct device_info_ret *ret, \
 }
 
 DEFINE_DEVINFO_SHOW(int, cl_uint, u32, "%" PRIu32)
-DEFINE_DEVINFO_SHOW(hex, cl_uint, u32, "0x%" PRIX32)
+DEFINE_DEVINFO_SHOW(hex, cl_uint, u32, "%#" PRIx32)
 DEFINE_DEVINFO_SHOW(long, cl_ulong, u64, "%" PRIu64)
 DEFINE_DEVINFO_SHOW(sz, size_t, s, "%" PRIuS)
 
@@ -1328,7 +1328,7 @@ device_info_devtype(struct device_info_ret *ret,
 			cl_device_type extra = val & ~known_mask;
 			if (extra) {
 				add_separator(&ret->str, &szval);
-				szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "0x%" PRIX64, extra);
+				szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "%#" PRIx64, extra);
 			}
 		}
 	}
@@ -1509,7 +1509,7 @@ device_info_partition_types(struct device_info_ret *ret,
 			case CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN: str_idx = 3; break;
 			case CL_DEVICE_PARTITION_BY_NAMES_INTEL: str_idx = 4; break;
 			default:
-				szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "by <unknown> (0x%" PRIXPTR ")", val[cursor]);
+				szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "by <unknown> (%#" PRIxPTR ")", val[cursor]);
 				break;
 			}
 			if (str_idx >= 0) {
@@ -1558,7 +1558,7 @@ device_info_partition_types_ext(struct device_info_ret *ret,
 			case CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN_EXT: str_idx = 3; break;
 			case CL_DEVICE_PARTITION_BY_NAMES_EXT: str_idx = 4; break;
 			default:
-				szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "by <unknown> (0x%" PRIX64 ")", val[cursor]);
+				szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "by <unknown> (%#" PRIx64 ")", val[cursor]);
 				break;
 			}
 			if (str_idx >= 0) {
@@ -1611,7 +1611,7 @@ device_info_partition_affinities(struct device_info_ret *ret,
 			cl_device_affinity_domain extra = val & ~known_mask;
 			if (extra) {
 				add_separator(&ret->str, &szval);
-				szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "0x%" PRIX64, extra);
+				szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "%#" PRIx64, extra);
 			}
 		}
 	}
@@ -1647,7 +1647,7 @@ device_info_partition_affinities_ext(struct device_info_ret *ret,
 			case CL_AFFINITY_DOMAIN_L1_CACHE_EXT: str_idx = 4; break;
 			case CL_AFFINITY_DOMAIN_NEXT_FISSIONABLE_EXT: str_idx = 5; break;
 			default:
-				szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "<unknown> (0x%" PRIX64 ")", val[cursor]);
+				szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "<unknown> (%#" PRIx64 ")", val[cursor]);
 				break;
 			}
 			if (str_idx >= 0) {
@@ -1911,7 +1911,7 @@ device_info_terminate_capability(struct device_info_ret *ret,
 			cl_device_terminate_capability_khr extra = val & ~known_mask;
 			if (extra) {
 				add_separator(&ret->str, &szval);
-				szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "0x%" PRIX64, extra);
+				szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "%#" PRIx64, extra);
 			}
 		}
 	}
@@ -1933,7 +1933,7 @@ device_info_p2p_dev_list(struct device_info_ret *ret,
 				ret->str.buf[szval] = ' ';
 				++szval;
 			}
-			szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "0x%p", (void*)val[cursor]);
+			szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "%p", (void*)val[cursor]);
 		}
 		// TODO: ret->value.??? = val;
 	}
@@ -1984,7 +1984,7 @@ device_info_interop_list(struct device_info_ret *ret,
 					cl_uint i = current - n->from;
 					szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "%s", n->value[i][human_raw]);
 				} else {
-					szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "0x%" PRIX32, val[cursor]);
+					szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "%#" PRIx32, val[cursor]);
 				}
 				first = CL_FALSE;
 			}
@@ -2733,7 +2733,7 @@ cl_uint checkNullGetDevices(const struct platform_list *plist, const struct opt_
 		}
 		if (i == num_platforms) {
 			ret.err = CL_INVALID_PLATFORM;
-			strbuf_printf(&ret.err_str, "<error: platform 0x%p not found>", (void*)plat);
+			strbuf_printf(&ret.err_str, "<error: platform %p not found>", (void*)plat);
 		}
 	}
 	printf(I1_STR "%s\n",
@@ -2856,7 +2856,7 @@ void checkNullCtxFromType(const struct platform_list *plist, const struct opt_ou
 			}
 			if (i == num_platforms) {
 				ret.err = CL_INVALID_PLATFORM;
-				strbuf_printf(&ret.err_str, "<error: platform 0x%p not found>", (void*)plat);
+				strbuf_printf(&ret.err_str, "<error: platform %p not found>", (void*)plat);
 				break;
 			} else {
 				szval += strbuf_printf(&ret.str, "%s (%" PRIuS ")",
