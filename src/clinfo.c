@@ -71,6 +71,8 @@ struct platform_list {
 	 * behavior
 	 */
 	cl_uint max_plat_version;
+	/* Largest number of devices on any platform */
+	cl_uint max_devs;
 	/* Array of platform IDs */
 	cl_platform_id *platform;
 	/* Array of device IDs (across all platforms) */
@@ -152,8 +154,6 @@ struct icdl_data {
 
 /* maximum length of a platform's sname */
 size_t platform_sname_maxlen;
-/* maximum number of devices */
-cl_uint maxdevs;
 /* line prefix, used to identify the platform/device for each
  * device property in RAW output mode */
 char *line_pfx;
@@ -695,8 +695,8 @@ gatherPlatformInfo(struct platform_list *plist, cl_uint p, const struct opt_out 
 			plist->all_devs + plist->dev_offset[p], NULL);
 	}
 
-	if (pdata->ndevs > maxdevs)
-		maxdevs = pdata->ndevs;
+	if (pdata->ndevs > plist->max_devs)
+		plist->max_devs = pdata->ndevs;
 
 	UNINIT_RET(ret);
 }
@@ -2540,6 +2540,7 @@ void printPlatformDevices(const struct platform_list *plist, cl_uint p,
 void showDevices(const struct platform_list *plist, const struct opt_out *output)
 {
 	const cl_uint num_platforms = plist->num_platforms;
+	const cl_uint maxdevs = plist->max_devs;
 	const struct platform_data *pdata = plist->pdata;
 
 	cl_uint p;
@@ -3014,7 +3015,7 @@ struct icdl_info_traits linfo_traits[] = {
 
 struct icdl_data oclIcdProps(const struct platform_list *plist, const struct opt_out *output)
 {
-	cl_uint max_plat_version = plist->max_plat_version;
+	const cl_uint max_plat_version = plist->max_plat_version;
 
 	struct icdl_data icdl;
 
