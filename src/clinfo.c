@@ -1705,17 +1705,22 @@ device_info_fpconf(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks *chk,
 	const struct opt_out *output)
 {
-	int get_it = (
+	/* When in HUMAN output, we are called unconditionally,
+	 * so we have to do some manual checks ourselves */
+	const cl_bool get_it = (output->mode != CLINFO_HUMAN) ||
 		(loc->param.dev == CL_DEVICE_SINGLE_FP_CONFIG) ||
 		(loc->param.dev == CL_DEVICE_HALF_FP_CONFIG && dev_has_half(chk)) ||
-		(loc->param.dev == CL_DEVICE_DOUBLE_FP_CONFIG && dev_has_double(chk)));
-	if (get_it)
-		GET_VAL(ret, loc, fpconfig);
-	else
+		(loc->param.dev == CL_DEVICE_DOUBLE_FP_CONFIG && dev_has_double(chk));
+
+	DEV_FETCH(cl_device_fp_config, val);
+	/* Sanitize! */
+	if (ret->err && !get_it) {
 		ret->err = CL_SUCCESS;
+		val = 0;
+	}
+
 
 	if (!ret->err) {
-		cl_device_fp_config val = ret->value.fpconfig;
 		size_t szval = 0;
 		cl_uint i = 0;
 		const char * const *fpstr = (output->mode == CLINFO_HUMAN ?
@@ -1738,16 +1743,15 @@ device_info_fpconf(struct device_info_ret *ret,
 			default:
 				/* "this can't happen" (unless OpenCL starts supporting _other_ floating-point formats, maybe) */
 				fprintf(stderr, "unsupported floating-point configuration parameter %s\n", loc->pname);
-
 			}
 			/* show 'why' it's being shown */
 			szval += strbuf_printf(&ret->str, "(%s)", why);
 		}
 		if (get_it) {
+			size_t num_flags = fp_conf_count;
 			/* The last flag, CL_FP_CORRECTLY_ROUNDED_DIVIDE_SQRT is only considered
 			 * in the single-precision case. half and double don't consider it,
 			 * so we skip it altogether */
-			size_t num_flags = fp_conf_count;
 			if (loc->param.dev != CL_DEVICE_SINGLE_FP_CONFIG)
 				num_flags -= 1;
 
@@ -2103,7 +2107,8 @@ struct device_info_traits dinfo_traits[] = {
 
 	/* Floating point configurations */
 #define DINFO_FPCONF(Type, type, cond) \
-	{ CLINFO_BOTH, DINFO(CL_DEVICE_##Type##_FP_CONFIG, #type "-precision Floating-point support", fpconf), NULL }
+	{ CLINFO_HUMAN, DINFO(CL_DEVICE_##Type##_FP_CONFIG, #type "-precision Floating-point support", fpconf), NULL }, \
+	{ CLINFO_RAW, DINFO(CL_DEVICE_##Type##_FP_CONFIG, #type "-precision Floating-point support", fpconf), cond }
 
 	DINFO_FPCONF(HALF, Half, dev_has_half),
 	DINFO_FPCONF(SINGLE, Single, NULL),
