@@ -3104,7 +3104,7 @@ struct icdl_data oclIcdProps(const struct platform_list *plist, const struct opt
 			printf(	"\tNOTE:\tyour OpenCL library only supports OpenCL %" PRIu32 ".%" PRIu32 ",\n"
 				"\t\tbut some installed platforms support OpenCL %" PRIu32 ".%" PRIu32 ".\n"
 				"\t\tPrograms using %" PRIu32 ".%" PRIu32 " features may crash\n"
-				"\t\tor behave unexepectedly\n",
+				"\t\tor behave unexpectedly\n",
 				SPLIT_CL_VERSION(icdl.detected_version),
 				SPLIT_CL_VERSION(max_plat_version),
 				SPLIT_CL_VERSION(max_plat_version));
