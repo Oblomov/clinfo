@@ -3026,7 +3026,7 @@ void oclIcdProps(void)
 			printf(	"\tNOTE:\tyour OpenCL library only supports OpenCL %u.%u,\n"
 				"\t\tbut some installed platforms support OpenCL %u.%u.\n"
 				"\t\tPrograms using %u.%u features may crash\n"
-				"\t\tor behave unexepectedly\n",
+				"\t\tor behave unexpectedly\n",
 				icdl_ocl_version_found / 10, icdl_ocl_version_found % 10,
 				max_plat_version / 10, max_plat_version % 10,
 				max_plat_version / 10, max_plat_version % 10);
