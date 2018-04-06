@@ -3119,7 +3119,7 @@ struct icdl_data oclIcdProps(const struct platform_list *plist, const struct opt
 
 void version(void)
 {
-	puts("clinfo version 2.2.18.03.26");
+	puts("clinfo version 2.2.18.04.06");
 }
 
 void usage(void)
