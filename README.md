@@ -31,6 +31,15 @@ Refer to the man page for further information.
   other OpenCL application will build;
 * explore/report the actual properties of the available device(s).
 
+## Segmentation faults
+
+Some faulty OpenCL platforms may cause `clinfo` to crash. There isn't
+much `clinfo` itself can do about it, but you can try and isolate the
+platform responsible for this. On POSIX systems, you can generally find
+the platform responsible for the fault with the following one-liner:
+
+    find /etc/OpenCL/vendors/ -name '*.icd' | while read OPENCL_VENDOR_PATH ; do clinfo -l > /dev/null ; echo "$? ${OPENCL_VENDOR_PATH}" ; done
+
 # Building
 
 <img

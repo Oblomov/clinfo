@@ -303,3 +303,23 @@ or
 .B OCL_ICD_VENDORS
 environment variables, as documented in
 .BR libOpenCL (7).
+Other implementations of
+.B libOpenCL
+are known to support
+.B OPENCL_VENDOR_PATH
+too.
+
+.TP 2
+.B Example
+find /etc/OpenCL/vendors/ -name '*.icd' | while read OPENCL_VENDOR_PATH ; do clinfo -l > /dev/null ; echo "$? ${OPENCL_VENDOR_PATH}" ; done
+
+.P
+This one liner will run
+.B clinfo -l
+for each platform individually (hiding the normal output),
+and report the
+.I .icd
+path prefixed by
+.B 0
+for successfull runs, and a non-zero value for faulty
+platforms.
