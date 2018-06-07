@@ -24,6 +24,58 @@
 #include <CL/cl.h>
 #endif
 
+/* Very old headers will be missing these defines */
+#ifndef CL_VERSION_1_1
+#define CL_DEVICE_PREFERRED_VECTOR_WIDTH_HALF           0x1034
+#define CL_DEVICE_HOST_UNIFIED_MEMORY                   0x1035
+#define CL_DEVICE_NATIVE_VECTOR_WIDTH_CHAR              0x1036
+#define CL_DEVICE_NATIVE_VECTOR_WIDTH_SHORT             0x1037
+#define CL_DEVICE_NATIVE_VECTOR_WIDTH_INT               0x1038
+#define CL_DEVICE_NATIVE_VECTOR_WIDTH_LONG              0x1039
+#define CL_DEVICE_NATIVE_VECTOR_WIDTH_FLOAT             0x103A
+#define CL_DEVICE_NATIVE_VECTOR_WIDTH_DOUBLE            0x103B
+#define CL_DEVICE_NATIVE_VECTOR_WIDTH_HALF              0x103C
+#define CL_DEVICE_OPENCL_C_VERSION                      0x103D
+
+#define CL_FP_SOFT_FLOAT                                (1 << 6)
+
+#define CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE    0x11B3
+#endif
+
+#ifndef CL_VERSION_1_2
+#define CL_DEVICE_TYPE_CUSTOM                           (1 << 4)
+
+#define CL_DEVICE_LINKER_AVAILABLE                      0x103E
+#define CL_DEVICE_BUILT_IN_KERNELS                      0x103F
+#define CL_DEVICE_IMAGE_MAX_BUFFER_SIZE                 0x1040
+#define CL_DEVICE_IMAGE_MAX_ARRAY_SIZE                  0x1041
+#define CL_DEVICE_PARTITION_MAX_SUB_DEVICES             0x1043
+#define CL_DEVICE_PARTITION_PROPERTIES                  0x1044
+#define CL_DEVICE_PARTITION_AFFINITY_DOMAIN             0x1045
+#define CL_DEVICE_PARTITION_TYPE                        0x1046
+#define CL_DEVICE_PREFERRED_INTEROP_USER_SYNC           0x1048
+#define CL_DEVICE_PRINTF_BUFFER_SIZE                    0x1049
+#define CL_DEVICE_IMAGE_PITCH_ALIGNMENT                 0x104A
+#define CL_DEVICE_IMAGE_BASE_ADDRESS_ALIGNMENT          0x104B
+
+#define CL_FP_CORRECTLY_ROUNDED_DIVIDE_SQRT             (1 << 7)
+
+/* cl_device_partition_property */
+#define CL_DEVICE_PARTITION_EQUALLY                     0x1086
+#define CL_DEVICE_PARTITION_BY_COUNTS                   0x1087
+#define CL_DEVICE_PARTITION_BY_COUNTS_LIST_END          0x0
+#define CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN          0x1088
+
+/* cl_device_affinity_domain */
+#define CL_DEVICE_AFFINITY_DOMAIN_NUMA                  (1 << 0)
+#define CL_DEVICE_AFFINITY_DOMAIN_L4_CACHE              (1 << 1)
+#define CL_DEVICE_AFFINITY_DOMAIN_L3_CACHE              (1 << 2)
+#define CL_DEVICE_AFFINITY_DOMAIN_L2_CACHE              (1 << 3)
+#define CL_DEVICE_AFFINITY_DOMAIN_L1_CACHE              (1 << 4)
+#define CL_DEVICE_AFFINITY_DOMAIN_NEXT_PARTITIONABLE    (1 << 5)
+
+#endif
+
 /* These two defines were introduced in the 1.2 headers
  * on 2012-11-30, so earlier versions don't have them
  * (e.g. Debian wheezy)
