@@ -1,7 +1,6 @@
 REM call as fetch-opencl-dev-win x86|x86_64|x64
 
-git clone https://github.com/KhronosGroup/OpenCL-Headers
-move OpenCL-Headers/opencl22 include
+git clone https://github.com/KhronosGroup/OpenCL-Headers include
 
 set sub=%1
 
