@@ -4,6 +4,13 @@
 #ifndef EXT_H
 #define EXT_H
 
+/* Khronos now provides unified headers for all OpenCL versions, and
+ * it should be included after defining a target OpenCL version
+ * (otherwise, the maximum version will simply be used, but a message
+ * will be printed).
+ */
+#define CL_TARGET_OPENCL_VERSION 220
+
 /* We will use the deprecated clGetExtensionFunctionAddress,
  * so let the headers know that we don't care about it being deprecated.
  * The standard CL_USE_DEPRECATED_OPENCL_1_1_APIS define apparently
