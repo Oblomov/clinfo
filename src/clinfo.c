@@ -543,6 +543,11 @@ cl_bool khr_icd_p(const struct platform_info_checks *chk)
 	return chk->has_khr_icd;
 }
 
+cl_bool plat_is_12(const struct platform_info_checks *chk)
+{
+	return !(chk->plat_version < 12);
+}
+
 cl_bool plat_is_20(const struct platform_info_checks *chk)
 {
 	return !(chk->plat_version < 20);
@@ -718,6 +723,7 @@ struct device_info_checks {
 	char has_amd[30];
 	char has_amd_svm[11];
 	char has_arm_svm[29];
+	char has_arm_core_id[15];
 	char has_fission[22];
 	char has_atomic_counters[26];
 	char has_image2d_buffer[27];
@@ -748,6 +754,7 @@ DEFINE_EXT_CHECK(nv)
 DEFINE_EXT_CHECK(amd)
 DEFINE_EXT_CHECK(amd_svm)
 DEFINE_EXT_CHECK(arm_svm)
+DEFINE_EXT_CHECK(arm_core_id)
 DEFINE_EXT_CHECK(fission)
 DEFINE_EXT_CHECK(atomic_counters)
 DEFINE_EXT_CHECK(image2d_buffer)
@@ -823,6 +830,17 @@ cl_bool dev_has_amd_v4(const struct device_info_checks *chk)
 	return dev_is_gpu(chk) && dev_has_amd(chk) && plat_is_20(chk->pinfo_checks);
 }
 
+/* Device supports cl_arm_core_id v2 */
+cl_bool dev_has_arm_core_id_v2(const struct device_info_checks *chk)
+{
+	/* We don't actually have a criterion to check if the device
+	 * supports a specific version of an extension, so for the time
+	 * being rely on them having cl_arm_core_id and the platform
+	 * supporting OpenCL 1.2 or later
+	 * TODO FIXME tune criteria
+	 */
+	return dev_has_arm_core_id(chk) && plat_is_12(chk->pinfo_checks);
+}
 
 cl_bool dev_has_svm(const struct device_info_checks *chk)
 {
@@ -900,6 +918,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 	CHECK_EXT(amd, cl_amd_device_attribute_query);
 	CHECK_EXT(amd_svm, cl_amd_svm);
 	CHECK_EXT(arm_svm, cl_arm_shared_virtual_memory);
+	CHECK_EXT(arm_core_id, cl_arm_core_id);
 	CHECK_EXT(fission, cl_ext_device_fission);
 	CHECK_EXT(atomic_counters, cl_ext_atomic_counters_64);
 	if (dev_has_atomic_counters(chk))
@@ -1371,6 +1390,47 @@ device_info_lmemtype(struct device_info_ret *ret,
 		bufcpy(&ret->str, 0, ar[val]);
 	}
 	ret->value.lmemtype = val;
+}
+
+/* cl_arm_core_id */
+void
+device_info_core_ids(struct device_info_ret *ret,
+	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
+	const struct opt_out *output)
+{
+	DEV_FETCH(cl_ulong, val);
+
+	if (!ret->err) {
+		/* The value is a bitfield where each set bit corresponds to a code ID
+		 * value that can be returned by the device-side function. We print them
+		 * here as ranges, such as 0-4, 8-12 */
+		set_separator(empty_str);
+		size_t szval = 0;
+		int range_start = -1;
+		int cur_bit = 0;
+#define CORE_ID_END 64
+		do {
+			/* Find the start of the range */
+			while ((cur_bit < CORE_ID_END) && !(val >> cur_bit))
+				++cur_bit;
+			range_start = cur_bit++;
+
+			/* Find the end of the range */
+			while ((cur_bit < CORE_ID_END) && (val >> cur_bit))
+				++cur_bit;
+
+			/* print the range [range_start, cur_bit[ */
+			if (range_start >= 0) {
+				szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1,
+					"%s%d", sep, range_start);
+				if (cur_bit - range_start > 1)
+					szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1,
+						"-%d", cur_bit - 1);
+				set_separator(comma_str);
+			}
+		} while (cur_bit < CORE_ID_END);
+	}
+	ret->value.u64 = val;
 }
 
 /* stringify a cl_device_topology_amd */
@@ -2058,6 +2118,8 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_LINKER_AVAILABLE, "Linker Available", bool), dev_is_12 },
 
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_COMPUTE_UNITS, "Max compute units", int), NULL },
+	{ CLINFO_HUMAN, DINFO(CL_DEVICE_COMPUTE_UNITS_BITFIELD, "Available core IDs", core_ids), dev_has_arm_core_id_v2 },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_COMPUTE_UNITS_BITFIELD, "Available core IDs", long), dev_has_arm_core_id_v2 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SIMD_PER_COMPUTE_UNIT_AMD, "SIMD per compute unit (AMD)", int), dev_is_gpu_amd },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SIMD_WIDTH_AMD, "SIMD width (AMD)", int), dev_is_gpu_amd },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SIMD_INSTRUCTION_WIDTH_AMD, "SIMD instruction width (AMD)", int), dev_is_gpu_amd },

@@ -112,6 +112,10 @@ to show the number and IDs of available P2P devices;
 .B cl_arm_shared_virtual_memory
 for Shared Virtual Memory (SVM) capabilities in OpenCL 1.2 devices;
 .TP
+.B cl_arm_core_id
+to show the (potentially sparse) list of the core IDs that the device may
+return;
+.TP
 .B cl_nv_device_attribute_query
 for NVIDIA-specific device attributes;
 .TP
@@ -230,9 +234,10 @@ officially declared anywhere.
 
 .P
 Most notably, this affects extensions such as
-.B cl_amd_device_attribute_query
+.BR cl_amd_device_attribute_query ,
+.B cl_nv_device_attribute_query
 and
-.BR cl_nv_device_attribute_query .
+.BR cl_arm_core_id .
 Heuristics based on standard version support are partially used in the code to
 determine which version may be supported.
 

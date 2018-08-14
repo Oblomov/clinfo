@@ -268,6 +268,9 @@ typedef cl_ulong  cl_device_partition_property_ext;
 /* cl_arm_shared_virtual_memory */
 #define CL_DEVICE_SVM_CAPABILITIES_ARM			0x40B6
 
+/* cl_arm_core_id */
+#define CL_DEVICE_COMPUTE_UNITS_BITFIELD		0x40BF
+
 /* cl_khr_spir */
 #define CL_DEVICE_SPIR_VERSIONS				0x40E0
 
