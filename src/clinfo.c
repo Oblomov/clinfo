@@ -423,11 +423,18 @@ static const cl_interop_name cl_interop_names[] = {
 			{ "D3D11", "CL_CONTEXT_D3D11_DEVICE_KHR" }
 		}
 	},
-	{ /* cl_intel_dx9_media_sharing */
+	/* cl_intel_dx9_media_sharing is split in two because the allowed values are not consecutive */
+	{ /* cl_intel_dx9_media_sharing part 1 */
 		CL_CONTEXT_D3D9_DEVICE_INTEL,
+		CL_CONTEXT_D3D9_DEVICE_INTEL,
+		{
+			{ "D3D9 (INTEL)", "CL_CONTEXT_D3D9_DEVICE_INTEL" }
+		}
+	},
+	{ /* cl_intel_dx9_media_sharing part 2 */
+		CL_CONTEXT_D3D9EX_DEVICE_INTEL,
 		CL_CONTEXT_DXVA_DEVICE_INTEL,
 		{
-			{ "D3D9 (INTEL)", "CL_CONTEXT_D3D9_DEVICE_INTEL" },
 			{ "D3D9Ex (INTEL)", "CL_CONTEXT_D3D9EX_DEVICE_INTEL" },
 			{ "DXVA (INTEL)", "CL_CONTEXT_DXVA_DEVICE_INTEL" }
 		}
