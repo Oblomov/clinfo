@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.6)
 
-if (WIN32)
+if (WIN32 AND DEFINED ENV{VCPKG_ROOT})
   set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
-endif (WIN32)
+endif ()
 
 set(n clinfo)
 project(${n})
