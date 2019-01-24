@@ -14,6 +14,4 @@ target_include_directories(${n} PUBLIC src)
 target_include_directories(${n} PUBLIC ${OpenCL_INCLUDE_DIRS})
 target_link_libraries(${n} ${OpenCL_LIBRARIES})
 
-if (WIN32)
-  set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT ${n})
-endif (WIN32)
+set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT ${n})
