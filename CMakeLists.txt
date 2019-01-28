@@ -12,6 +12,6 @@ find_package(OpenCL REQUIRED)
 add_executable(${n} src/${n}.c)
 target_include_directories(${n} PUBLIC src)
 target_include_directories(${n} PUBLIC ${OpenCL_INCLUDE_DIRS})
-target_link_libraries(${n} ${OpenCL_LIBRARIES})
+target_link_libraries(${n} ${OpenCL_LIBRARIES} ${CMAKE_DL_LIBS})
 
 set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT ${n})
