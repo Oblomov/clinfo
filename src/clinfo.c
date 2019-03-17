@@ -325,7 +325,7 @@ static const char* sources[] = {
 	"#define GWO(type) global type* restrict\n",
 	"#define GRO(type) global const type* restrict\n",
 	"#define BODY int i = get_global_id(0); out[i] = in1[i] + in2[i]\n",
-	"#define _KRN(T, N) void kernel sum##N(GWO(T##N) out, GRO(T##N) in1, GRO(T##N) in2) { BODY; }\n",
+	"#define _KRN(T, N) kernel void sum##N(GWO(T##N) out, GRO(T##N) in1, GRO(T##N) in2) { BODY; }\n",
 	"#define KRN(N) _KRN(float, N)\n",
 	"KRN()\n/* KRN(2)\nKRN(4)\nKRN(8)\nKRN(16) */\n",
 };
