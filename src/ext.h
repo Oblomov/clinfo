@@ -292,4 +292,11 @@ typedef enum {
 	CL_ICDL_VENDOR=4,
 } cl_icdl_info;
 
+/* TODO cl_arm_job_slot_selection
+ * Requires OpenCL 2.0+ or cl_khr_create_command_queue
+ * Defines a bitfield device property CL_DEVICE_JOB_SLOTS_ARM
+ * where a bit is set if the corresponding job slot can be used
+ * to submit jobs
+ */
+
 #endif
