@@ -40,6 +40,14 @@ the platform responsible for the fault with the following one-liner:
 
     find /etc/OpenCL/vendors/ -name '*.icd' | while read OPENCL_VENDOR_PATH ; do clinfo -l > /dev/null ; echo "$? ${OPENCL_VENDOR_PATH}" ; done
 
+## Missing information
+
+If you know of device properties that are exposed in OpenCL (either as core
+properties or as extensions), but are not shown by `clinfo`, please [open
+an issue](https://github.com/Oblomov/clinfo/issues) providing as much
+information as you can. Patches and pull requests accepted too.
+
+
 # Building
 
 <img
