@@ -31,6 +31,7 @@ struct device_info_ret {
 		size_t s;
 		cl_long i64;
 		cl_ulong u64;
+		cl_ulong4 u64v;
 		cl_int i32;
 		cl_uint u32;
 		cl_uint4 u32v;

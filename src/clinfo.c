@@ -1120,9 +1120,15 @@ device_info_free_mem_amd(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
 	const struct opt_out *output)
 {
+	// Apparently, with the introduction of ROCm, CL_DEVICE_GLOBAL_FREE_MEMORY_AMD
+	// returns 1 or 2 values depending on how it's called: if it's called with a
+	// szval < 2*sizeof(size_t), it will only return 1 value, otherwise it will return 2.
+	// At least now these are documented in the ROCm source code: the first value
+	// is the total amount of free memory, and the second is the size of the largest
+	// free block. So let's just manually ask for both values
 	size_t *val = NULL;
-	size_t szval = 0, numval = 0;
-	GET_VAL_ARRAY(ret, loc);
+	size_t numval = 2, szval = numval*sizeof(*val);
+	_GET_VAL_VALUES(ret, loc);
 	if (!ret->err) {
 		size_t cursor = 0;
 		szval = 0;
@@ -1134,8 +1140,8 @@ device_info_free_mem_amd(struct device_info_ret *ret,
 			szval += sprintf(ret->str.buf + szval, "%" PRIuS, val[cursor]);
 			if (output->mode == CLINFO_HUMAN)
 				szval += strbuf_mem(&ret->str, val[cursor]*UINT64_C(1024), szval);
+			ret->value.u64v.s[cursor] = val[cursor];
 		}
-		// TODO: ret->value.??? = val;
 	}
 	free(val);
 }
