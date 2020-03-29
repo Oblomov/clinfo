@@ -731,6 +731,7 @@ struct device_info_checks {
 	char has_amd_svm[11];
 	char has_arm_svm[29];
 	char has_arm_core_id[15];
+	char has_arm_job_slots[26];
 	char has_fission[22];
 	char has_atomic_counters[26];
 	char has_image2d_buffer[27];
@@ -763,6 +764,7 @@ DEFINE_EXT_CHECK(amd)
 DEFINE_EXT_CHECK(amd_svm)
 DEFINE_EXT_CHECK(arm_svm)
 DEFINE_EXT_CHECK(arm_core_id)
+DEFINE_EXT_CHECK(arm_job_slots)
 DEFINE_EXT_CHECK(fission)
 DEFINE_EXT_CHECK(atomic_counters)
 DEFINE_EXT_CHECK(image2d_buffer)
@@ -932,6 +934,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 	CHECK_EXT(amd_svm, cl_amd_svm);
 	CHECK_EXT(arm_svm, cl_arm_shared_virtual_memory);
 	CHECK_EXT(arm_core_id, cl_arm_core_id);
+	CHECK_EXT(arm_job_slots, cl_arm_job_slot_selection);
 	CHECK_EXT(fission, cl_ext_device_fission);
 	CHECK_EXT(atomic_counters, cl_ext_atomic_counters_64);
 	if (dev_has_atomic_counters(chk))
@@ -1453,6 +1456,46 @@ device_info_core_ids(struct device_info_ret *ret,
 		} while (cur_bit < CORE_ID_END);
 	}
 	ret->value.u64 = val;
+}
+
+/* cl_arm_job_slot_selection */
+void
+device_info_job_slots(struct device_info_ret *ret,
+	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
+	const struct opt_out *output)
+{
+	DEV_FETCH(cl_uint, val);
+
+	if (!ret->err) {
+		/* The value is a bitfield where each set bit corresponds to an available job slot.
+		 * We print them here as ranges, such as 0-4, 8-12 */
+		size_t szval = 0;
+		int range_start = -1;
+		int cur_bit = 0;
+		set_separator(empty_str);
+#define JOB_SLOT_END 32
+		do {
+			/* Find the start of the range */
+			while ((cur_bit < JOB_SLOT_END) && !((val >> cur_bit) & 1))
+				++cur_bit;
+			range_start = cur_bit++;
+
+			/* Find the end of the range */
+			while ((cur_bit < JOB_SLOT_END) && ((val >> cur_bit) & 1))
+				++cur_bit;
+
+			/* print the range [range_start, cur_bit[ */
+			if (range_start >= 0 && range_start < JOB_SLOT_END) {
+				szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1,
+					"%s%d", sep, range_start);
+				if (cur_bit - range_start > 1)
+					szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1,
+						"-%d", cur_bit - 1);
+				set_separator(comma_str);
+			}
+		} while (cur_bit < JOB_SLOT_END);
+	}
+	ret->value.u32 = val;
 }
 
 /* stringify a cl_device_topology_amd */
@@ -2147,6 +2190,8 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_COMPUTE_UNITS, "Max compute units", int), NULL },
 	{ CLINFO_HUMAN, DINFO(CL_DEVICE_COMPUTE_UNITS_BITFIELD, "Available core IDs", core_ids), dev_has_arm_core_id_v2 },
 	{ CLINFO_RAW, DINFO(CL_DEVICE_COMPUTE_UNITS_BITFIELD, "Available core IDs", long), dev_has_arm_core_id_v2 },
+	{ CLINFO_HUMAN, DINFO(CL_DEVICE_JOB_SLOTS_ARM, "Available job slots (ARM)", job_slots), dev_has_arm_job_slots },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_JOB_SLOTS_ARM, "Available job slots (ARM)", int), dev_has_arm_job_slots },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SIMD_PER_COMPUTE_UNIT_AMD, "SIMD per compute unit (AMD)", int), dev_is_gpu_amd },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SIMD_WIDTH_AMD, "SIMD width (AMD)", int), dev_is_gpu_amd },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SIMD_INSTRUCTION_WIDTH_AMD, "SIMD instruction width (AMD)", int), dev_is_gpu_amd },
