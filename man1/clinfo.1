@@ -283,6 +283,35 @@ Please report any issues on
 the project tracker on GitHub
 .UE .
 
+.SS LLVM CommandLine errors
+
+.P
+If multiple OpenCL platforms using shared
+.B LLVM
+libraries are present in the system,
+.B clinfo
+(and other OpenCL application) may crash with errors
+to the tune of
+.PP
+.nf
+.RS
+.B : CommandLine Error: Option '(some option name)' registered more than once!
+.B LLVM ERROR: inconsistency in registered CommandLine options
+.RE
+.fi
+.PP
+or similar. This is not an issue in
+.BR clinfo ","
+or in any OpenCL platform or application, but it is due to the way
+.B LLVM
+handles its own command-line options parsing.
+The issue has been reported upstream
+.UR https://bugs.llvm.org/show_bug.cgi?id=30587
+as issue #30587
+.UE .
+See the next point for possible workarounds and assistance in identifying the
+conflicting platforms.
+
 .SS Segmentation faults
 
 .P
