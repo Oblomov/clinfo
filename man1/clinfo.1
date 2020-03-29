@@ -253,7 +253,10 @@ Properties which are known to be affected by these limitations include:
 documented in v3 of the
 .B cl_amd_device_attribute_query
 extension specification as being the global free memory in KBytes, without
-any explanation given on why there are two values;
+any explanation given on why there are two values, although in the source code
+of the
+.B ROCm
+stack the second value is documented as being the largest free block;
 .TP
 .B CL_DEVICE_AVAILABLE_ASYNC_QUEUES_AMD
 documented in v3 of the
