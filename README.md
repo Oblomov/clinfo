@@ -61,6 +61,56 @@ No special build system is used (autotools, CMake, meson, ninja, etc),
 as I feel adding more dependencies for such a simple program would be
 excessive. Simply running `make` at the project root should work.
 
+## Android support
+
+### Local build via Termux
+
+One way to build the application on Android, pioneered by
+[truboxl][truboxl] and described [here][issue46], requires the
+installation of [Termux][termux], that can be installed via Google Play
+as well as via F-Droid.
+
+[truboxl]: https://github.com/truboxl
+[issue46]: https://github.com/Oblomov/clinfo/issues/46
+[termux]: https://termux.com/
+
+Inside Termux, you will first need to install some common tools:
+
+	pkg install git make clang -y
+
+
+You will also need to clone the `clinfo` repository, and fetch the
+OpenCL headers (we'll use the official `KhronosGroup/OpenCL-Headers`
+repository for that):
+
+	git clone https://github.com/Oblomov/clinfo
+	git clone https://github.com/KhronosGroup/OpenCL-Headers
+
+(I prefer doing this from a `src` directory I have created for
+development, but as long as `clinfo` and `OpenCL-Headers` are sibling
+directories, the headers will be found. If not, you will have to
+override `CPPFLAGS` with e.g. `export CPPFLAGS=/path/to/where/headers/are`
+before running `make`.)
+
+You can then `cd clinfo` and build the application with
+
+	make OS=Android
+
+(The `OS` value must be specified because currently Android is not autodetected.)
+
+If linking fails due to a missing `libOpenCL.so`, then your Android
+machine probably doesn't support OpenCL. Otherwise, you should have a
+working `clinfo` you can run. You will most probably need to set
+`LD_LIBRARY_PATH` to let the program know where the OpenCL library is at
+runtime: you will need at least `${ANDROID_ROOT}/vendor/lib64`, but on
+some machine the OpenCL library actually maps to a different library
+(e.g., on one of my systems, it maps to the GLES library, which is in a
+different subdirectory). Something like:
+
+	LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${ANDROID_ROOT}/vendor/lib64:${ANDROID_ROOT}/vendor/lib64/egl" ./clinfo
+
+might work.
+
 ## Windows support
 
 The application can usually be built in Windows too (support for which

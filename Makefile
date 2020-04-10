@@ -23,6 +23,11 @@ HDR =	src/error.h \
 
 VPATH = src
 
+# Make it easier to find the OpenCL headers on systems
+# that don't ship them by default; the user can just clone
+# them on a parallel directory from the official repository
+CPPFLAGS += -I../OpenCL-Headers
+
 CFLAGS ?= -g -pedantic -Werror
 CFLAGS += -std=c99 -Wall -Wextra
 
@@ -39,18 +44,20 @@ BINMODE ?= 555
 MANDIR ?= $(PREFIX)/man
 MANMODE ?= 444
 
+ANDROID_VENDOR_PATH = ${ANDROID_ROOT}/vendor/lib64
+
+LDFLAGS_Android += -Wl,-rpath-link=${ANDROID_VENDOR_PATH} -L${ANDROID_VENDOR_PATH}
+
+LDFLAGS += $(LDFLAGS_$(OS))
+
 # Common library includes
-LDLIBS = -lOpenCL -ldl
+LDLIBS__common = -lOpenCL -ldl
 
 # OS-specific library includes
 LDLIBS_Darwin = -framework OpenCL
 LDLIBS_Darwin_exclude = -lOpenCL
 
-LDLIBS += $(LDLIBS_${OS})
-
-# Remove -lOpenCL if OS is Darwin
-LDLIBS := $(LDLIBS:$(LDLIBS_${OS}_exclude)=)
-
+LDLIBS += $(LDLIBS_${OS}) $(LDLIBS__common:$(LDLIBS_${OS}_exclude)=)
 
 #
 # Standard targets
