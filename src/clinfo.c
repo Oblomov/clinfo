@@ -2844,9 +2844,11 @@ cl_uint checkNullGetDevices(const struct platform_list *plist, const struct opt_
 				"CL_DEVICE_NOT_FOUND | CL_INVALID_PLATFORM"));
 			break;
 		case 1:
-			bufcpy(&ret.str, 0, (output->mode == CLINFO_HUMAN ?
-				pdata[pidx].pname :
-				pdata[pidx].sname));
+			strbuf_printf(&ret.err_str, "%s%s%s%s",
+				no_dev_found(output),
+				(output->mode == CLINFO_HUMAN ? " [" : " | "),
+				(output->mode == CLINFO_HUMAN ? pdata[pidx].pname : pdata[pidx].sname),
+				(output->mode == CLINFO_HUMAN ? "?]" : "?"));
 			break;
 		default: /* found > 1 */
 			bufcpy(&ret.err_str, 0, (output->mode == CLINFO_HUMAN ?
