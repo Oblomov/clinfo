@@ -911,13 +911,12 @@ cl_bool dev_has_p2p_devs(const struct device_info_checks *chk)
 void identify_device_extensions(const char *extensions, struct device_info_checks *chk)
 {
 #define _HAS_EXT(ext) (strstr(extensions, ext))
-#define HAS_EXT(ext) _HAS_EXT(#ext)
 #define CPY_EXT(what, ext) do { \
-	strncpy(chk->has_##what, has, sizeof(ext)); \
+	strncpy(chk->has_##what, has+1, sizeof(ext)); \
 	chk->has_##what[sizeof(ext)-1] = '\0'; \
 } while (0)
 #define CHECK_EXT(what, ext) do { \
-	has = _HAS_EXT(#ext); \
+	has = _HAS_EXT(" " #ext " "); \
 	if (has) CPY_EXT(what, #ext); \
 } while(0)
 
@@ -2408,6 +2407,7 @@ printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uint p,
 	const struct opt_out *output)
 {
 	char *extensions = NULL;
+	size_t ext_len = 0;
 
 	/* pointer to the traits for CL_DEVICE_EXTENSIONS */
 	const struct device_info_traits *extensions_traits = NULL;
@@ -2476,11 +2476,17 @@ printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uint p,
 			/* make a backup of the extensions string, regardless of
 			 * errors */
 			const char *msg = RET_BUF(ret)->buf;
-			size_t len = strlen(msg);
+			ext_len = strlen(msg);
 			extensions_traits = traits;
-			ALLOC(extensions, len+1, "extensions");
-			memcpy(extensions, msg, len);
-			extensions[len] = '\0';
+			/* pad with spaces: this will make it easier to check for extension presence
+			 * without erroneously matching substrings by simply padding the extension name
+			 * with spaces.
+			 */
+			ALLOC(extensions, ext_len+3, "extensions");
+			memcpy(extensions + 1, msg, ext_len);
+			extensions[0] = ' ';
+			extensions[ext_len+1] = ' ';
+			extensions[ext_len+2] = '\0';
 		} else {
 			if (ret.err) {
 				/* if there was an error retrieving the property,
@@ -2537,10 +2543,13 @@ printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uint p,
 	}
 
 	// and finally the extensions, if we retrieved them
-	if (extensions)
+	if (extensions) {
+		// undo the padding
+		extensions[ext_len + 1] = '\0';
 		printf("%s" I1_STR "%s\n", line_pfx, (output->mode == CLINFO_HUMAN ?
 				extensions_traits->pname :
-				extensions_traits->sname), extensions);
+				extensions_traits->sname), extensions + 1);
+	}
 	free(extensions);
 	extensions = NULL;
 	UNINIT_RET(ret);
