@@ -3139,6 +3139,7 @@ struct icd_loader_test {
 	{ 20, "clSVMAlloc" },
 	{ 21, "clGetHostTimer" },
 	{ 22, "clSetProgramSpecializationConstant" },
+	{ 30, "clSetContextDestructorCallback" },
 	{ 0, NULL }
 };
 
