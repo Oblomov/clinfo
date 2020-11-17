@@ -21,6 +21,12 @@ enum cond_prop_modes {
 struct opt_out {
 	enum output_modes mode;
 	enum cond_prop_modes cond;
+
+/* Specify that we should only print information about a specific device */
+	cl_uint platform;
+	cl_uint device;
+	cl_bool selected;
+
 /* Specify if we should only be listing the platform and devices;
  * can be done in both human and raw mode, and only the platform
  * and device names (and number) will be shown

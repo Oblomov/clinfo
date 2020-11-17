@@ -2668,6 +2668,7 @@ void printPlatformDevices(const struct platform_list *plist, cl_uint p,
 			ndevs);
 
 	for (d = 0; d < ndevs; ++d) {
+		if (output->selected && output->device != d) continue;
 		const cl_device_id dev = device[d];
 		if (output->brief) {
 			const cl_bool last_device = (d == ndevs - 1 &&
@@ -2735,6 +2736,9 @@ void showDevices(const struct platform_list *plist, const struct opt_out *output
 	}
 
 	for (p = 0; p < num_platforms; ++p) {
+		// skip non-selected platforms altogether
+		if (output->selected && output->platform != p) continue;
+
 		printPlatformName(plist, p, &str, output);
 
 		printPlatformDevices(plist, p,
@@ -3283,6 +3287,23 @@ void version(void)
 	puts("clinfo version 2.2.18.04.06");
 }
 
+void parse_device_spec(const char *str, struct opt_out *output)
+{
+	if (!str) {
+		fprintf(stderr, "please specify a device in the form P:D where P is the platform number and D the device number\n");
+		exit(1);
+	}
+	int p, d;
+	int n = sscanf(str, "%d:%d", &p, &d);
+	if (n != 2 || p < 0 || d < 0) {
+		fprintf(stderr, "invalid device specification '%s'\n", str);
+		exit(1);
+	}
+	output->platform = p;
+	output->device = d;
+
+}
+
 void usage(void)
 {
 	version();
@@ -3290,11 +3311,13 @@ void usage(void)
 	puts("Usage: clinfo [options ...]\n");
 	puts("Options:");
 	puts("\t--all-props, -a\t\ttry all properties, only show valid ones");
-	puts("\t--always-all-props, -A\t\tshow all properties, even if invalid");
+	puts("\t--always-all-props, -At\tshow all properties, even if invalid");
 	puts("\t--human\t\thuman-friendly output (default)");
 	puts("\t--raw\t\traw output");
 	puts("\t--offline\talso show offline devices");
 	puts("\t--list, -l\tonly list the platforms and devices by name");
+	puts("\t--device p:d,");
+	puts("\t-d p:d\t\tonly show information about device number d from platform number p");
 	puts("\t-h, -?\t\tshow usage");
 	puts("\t--version, -v\tshow version\n");
 	puts("Defaults to raw mode if invoked with");
@@ -3312,6 +3335,8 @@ int main(int argc, char *argv[])
 	struct platform_list plist;
 	init_plist(&plist);
 
+	output.platform = CL_UINT_MAX;
+	output.device = CL_UINT_MAX;
 	output.mode = CLINFO_HUMAN;
 	output.cond = COND_PROP_CHECK;
 	output.brief = CL_FALSE;
@@ -3336,7 +3361,10 @@ int main(int argc, char *argv[])
 			output.offline = CL_TRUE;
 		else if (!strcmp(argv[a], "-l") || !strcmp(argv[a], "--list"))
 			output.brief = CL_TRUE;
-		else if (!strcmp(argv[a], "-?") || !strcmp(argv[a], "-h")) {
+		else if (!strcmp(argv[a], "-d") || !strcmp(argv[a], "--device")) {
+			++a;
+			parse_device_spec(argv[a], &output);
+		} else if (!strcmp(argv[a], "-?") || !strcmp(argv[a], "-h")) {
 			usage();
 			return 0;
 		} else if (!strcmp(argv[a], "--version") || !strcmp(argv[a], "-v")) {
@@ -3346,13 +3374,14 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "ignoring unknown command-line parameter %s\n", argv[a]);
 		}
 	}
-	output.detailed = !output.brief;
+	output.selected = (output.device != CL_UINT_MAX);
+	output.detailed = !output.brief && !output.selected;
 
 	err = clGetPlatformIDs(0, NULL, &plist.num_platforms);
 	if (err != CL_PLATFORM_NOT_FOUND_KHR)
 		CHECK_ERROR(err, "number of platforms");
 
-	if (!output.brief)
+	if (output.detailed)
 		printf(I0_STR "%" PRIu32 "\n",
 			(output.mode == CLINFO_HUMAN ?
 			 "Number of platforms" : "#PLATFORMS"),
@@ -3367,12 +3396,14 @@ int main(int argc, char *argv[])
 	ALLOC(line_pfx, 1, "line prefix");
 
 	for (p = 0; p < plist.num_platforms; ++p) {
+		// skip non-selected platforms altogether
+		if (output.selected && output.platform != p) continue;
 		gatherPlatformInfo(&plist, p, &output);
 		if (output.detailed)
 			puts("");
 	}
 	showDevices(&plist, &output);
-	if (output.detailed) {
+	if (output.detailed && !output.selected) {
 		if (output.mode != CLINFO_RAW)
 			checkNullBehavior(&plist, &output);
 		oclIcdProps(&plist, &output);
