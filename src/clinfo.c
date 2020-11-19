@@ -489,6 +489,32 @@ getOpenCLVersion(const char *version)
 
 #define SPLIT_CL_VERSION(ver) ((ver)/10), ((ver)%10)
 
+/* OpenCL 3.0 introduced “proper” versioning, in the form of a major.minor.patch struct
+ * packed into a single cl_uint (type aliased to cl_version)
+ */
+struct unpacked_cl_version {
+	cl_uint major;
+	cl_uint minor;
+	cl_uint patch;
+};
+
+struct unpacked_cl_version unpack_cl_version(cl_uint version)
+{
+	struct unpacked_cl_version ret;
+	ret.major = (version >> 22);
+	ret.minor = (version >> 12) & ((1<<10)-1);
+	ret.patch =  version & ((1<<12)-1);
+	return ret;
+}
+
+size_t strbuf_version(struct _strbuf *str, cl_uint version, size_t szval)
+{
+	struct unpacked_cl_version u = unpack_cl_version(version);
+	return sprintf(str->buf + szval, " (%" PRIu32 ".%" PRIu32 ".%" PRIu32 ")",
+				u.major, u.minor, u.patch);
+
+}
+
 /* print strbuf, prefixed by pname, skipping leading whitespace if skip is nonzero,
  * affixing cur_sfx */
 static inline
@@ -532,6 +558,22 @@ platform_info_sz(struct platform_info_ret *ret,
 	strbuf_printf(&ret->str, "%" PRIuS, ret->value.s);
 }
 
+void
+platform_info_version(struct platform_info_ret *ret,
+	const struct info_loc *loc, const struct platform_info_checks* UNUSED(chk),
+	const struct opt_out *output)
+{
+	ret->err = REPORT_ERROR_LOC(ret,
+		clGetPlatformInfo(loc->plat, loc->param.plat, sizeof(ret->value.u32), &ret->value.u32, NULL),
+		loc, "get %s");
+	CHECK_SIZE(ret, loc, ret->value.u32, clGetPlatformInfo, loc->plat, loc->param.plat);
+	size_t szval = strbuf_printf(&ret->str, "%" PRIu32, ret->value.u32);
+	if (output->mode == CLINFO_HUMAN) {
+		strbuf_version(&ret->str, ret->value.u32, szval);
+	}
+}
+
+
 struct platform_info_traits {
 	cl_platform_info param; // CL_PLATFORM_*
 	const char *sname; // "CL_PLATFORM_*"
@@ -565,6 +607,11 @@ cl_bool plat_is_21(const struct platform_info_checks *chk)
 	return !(chk->plat_version < 21);
 }
 
+cl_bool plat_is_30(const struct platform_info_checks *chk)
+{
+	return !(chk->plat_version < 30);
+}
+
 cl_bool plat_has_amd_object_metadata(const struct platform_info_checks *chk)
 {
 	return chk->has_amd_object_metadata;
@@ -577,6 +624,7 @@ struct platform_info_traits pinfo_traits[] = {
 	PINFO(CL_PLATFORM_NAME, "Name", NULL, str),
 	PINFO(CL_PLATFORM_VENDOR, "Vendor", NULL, str),
 	PINFO(CL_PLATFORM_VERSION, "Version", NULL, str),
+	PINFO_COND(CL_PLATFORM_NUMERIC_VERSION, "Numeric Version", NULL, version, plat_is_30),
 	PINFO(CL_PLATFORM_PROFILE, "Profile", NULL, str),
 	PINFO(CL_PLATFORM_EXTENSIONS, "Extensions", NULL, str),
 	PINFO_COND(CL_PLATFORM_MAX_KEYS_AMD, "Max metadata object keys (AMD)", NULL, sz, plat_has_amd_object_metadata),
@@ -817,6 +865,12 @@ cl_bool dev_not_20(const struct device_info_checks *chk)
 	return !(chk->dev_version >= 20);
 }
 
+// device supports 3.0
+cl_bool dev_is_30(const struct device_info_checks *chk)
+{
+	return !(chk->dev_version < 30);
+}
+
 
 cl_bool dev_is_gpu(const struct device_info_checks *chk)
 {
@@ -1001,6 +1055,7 @@ device_fetch_##type(struct device_info_ret *ret, \
 DEFINE_DEVINFO_FETCH(size_t, s)
 DEFINE_DEVINFO_FETCH(cl_bool, b)
 DEFINE_DEVINFO_FETCH(cl_uint, u32)
+DEFINE_DEVINFO_FETCH(cl_version, u32)
 DEFINE_DEVINFO_FETCH(cl_ulong, u64)
 DEFINE_DEVINFO_FETCH(cl_device_type, devtype)
 DEFINE_DEVINFO_FETCH(cl_device_mem_cache_type, cachetype)
@@ -1065,6 +1120,21 @@ device_info_bits(struct device_info_ret *ret,
 		strbuf_printf(&ret->str, "%" PRIu32 " bits (%" PRIu32 " bytes)", val, val/8);
 }
 
+void
+device_info_version(struct device_info_ret *ret,
+	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
+	const struct opt_out *output)
+{
+	DEV_FETCH(cl_version, val);
+	if (!ret->err) {
+		size_t szval = strbuf_printf(&ret->str, "%" PRIu32, val);
+		if (output->mode == CLINFO_HUMAN) {
+			strbuf_version(&ret->str, val, szval);
+		}
+
+
+	}
+}
 
 size_t strbuf_mem(struct _strbuf *str, cl_ulong val, size_t szval)
 {
@@ -2167,6 +2237,7 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_VENDOR, "Device Vendor", str), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_VENDOR_ID, "Device Vendor ID", hex), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_VERSION, "Device Version", str), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_NUMERIC_VERSION, "Device Numeric Version", version), dev_is_30 },
 	{ CLINFO_BOTH, DINFO(CL_DRIVER_VERSION, "Driver Version", str), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_OPENCL_C_VERSION, "Device OpenCL C Version", str), dev_is_11 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_EXTENSIONS, "Device Extensions", str), NULL },

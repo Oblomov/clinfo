@@ -15,6 +15,7 @@ struct platform_info_ret
 	/* actual value, when not a string */
 	union {
 		size_t s;
+		cl_uint u32;
 		cl_ulong u64;
 	} value;
 };
