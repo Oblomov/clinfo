@@ -602,7 +602,7 @@ platform_info_version(struct platform_info_ret *ret,
 		clGetPlatformInfo(loc->plat, loc->param.plat, sizeof(ret->value.u32), &ret->value.u32, NULL),
 		loc, "get %s");
 	CHECK_SIZE(ret, loc, ret->value.u32, clGetPlatformInfo, loc->plat, loc->param.plat);
-	size_t szval = strbuf_printf(&ret->str, "%" PRIu32, ret->value.u32);
+	size_t szval = strbuf_printf(&ret->str, "%#" PRIx32, ret->value.u32);
 	if (output->mode == CLINFO_HUMAN) {
 		strbuf_version(&ret->str, ret->value.u32, szval);
 	}
@@ -628,6 +628,7 @@ platform_info_ext_version(struct platform_info_ret *ret,
 		size_t num_exts = nusz / sizeof(cl_name_version);
 		strbuf_name_version(&ret->str, ext, num_exts, output);
 	}
+	free(ext);
 }
 
 struct platform_info_traits {
@@ -683,7 +684,7 @@ struct platform_info_traits pinfo_traits[] = {
 	PINFO_COND(CL_PLATFORM_NUMERIC_VERSION, "Numeric Version", NULL, version, plat_is_30),
 	PINFO(CL_PLATFORM_PROFILE, "Profile", NULL, str),
 	PINFO(CL_PLATFORM_EXTENSIONS, "Extensions", NULL, str),
-	PINFO_COND(CL_PLATFORM_EXTENSIONS_WITH_VERSION, "Extensions' versions", NULL, ext_version, plat_is_30),
+	PINFO_COND(CL_PLATFORM_EXTENSIONS_WITH_VERSION, "Extensions with Version", NULL, ext_version, plat_is_30),
 	PINFO_COND(CL_PLATFORM_MAX_KEYS_AMD, "Max metadata object keys (AMD)", NULL, sz, plat_has_amd_object_metadata),
 	PINFO_COND(CL_PLATFORM_HOST_TIMER_RESOLUTION, "Host timer resolution", "ns", ulong, plat_is_21),
 	PINFO_COND(CL_PLATFORM_ICD_SUFFIX_KHR, "Extensions function suffix", NULL, str, khr_icd_p)
@@ -1184,13 +1185,27 @@ device_info_version(struct device_info_ret *ret,
 {
 	DEV_FETCH(cl_version, val);
 	if (!ret->err) {
-		size_t szval = strbuf_printf(&ret->str, "%" PRIu32, val);
+		size_t szval = strbuf_printf(&ret->str, "%#" PRIx32, val);
 		if (output->mode == CLINFO_HUMAN) {
 			strbuf_version(&ret->str, val, szval);
 		}
 
 
 	}
+}
+
+void
+device_info_ext_version(struct device_info_ret *ret,
+	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
+	const struct opt_out *output)
+{
+	cl_name_version *val = NULL;
+	size_t szval = 0, numval = 0;
+	GET_VAL_ARRAY(ret, loc);
+	if (!ret->err) {
+		strbuf_name_version(&ret->str, val, numval, output);
+	}
+	free(val);
 }
 
 size_t strbuf_mem(struct _strbuf *str, cl_ulong val, size_t szval)
@@ -2298,6 +2313,7 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DRIVER_VERSION, "Driver Version", str), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_OPENCL_C_VERSION, "Device OpenCL C Version", str), dev_is_11 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_EXTENSIONS, "Device Extensions", str), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_EXTENSIONS_WITH_VERSION, "Device Extensions with Version", ext_version), dev_is_30 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_TYPE, "Device Type", devtype), NULL },
 
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_BOARD_NAME_AMD, "Device Board Name (AMD)", str), dev_has_amd },
@@ -2536,9 +2552,11 @@ printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uint p,
 {
 	char *extensions = NULL;
 	size_t ext_len = 0;
+	char *versioned_extensions = NULL;
 
-	/* pointer to the traits for CL_DEVICE_EXTENSIONS */
+	/* pointers to the traits for CL_DEVICE_EXTENSIONS and CL_DEVICE_EXTENSIONS_WITH_VERSION */
 	const struct device_info_traits *extensions_traits = NULL;
+	const struct device_info_traits *versioned_extensions_traits = NULL;
 
 	struct device_info_checks chk;
 	struct device_info_ret ret;
@@ -2615,6 +2633,13 @@ printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uint p,
 			extensions[0] = ' ';
 			extensions[ext_len+1] = ' ';
 			extensions[ext_len+2] = '\0';
+		} else if (traits->param == CL_DEVICE_EXTENSIONS_WITH_VERSION) {
+			/* This will be displayed at the end, after we display the output of CL_DEVICE_EXTENSIONS */
+			const char *msg = RET_BUF(ret)->buf;
+			const size_t len = RET_BUF(ret)->sz;
+			versioned_extensions_traits = traits;
+			ALLOC(versioned_extensions, len, "versioned extensions");
+			memcpy(versioned_extensions, msg, len);
 		} else {
 			if (ret.err) {
 				/* if there was an error retrieving the property,
@@ -2678,7 +2703,13 @@ printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uint p,
 				extensions_traits->pname :
 				extensions_traits->sname), extensions + 1);
 	}
+	if (versioned_extensions) {
+		printf("%s" I1_STR "%s\n", line_pfx, (output->mode == CLINFO_HUMAN ?
+				versioned_extensions_traits->pname :
+				versioned_extensions_traits->sname), versioned_extensions);
+	}
 	free(extensions);
+	free(versioned_extensions);
 	extensions = NULL;
 	UNINIT_RET(ret);
 }
