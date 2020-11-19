@@ -149,6 +149,14 @@ typedef cl_bitfield         cl_device_svm_capabilities;
 #define CL_DEVICE_PIPE_SUPPORT				0x1071
 
 typedef cl_uint cl_version;
+
+#define CL_NAME_VERSION_MAX_NAME_SIZE 64
+
+typedef struct _cl_name_version {
+    cl_version              version;
+    char                    name[CL_NAME_VERSION_MAX_NAME_SIZE];
+} cl_name_version;
+
 #endif
 
 /*

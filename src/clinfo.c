@@ -456,6 +456,14 @@ const size_t num_known_interops = ARRAY_SIZE(cl_interop_names);
 #define I1_STR "  %-46s  "
 #define I2_STR "    %-44s  "
 
+/* New line and a full padding */
+static const char full_padding[] = "\n"
+INDENT INDENT INDENT INDENT INDENT
+INDENT INDENT INDENT INDENT INDENT
+INDENT INDENT INDENT INDENT INDENT
+INDENT INDENT INDENT INDENT INDENT
+INDENT INDENT INDENT INDENT INDENT;
+
 static const char empty_str[] = "";
 static const char spc_str[] = " ";
 static const char times_str[] = "x";
@@ -513,6 +521,33 @@ size_t strbuf_version(struct _strbuf *str, cl_uint version, size_t szval)
 	return sprintf(str->buf + szval, " (%" PRIu32 ".%" PRIu32 ".%" PRIu32 ")",
 				u.major, u.minor, u.patch);
 
+}
+
+void strbuf_name_version(struct _strbuf *str, const cl_name_version *ext, size_t num_exts,
+	const struct opt_out *output)
+{
+	size_t szval = 0;
+	realloc_strbuf(str, num_exts*(CL_NAME_VERSION_MAX_NAME_SIZE + 128), "extension versions");
+	set_separator(output->mode == CLINFO_HUMAN ? full_padding : spc_str);
+	for (size_t i = 0; i < num_exts; ++i) {
+		const cl_name_version  *e = ext + i;
+		add_separator(str, &szval);
+		if (output->mode == CLINFO_HUMAN) {
+			struct unpacked_cl_version u = unpack_cl_version(e->version);
+			szval += snprintf(str->buf + szval,
+				str->sz - szval - 1, "%-65s%#8" PRIx32 " (%d.%d.%d)",
+				e->name, e->version, u.major, u.minor, u.patch);
+		} else {
+			szval += snprintf(str->buf + szval,
+				str->sz - szval - 1,
+				"%s:%#" PRIx32,
+				e->name, e->version);
+		}
+		if (szval >= str->sz) {
+			trunc_strbuf(str);
+			break;
+		}
+	}
 }
 
 /* print strbuf, prefixed by pname, skipping leading whitespace if skip is nonzero,
@@ -573,6 +608,27 @@ platform_info_version(struct platform_info_ret *ret,
 	}
 }
 
+void
+platform_info_ext_version(struct platform_info_ret *ret,
+	const struct info_loc *loc, const struct platform_info_checks* UNUSED(chk),
+	const struct opt_out *output)
+{
+	cl_name_version *ext = NULL;
+	size_t nusz = 0;
+	ret->err = REPORT_ERROR_LOC(ret,
+		clGetPlatformInfo(loc->plat, loc->param.plat, 0, NULL, &nusz),
+		loc, "get %s size");
+	if (!ret->err) {
+		REALLOC(ext, nusz, loc->sname);
+		ret->err = REPORT_ERROR_LOC(ret,
+			clGetPlatformInfo(loc->plat, loc->param.plat, nusz, ext, NULL),
+			loc, "get %s");
+	}
+	if (!ret->err) {
+		size_t num_exts = nusz / sizeof(cl_name_version);
+		strbuf_name_version(&ret->str, ext, num_exts, output);
+	}
+}
 
 struct platform_info_traits {
 	cl_platform_info param; // CL_PLATFORM_*
@@ -627,6 +683,7 @@ struct platform_info_traits pinfo_traits[] = {
 	PINFO_COND(CL_PLATFORM_NUMERIC_VERSION, "Numeric Version", NULL, version, plat_is_30),
 	PINFO(CL_PLATFORM_PROFILE, "Profile", NULL, str),
 	PINFO(CL_PLATFORM_EXTENSIONS, "Extensions", NULL, str),
+	PINFO_COND(CL_PLATFORM_EXTENSIONS_WITH_VERSION, "Extensions' versions", NULL, ext_version, plat_is_30),
 	PINFO_COND(CL_PLATFORM_MAX_KEYS_AMD, "Max metadata object keys (AMD)", NULL, sz, plat_has_amd_object_metadata),
 	PINFO_COND(CL_PLATFORM_HOST_TIMER_RESOLUTION, "Host timer resolution", "ns", ulong, plat_is_21),
 	PINFO_COND(CL_PLATFORM_ICD_SUFFIX_KHR, "Extensions function suffix", NULL, str, khr_icd_p)
