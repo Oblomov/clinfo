@@ -3206,6 +3206,12 @@ struct icdl_data oclIcdProps(const struct platform_list *plist, const struct opt
 	icdl.detected_version = 10;
 	icdl.reported_version = 0;
 
+	/* clinfo may lag behind the OpenCL standard or loader version,
+	 * and we don't want to give a warning if we can't tell if the loader
+	 * correctly supports a version unknown to us
+	 */
+	cl_uint clinfo_highest_known_version = 0;
+
 	/* Step #1: try to auto-detect the supported ICD loader version */
 	do {
 		struct icd_loader_test check = icd_loader_tests[i];
@@ -3213,7 +3219,7 @@ struct icdl_data oclIcdProps(const struct platform_list *plist, const struct opt
 			break;
 		if (dlsym(DL_MODULE, check.symbol) == NULL)
 			break;
-		icdl.detected_version = check.version;
+		clinfo_highest_known_version = icdl.detected_version = check.version;
 		++i;
 	} while (1);
 
@@ -3257,6 +3263,7 @@ struct icdl_data oclIcdProps(const struct platform_list *plist, const struct opt
 	/* Step #3: show it */
 	if (output->mode == CLINFO_HUMAN) {
 		if (icdl.reported_version &&
+			icdl.reported_version <= clinfo_highest_known_version &&
 			icdl.reported_version != icdl.detected_version) {
 			printf(	"\tNOTE:\tyour OpenCL library declares to support OpenCL %" PRIu32 ".%" PRIu32 ",\n"
 				"\t\tbut it seems to support up to OpenCL %" PRIu32 ".%" PRIu32 " %s.\n",
@@ -3265,7 +3272,13 @@ struct icdl_data oclIcdProps(const struct platform_list *plist, const struct opt
 				icdl.detected_version < icdl.reported_version  ?
 				"only" : "too");
 		}
-		if (icdl.detected_version < max_plat_version) {
+
+		// for the loader vs platform max version check we use the version we detected
+		// if the reported version is known to us, and the reported version if it's higher
+		// than the standard versions we know about
+		cl_uint max_version_check = icdl.reported_version > clinfo_highest_known_version ?
+			icdl.reported_version : icdl.detected_version;
+		if (max_version_check < max_plat_version) {
 			printf(	"\tNOTE:\tyour OpenCL library only supports OpenCL %" PRIu32 ".%" PRIu32 ",\n"
 				"\t\tbut some installed platforms support OpenCL %" PRIu32 ".%" PRIu32 ".\n"
 				"\t\tPrograms using %" PRIu32 ".%" PRIu32 " features may crash\n"
