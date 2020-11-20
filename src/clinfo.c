@@ -239,6 +239,15 @@ static const char* atomic_cap_raw_str[] = {
 };
 const size_t atomic_cap_count = ARRAY_SIZE(atomic_cap_str);
 
+static const char *device_enqueue_cap_str[] = {
+	"supported", "replaceable default queue"
+};
+
+static const char *device_enqueue_cap_raw_str[] = {
+	"CL_DEVICE_QUEUE_SUPPORTED",
+	"CL_DEVICE_QUEUE_REPLACEABLE_DEFAULT"
+};
+const size_t device_enqueue_cap_count = ARRAY_SIZE(atomic_cap_str);
 
 
 static const char numa[] = "NUMA";
@@ -1623,6 +1632,37 @@ device_info_atomic_caps(struct device_info_ret *ret,
 	}
 }
 
+void
+device_info_device_enqueue_caps(struct device_info_ret *ret,
+	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
+	const struct opt_out *output)
+{
+	DEV_FETCH(cl_bitfield, val);
+	if (!ret->err) {
+		size_t szval = 0;
+		cl_uint i = 0;
+		const char * const * capstr = (output->mode == CLINFO_HUMAN ?
+			device_enqueue_cap_str : device_enqueue_cap_raw_str);
+		set_separator(output->mode == CLINFO_HUMAN ? comma_str : vbar_str);
+		for (i = 0; i < device_enqueue_cap_count; ++i) {
+			if (val & (1 << i)) {
+				add_separator(&ret->str, &szval);
+				szval += bufcpy(&ret->str, szval, capstr[i]);
+			}
+			if (szval >= ret->str.sz)
+				break;
+		}
+		/* check for extra bits */
+		if (szval < ret->str.sz) {
+			cl_bitfield known_mask = ((cl_bitfield)(1) << device_enqueue_cap_count) - 1;
+			cl_bitfield extra = val & ~known_mask;
+			if (extra) {
+				add_separator(&ret->str, &szval);
+				szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "%#" PRIx64, extra);
+			}
+		}
+	}
+}
 
 /* cl_arm_core_id */
 void
@@ -2570,7 +2610,7 @@ struct device_info_traits dinfo_traits[] = {
 	/* Queue properties */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_QUEUE_PROPERTIES, "Queue properties", qprop), dev_not_20 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_QUEUE_ON_HOST_PROPERTIES, "Queue properties (on host)", qprop), dev_is_20 },
-	{ CLINFO_BOTH, DINFO(CL_DEVICE_DEVICE_ENQUEUE_SUPPORT, "Device enqueue support", bool), dev_is_30 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_DEVICE_ENQUEUE_CAPABILITIES, "Device enqueue capabilities", device_enqueue_caps), dev_is_30 },
 	/* TODO FIXME: the above should be true if dev is [2.0, 3.0[, and the next properties should be nested */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_QUEUE_ON_DEVICE_PROPERTIES, "Queue properties (on device)", qprop), dev_is_20 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_QUEUE_ON_DEVICE_PREFERRED_SIZE, INDENT "Preferred size", mem), dev_is_20 },

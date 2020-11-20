@@ -145,11 +145,12 @@ typedef cl_bitfield         cl_device_svm_capabilities;
 #define CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT 0x1068
 #define CL_DEVICE_GENERIC_ADDRESS_SPACE_SUPPORT		0x1069
 #define CL_DEVICE_OPENCL_C_FEATURES			0x106F
-#define CL_DEVICE_DEVICE_ENQUEUE_SUPPORT		0x1070
+#define CL_DEVICE_DEVICE_ENQUEUE_CAPABILITIES		0x1070
 #define CL_DEVICE_PIPE_SUPPORT				0x1071
 
 
 typedef cl_bitfield	cl_device_atomic_capabilities;
+typedef cl_bitfield	cl_device_device_enqueue_capabilities;
 typedef cl_uint		cl_version;
 
 #define CL_NAME_VERSION_MAX_NAME_SIZE 64
@@ -167,6 +168,10 @@ typedef struct _cl_name_version {
 #define CL_DEVICE_ATOMIC_SCOPE_WORK_GROUP	(1 << 4)
 #define CL_DEVICE_ATOMIC_SCOPE_DEVICE		(1 << 5)
 #define CL_DEVICE_ATOMIC_SCOPE_ALL_DEVICES	(1 << 6)
+
+/* cl_device_device_enqueue_capabilities */
+#define CL_DEVICE_QUEUE_SUPPORTED               (1 << 0)
+#define CL_DEVICE_QUEUE_REPLACEABLE_DEFAULT     (1 << 1)
 
 #endif
 
