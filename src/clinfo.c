@@ -2416,14 +2416,19 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_VENDOR, "Device Vendor", str), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_VENDOR_ID, "Device Vendor ID", hex), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_VERSION, "Device Version", str), NULL },
+
+	/* This has to be made before calling NUMERIC_VERSION , since to know if it's supported
+	 * we need to know about the extensions */
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_EXTENSIONS, "Device Extensions", str), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_EXTENSIONS_WITH_VERSION, "Device Extensions with Version", ext_version), dev_has_ext_ver },
+
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_NUMERIC_VERSION, "Device Numeric Version", version), dev_has_ext_ver },
 	{ CLINFO_BOTH, DINFO(CL_DRIVER_VERSION, "Driver Version", str), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_OPENCL_C_VERSION, "Device OpenCL C Version", str), dev_is_11 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_OPENCL_C_ALL_VERSIONS, "Device OpenCL C all versions", ext_version), dev_has_ext_ver },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_OPENCL_C_FEATURES, "Device OpenCL C features", ext_version), dev_is_30 },
+
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_LATEST_CONFORMANCE_VERSION_PASSED, "Latest comfornace test passed", str), dev_is_30 },
-	{ CLINFO_BOTH, DINFO(CL_DEVICE_EXTENSIONS, "Device Extensions", str), NULL },
-	{ CLINFO_BOTH, DINFO(CL_DEVICE_EXTENSIONS_WITH_VERSION, "Device Extensions with Version", ext_version), dev_has_ext_ver },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_TYPE, "Device Type", devtype), NULL },
 
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_BOARD_NAME_AMD, "Device Board Name (AMD)", str), dev_has_amd },
