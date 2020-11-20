@@ -55,12 +55,16 @@ show program version.
 
 .SH CONFORMING TO
 
-OpenCL 1.1, OpenCL 1.2, OpenCL 2.0, OpenCL 2.1, OpenCL 2.2.
+OpenCL 1.1, OpenCL 1.2, OpenCL 2.0, OpenCL 2.1, OpenCL 2.2, OpenCL 3.0.
 
 .SH EXTENSIONS
 
 Supported OpenCL extensions:
 .TP 2
+.B cl_khr_extended_versioning
+for the extended platform, device, extension and IL versioned properties
+backported from OpenCL 3.0 to previous OpenCL versions;
+.TP
 .BR cl_khr_fp16 ", " cl_khr_fp64 ", " cl_amd_fp64 ", " cl_APPLE_fp64_basic_ops
 for information about support for half-precision and double-precision
 floating-point data types;
