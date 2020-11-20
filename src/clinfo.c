@@ -98,7 +98,7 @@ struct platform_list {
 	cl_uint *dev_offset;
 	/* Array of clinfo-specific platform data */
 	struct platform_data *pdata;
-	/* Arrau of clinfo-specifici platform checks */
+	/* Array of clinfo-specific platform checks */
 	struct platform_info_checks *platform_checks;
 };
 
