@@ -888,6 +888,7 @@ struct device_info_checks {
 	char has_subgroup_named_barrier[30];
 	char has_terminate_context[25];
 	char has_extended_versioning[27];
+	char has_cxx_for_opencl[22];
 	cl_uint dev_version;
 	cl_uint p2p_num_devs;
 };
@@ -922,6 +923,7 @@ DEFINE_EXT_CHECK(simultaneous_sharing)
 DEFINE_EXT_CHECK(subgroup_named_barrier)
 DEFINE_EXT_CHECK(terminate_context)
 DEFINE_EXT_CHECK(extended_versioning)
+DEFINE_EXT_CHECK(cxx_for_opencl)
 
 /* In the version checks we negate the opposite conditions
  * instead of double-negating the actual condition
@@ -1105,6 +1107,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 	CHECK_EXT(subgroup_named_barrier, cl_khr_subgroup_named_barrier);
 	CHECK_EXT(terminate_context, cl_khr_terminate_context);
 	CHECK_EXT(extended_versioning, cl_khr_extended_versioning);
+	CHECK_EXT(cxx_for_opencl, cl_ext_cxx_for_opencl);
 }
 
 
@@ -2427,6 +2430,8 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_OPENCL_C_VERSION, "Device OpenCL C Version", str), dev_is_11 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_OPENCL_C_ALL_VERSIONS, "Device OpenCL C all versions", ext_version), dev_has_ext_ver },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_OPENCL_C_FEATURES, "Device OpenCL C features", ext_version), dev_is_30 },
+
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_CXX_FOR_OPENCL_NUMERIC_VERSION_EXT, "Device C++ for OpenCL Numeric Version", version), dev_has_cxx_for_opencl },
 
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_LATEST_CONFORMANCE_VERSION_PASSED, "Latest comfornace test passed", str), dev_is_30 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_TYPE, "Device Type", devtype), NULL },

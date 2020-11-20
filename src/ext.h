@@ -276,6 +276,9 @@ typedef union
 #define CL_DEVICE_NUM_P2P_DEVICES_AMD			0x4088
 #define CL_DEVICE_P2P_DEVICES_AMD			0x4089
 
+/* cl_ext_cxx_for_opencl */
+#define CL_DEVICE_CXX_FOR_OPENCL_NUMERIC_VERSION_EXT	0x4230
+
 /* cl_ext_device_fission */
 #define cl_ext_device_fission				1
 
