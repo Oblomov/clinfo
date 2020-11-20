@@ -2525,6 +2525,8 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_READ_WRITE_IMAGE_ARGS, INDENT "Max number of read/write image args", int), dev_has_images_20 },
 
 	/* Pipes */
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_PIPE_SUPPORT, "Pipe support", bool), dev_is_30 },
+	/* TODO FIXME: the above should be true if dev is [2.0, 3.0[, and the next properties should be nested */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_PIPE_ARGS, "Max number of pipe args", int), dev_is_20 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_PIPE_MAX_ACTIVE_RESERVATIONS, "Max active pipe reservations", int), dev_is_20 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_PIPE_MAX_PACKET_SIZE, "Max pipe packet size", mem_int), dev_is_20 },
@@ -2541,12 +2543,17 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE, "Max constant buffer size", mem), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_PREFERRED_CONSTANT_BUFFER_SIZE_AMD, "Preferred constant buffer size (AMD)", mem_sz), dev_has_amd_v4 },
 
+	/* Generic address space support */
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_GENERIC_ADDRESS_SPACE_SUPPORT, "Generic address space support", bool), dev_is_30},
+
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_PARAMETER_SIZE, "Max size of kernel argument", mem), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_ATOMIC_COUNTERS_EXT, "Max number of atomic counters", sz), dev_has_atomic_counters },
 
 	/* Queue properties */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_QUEUE_PROPERTIES, "Queue properties", qprop), dev_not_20 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_QUEUE_ON_HOST_PROPERTIES, "Queue properties (on host)", qprop), dev_is_20 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_DEVICE_ENQUEUE_SUPPORT, "Device enqueue support", bool), dev_is_30 },
+	/* TODO FIXME: the above should be true if dev is [2.0, 3.0[, and the next properties should be nested */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_QUEUE_ON_DEVICE_PROPERTIES, "Queue properties (on device)", qprop), dev_is_20 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_QUEUE_ON_DEVICE_PREFERRED_SIZE, INDENT "Preferred size", mem), dev_is_20 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_QUEUE_ON_DEVICE_MAX_SIZE, INDENT "Max size", mem), dev_is_20 },
@@ -2573,6 +2580,8 @@ struct device_info_traits dinfo_traits[] = {
 
 	/* Kernel execution capabilities */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_EXECUTION_CAPABILITIES, "Execution capabilities", execap), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_NON_UNIFORM_WORK_GROUP_SUPPORT, INDENT "Non-uniform work-groups",  bool), dev_is_30 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT, INDENT "Work-group collective functions",  bool), dev_is_30 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SUB_GROUP_INDEPENDENT_FORWARD_PROGRESS, INDENT "Sub-group independent forward progress", bool), dev_is_21 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_THREAD_TRACE_SUPPORTED_AMD, INDENT "Thread trace supported (AMD)", bool), dev_is_gpu_amd },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_KERNEL_EXEC_TIMEOUT_NV, INDENT "Kernel execution timeout (NV)", bool), dev_has_nv },
