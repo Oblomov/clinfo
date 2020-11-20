@@ -132,6 +132,10 @@ free_plist(struct platform_list *plist)
 	free(plist->platform);
 	free(plist->all_devs);
 	free(plist->dev_offset);
+	for (cl_uint p = 0 ; p < plist->num_platforms; ++p) {
+		free(plist->pdata[p].sname);
+		free(plist->pdata[p].pname);
+	}
 	free(plist->pdata);
 	free(plist->platform_checks);
 	init_plist(plist);
@@ -3765,5 +3769,6 @@ int main(int argc, char *argv[])
 	}
 
 	free_plist(&plist);
+	free(line_pfx);
 	return 0;
 }
