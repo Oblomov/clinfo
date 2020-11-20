@@ -2,13 +2,6 @@
  * on all available OpenCL platforms present in the system
  */
 
-/* TODO: cl_khr_extended_versioning bring support for cl_version, cl_name_version,
- * and the following properties to pre-3.0 platforms:
- CL_PLATFORM_NUMERIC_VERSION_KHR
- CL_PLATFORM_EXTENSIONS_WITH_VERSION_KHR
- (the symbol are _KHR-suffixed but match the 3.0 definitions). This should be supported.
- */
-
 #include <time.h>
 #include <string.h>
 
@@ -62,6 +55,7 @@ struct platform_info_checks {
 	cl_uint plat_version;
 	cl_bool has_khr_icd;
 	cl_bool has_amd_object_metadata;
+	cl_bool has_extended_versioning;
 };
 
 struct platform_list {
@@ -707,6 +701,11 @@ cl_bool plat_has_amd_object_metadata(const struct platform_info_checks *chk)
 	return chk->has_amd_object_metadata;
 }
 
+cl_bool plat_has_ext_ver(const struct platform_info_checks *chk)
+{
+	return plat_is_30(chk) || chk->has_extended_versioning;
+}
+
 
 #define PINFO_COND(symbol, name, sfx, typ, funcptr) { symbol, #symbol, "Platform " name, sfx, &platform_info_##typ, &funcptr }
 #define PINFO(symbol, name, sfx, typ) { symbol, #symbol, "Platform " name, sfx, &platform_info_##typ, NULL }
@@ -714,10 +713,10 @@ struct platform_info_traits pinfo_traits[] = {
 	PINFO(CL_PLATFORM_NAME, "Name", NULL, str),
 	PINFO(CL_PLATFORM_VENDOR, "Vendor", NULL, str),
 	PINFO(CL_PLATFORM_VERSION, "Version", NULL, str),
-	PINFO_COND(CL_PLATFORM_NUMERIC_VERSION, "Numeric Version", NULL, version, plat_is_30),
+	PINFO_COND(CL_PLATFORM_NUMERIC_VERSION, "Numeric Version", NULL, version, plat_has_ext_ver),
 	PINFO(CL_PLATFORM_PROFILE, "Profile", NULL, str),
 	PINFO(CL_PLATFORM_EXTENSIONS, "Extensions", NULL, str),
-	PINFO_COND(CL_PLATFORM_EXTENSIONS_WITH_VERSION, "Extensions with Version", NULL, ext_version, plat_is_30),
+	PINFO_COND(CL_PLATFORM_EXTENSIONS_WITH_VERSION, "Extensions with Version", NULL, ext_version, plat_has_ext_ver),
 	PINFO_COND(CL_PLATFORM_MAX_KEYS_AMD, "Max metadata object keys (AMD)", NULL, sz, plat_has_amd_object_metadata),
 	PINFO_COND(CL_PLATFORM_HOST_TIMER_RESOLUTION, "Host timer resolution", "ns", ulong, plat_is_21),
 	PINFO_COND(CL_PLATFORM_ICD_SUFFIX_KHR, "Extensions function suffix", NULL, str, khr_icd_p)
