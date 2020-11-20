@@ -148,7 +148,9 @@ typedef cl_bitfield         cl_device_svm_capabilities;
 #define CL_DEVICE_DEVICE_ENQUEUE_SUPPORT		0x1070
 #define CL_DEVICE_PIPE_SUPPORT				0x1071
 
-typedef cl_uint cl_version;
+
+typedef cl_bitfield	cl_device_atomic_capabilities;
+typedef cl_uint		cl_version;
 
 #define CL_NAME_VERSION_MAX_NAME_SIZE 64
 
@@ -156,6 +158,15 @@ typedef struct _cl_name_version {
     cl_version              version;
     char                    name[CL_NAME_VERSION_MAX_NAME_SIZE];
 } cl_name_version;
+
+/* cl_device_atomic_capabilities */
+#define CL_DEVICE_ATOMIC_ORDER_RELAXED		(1 << 0)
+#define CL_DEVICE_ATOMIC_ORDER_ACQ_REL		(1 << 1)
+#define CL_DEVICE_ATOMIC_ORDER_SEQ_CST		(1 << 2)
+#define CL_DEVICE_ATOMIC_SCOPE_WORK_ITEM	(1 << 3)
+#define CL_DEVICE_ATOMIC_SCOPE_WORK_GROUP	(1 << 4)
+#define CL_DEVICE_ATOMIC_SCOPE_DEVICE		(1 << 5)
+#define CL_DEVICE_ATOMIC_SCOPE_ALL_DEVICES	(1 << 6)
 
 #endif
 

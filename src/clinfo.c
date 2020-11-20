@@ -210,6 +210,23 @@ static const char* partition_type_raw_str[] = {
 	"CL_DEVICE_PARTITION_BY_NAMES_INTEL_EXT"
 };
 
+static const char* atomic_cap_str[] = {
+	"relaxed", "acquire/release", "sequentially-consistent",
+	"work-item scope", "work-group scope", "device scope", "all-devices scope"
+};
+static const char* atomic_cap_raw_str[] = {
+	"CL_DEVICE_ATOMIC_ORDER_RELAXED",
+	"CL_DEVICE_ATOMIC_ORDER_ACQ_REL",
+	"CL_DEVICE_ATOMIC_ORDER_SEQ_CST",
+	"CL_DEVICE_ATOMIC_SCOPE_WORK_ITEM",
+	"CL_DEVICE_ATOMIC_SCOPE_WORK_GROUP",
+	"CL_DEVICE_ATOMIC_SCOPE_DEVICE",
+	"CL_DEVICE_ATOMIC_SCOPE_ALL_DEVICES"
+};
+const size_t atomic_cap_count = ARRAY_SIZE(atomic_cap_str);
+
+
+
 static const char numa[] = "NUMA";
 static const char l1cache[] = "L1 cache";
 static const char l2cache[] = "L2 cache";
@@ -1115,6 +1132,7 @@ DEFINE_DEVINFO_FETCH(cl_bool, b)
 DEFINE_DEVINFO_FETCH(cl_uint, u32)
 DEFINE_DEVINFO_FETCH(cl_version, u32)
 DEFINE_DEVINFO_FETCH(cl_ulong, u64)
+DEFINE_DEVINFO_FETCH(cl_bitfield, u64)
 DEFINE_DEVINFO_FETCH(cl_device_type, devtype)
 DEFINE_DEVINFO_FETCH(cl_device_mem_cache_type, cachetype)
 DEFINE_DEVINFO_FETCH(cl_device_local_mem_type, lmemtype)
@@ -1557,6 +1575,39 @@ device_info_lmemtype(struct device_info_ret *ret,
 	}
 	ret->value.lmemtype = val;
 }
+
+void
+device_info_atomic_caps(struct device_info_ret *ret,
+	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
+	const struct opt_out *output)
+{
+	DEV_FETCH(cl_bitfield, val);
+	if (!ret->err) {
+		size_t szval = 0;
+		cl_uint i = 0;
+		const char * const * capstr = (output->mode == CLINFO_HUMAN ?
+			atomic_cap_str : atomic_cap_raw_str);
+		set_separator(output->mode == CLINFO_HUMAN ? comma_str : vbar_str);
+		for (i = 0; i < atomic_cap_count; ++i) {
+			if (val & (1 << i)) {
+				add_separator(&ret->str, &szval);
+				szval += bufcpy(&ret->str, szval, capstr[i]);
+			}
+			if (szval >= ret->str.sz)
+				break;
+		}
+		/* check for extra bits */
+		if (szval < ret->str.sz) {
+			cl_bitfield known_mask = ((cl_bitfield)(1) << atomic_cap_count) - 1;
+			cl_bitfield extra = val & ~known_mask;
+			if (extra) {
+				add_separator(&ret->str, &szval);
+				szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "%#" PRIx64, extra);
+			}
+		}
+	}
+}
+
 
 /* cl_arm_core_id */
 void
@@ -2435,6 +2486,10 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_PREFERRED_PLATFORM_ATOMIC_ALIGNMENT, INDENT "SVM", bytes_str, int), dev_is_20 },
 	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_PREFERRED_GLOBAL_ATOMIC_ALIGNMENT, INDENT "Global", bytes_str, int), dev_is_20 },
 	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_PREFERRED_LOCAL_ATOMIC_ALIGNMENT, INDENT "Local", bytes_str, int), dev_is_20 },
+
+	/* 3.0+ Atomic memory and fence capabilities */
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_ATOMIC_MEMORY_CAPABILITIES, "Atomic memory capabilities", atomic_caps), dev_is_30 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_ATOMIC_FENCE_CAPABILITIES, "Atomic fence capabilities", atomic_caps), dev_is_30 },
 
 	/* Global variables. TODO some 1.2 devices respond to this too */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_GLOBAL_VARIABLE_SIZE, "Max size for global variable", mem), dev_is_20 },
