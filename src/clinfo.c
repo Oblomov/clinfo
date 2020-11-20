@@ -6,13 +6,6 @@
  * and the following properties to pre-3.0 platforms:
  CL_PLATFORM_NUMERIC_VERSION_KHR
  CL_PLATFORM_EXTENSIONS_WITH_VERSION_KHR
-
- CL_DEVICE_NUMERIC_VERSION_KHR
- CL_DEVICE_OPENCL_C_NUMERIC_VERSION_KHR
- CL_DEVICE_EXTENSIONS_WITH_VERSION_KHR
- CL_DEVICE_ILS_WITH_VERSION_KHR
- CL_DEVICE_BUILT_IN_KERNELS_WITH_VERSION_KHR
-
  (the symbol are _KHR-suffixed but match the 3.0 definitions). This should be supported.
  */
 
@@ -895,6 +888,7 @@ struct device_info_checks {
 	char has_simultaneous_sharing[30];
 	char has_subgroup_named_barrier[30];
 	char has_terminate_context[25];
+	char has_extended_versioning[27];
 	cl_uint dev_version;
 	cl_uint p2p_num_devs;
 };
@@ -928,6 +922,7 @@ DEFINE_EXT_CHECK(qcom_ext_host_ptr)
 DEFINE_EXT_CHECK(simultaneous_sharing)
 DEFINE_EXT_CHECK(subgroup_named_barrier)
 DEFINE_EXT_CHECK(terminate_context)
+DEFINE_EXT_CHECK(extended_versioning)
 
 /* In the version checks we negate the opposite conditions
  * instead of double-negating the actual condition
@@ -968,6 +963,12 @@ cl_bool dev_not_20(const struct device_info_checks *chk)
 cl_bool dev_is_30(const struct device_info_checks *chk)
 {
 	return !(chk->dev_version < 30);
+}
+
+// device has extended versioning: 3.0 or has_extended_versioning
+cl_bool dev_has_ext_ver(const struct device_info_checks *chk)
+{
+	return dev_is_30(chk) || dev_has_extended_versioning(chk);
 }
 
 
@@ -1104,6 +1105,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 	CHECK_EXT(simultaneous_sharing, cl_intel_simultaneous_sharing);
 	CHECK_EXT(subgroup_named_barrier, cl_khr_subgroup_named_barrier);
 	CHECK_EXT(terminate_context, cl_khr_terminate_context);
+	CHECK_EXT(extended_versioning, cl_khr_extended_versioning);
 }
 
 
@@ -2415,14 +2417,14 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_VENDOR, "Device Vendor", str), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_VENDOR_ID, "Device Vendor ID", hex), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_VERSION, "Device Version", str), NULL },
-	{ CLINFO_BOTH, DINFO(CL_DEVICE_NUMERIC_VERSION, "Device Numeric Version", version), dev_is_30 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_NUMERIC_VERSION, "Device Numeric Version", version), dev_has_ext_ver },
 	{ CLINFO_BOTH, DINFO(CL_DRIVER_VERSION, "Driver Version", str), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_OPENCL_C_VERSION, "Device OpenCL C Version", str), dev_is_11 },
-	{ CLINFO_BOTH, DINFO(CL_DEVICE_OPENCL_C_ALL_VERSIONS, "Device OpenCL C all versions", ext_version), dev_is_30 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_OPENCL_C_ALL_VERSIONS, "Device OpenCL C all versions", ext_version), dev_has_ext_ver },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_OPENCL_C_FEATURES, "Device OpenCL C features", ext_version), dev_is_30 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_LATEST_CONFORMANCE_VERSION_PASSED, "Latest comfornace test passed", str), dev_is_30 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_EXTENSIONS, "Device Extensions", str), NULL },
-	{ CLINFO_BOTH, DINFO(CL_DEVICE_EXTENSIONS_WITH_VERSION, "Device Extensions with Version", ext_version), dev_is_30 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_EXTENSIONS_WITH_VERSION, "Device Extensions with Version", ext_version), dev_has_ext_ver },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_TYPE, "Device Type", devtype), NULL },
 
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_BOARD_NAME_AMD, "Device Board Name (AMD)", str), dev_has_amd },
@@ -2653,11 +2655,11 @@ struct device_info_traits dinfo_traits[] = {
 
 	/* TODO: this should tell if it's being done due to the device being 2.1 or due to it having the extension */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_IL_VERSION, INDENT "IL version", str), dev_has_il },
-	{ CLINFO_BOTH, DINFO(CL_DEVICE_ILS_WITH_VERSION, INDENT "ILs with version", ext_version), dev_is_30 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_ILS_WITH_VERSION, INDENT "ILs with version", ext_version), dev_has_ext_ver },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SPIR_VERSIONS, INDENT "SPIR versions", str), dev_has_spir },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_PRINTF_BUFFER_SIZE, "printf() buffer size", mem_sz), dev_is_12 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_BUILT_IN_KERNELS, "Built-in kernels", str), dev_is_12 },
-	{ CLINFO_BOTH, DINFO(CL_DEVICE_BUILT_IN_KERNELS_WITH_VERSION, "Built-in kernels with version", ext_version), dev_is_30 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_BUILT_IN_KERNELS_WITH_VERSION, "Built-in kernels with version", ext_version), dev_has_ext_ver },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_ME_VERSION_INTEL, "Motion Estimation accelerator version (Intel)", int), dev_has_intel_AME },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_AVC_ME_VERSION_INTEL, INDENT "Device-side AVC Motion Estimation version", int), dev_has_intel_AVC_ME },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_AVC_ME_SUPPORTS_TEXTURE_SAMPLER_USE_INTEL, INDENT INDENT "Supports texture sampler use", bool), dev_has_intel_AVC_ME },
