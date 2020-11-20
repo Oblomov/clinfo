@@ -8,6 +8,11 @@
  * it should be included after defining a target OpenCL version
  * (otherwise, the maximum version will simply be used, but a message
  * will be printed).
+ *
+ * TODO: until 3.0 gets finalized, we only target 2.2 because the 3.0
+ * defines etc are still changing, so users may have an older version
+ * of the 3.0 headers lying around, which may prevent clinfo from being
+ * compilable.
  */
 #define CL_TARGET_OPENCL_VERSION 220
 
@@ -147,6 +152,7 @@ typedef cl_bitfield         cl_device_svm_capabilities;
 #define CL_DEVICE_OPENCL_C_FEATURES			0x106F
 #define CL_DEVICE_DEVICE_ENQUEUE_CAPABILITIES		0x1070
 #define CL_DEVICE_PIPE_SUPPORT				0x1071
+#define CL_DEVICE_LATEST_CONFORMANCE_VERSION_PASSED	0x1072
 
 
 typedef cl_bitfield	cl_device_atomic_capabilities;
