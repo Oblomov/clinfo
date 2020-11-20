@@ -3715,6 +3715,8 @@ int main(int argc, char *argv[])
 		else if (!strcmp(argv[a], "-d") || !strcmp(argv[a], "--device")) {
 			++a;
 			parse_device_spec(argv[a], &output);
+		} else if (!strncmp(argv[a], "-d", 2)) {
+			parse_device_spec(argv[a] + 2, &output);
 		} else if (!strcmp(argv[a], "-?") || !strcmp(argv[a], "-h")) {
 			usage();
 			return 0;
