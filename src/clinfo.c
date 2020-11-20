@@ -96,6 +96,8 @@ init_plist(struct platform_list *plist)
 	plist->ndevs_total = 0;
 	plist->alloc_devs = 0;
 	plist->max_plat_version = 0;
+	plist->max_devs = 0;
+	plist->max_sname_len = 0;
 	plist->platform = NULL;
 	plist->all_devs = NULL;
 	plist->dev_offset = NULL;
@@ -822,7 +824,7 @@ gatherPlatformInfo(struct platform_list *plist, cl_uint p, const struct opt_out 
 	/* if no CL_PLATFORM_ICD_SUFFIX_KHR, use P### as short/symbolic name */
 	if (!pdata->sname) {
 #define SNAME_MAX 32
-		ALLOC(pdata->sname, SNAME_MAX, "platform symbolic name");
+		ALLOC(pdata->sname, SNAME_MAX+1, "platform symbolic name");
 		snprintf(pdata->sname, SNAME_MAX, "P%" PRIu32 "", p);
 	}
 
