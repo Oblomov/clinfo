@@ -722,7 +722,7 @@ struct platform_info_traits pinfo_traits[] = {
 	PINFO_COND(CL_PLATFORM_ICD_SUFFIX_KHR, "Extensions function suffix", NULL, str, khr_icd_p)
 };
 
-/* Collect (and optionally show) infomation on a specific platform,
+/* Collect (and optionally show) information on a specific platform,
  * initializing relevant arrays and optionally showing the collected
  * information
  */
