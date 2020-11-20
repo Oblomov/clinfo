@@ -2,6 +2,20 @@
  * on all available OpenCL platforms present in the system
  */
 
+/* TODO: cl_khr_extended_versioning bring support for cl_version, cl_name_version,
+ * and the following properties to pre-3.0 platforms:
+ CL_PLATFORM_NUMERIC_VERSION_KHR
+ CL_PLATFORM_EXTENSIONS_WITH_VERSION_KHR
+
+ CL_DEVICE_NUMERIC_VERSION_KHR
+ CL_DEVICE_OPENCL_C_NUMERIC_VERSION_KHR
+ CL_DEVICE_EXTENSIONS_WITH_VERSION_KHR
+ CL_DEVICE_ILS_WITH_VERSION_KHR
+ CL_DEVICE_BUILT_IN_KERNELS_WITH_VERSION_KHR
+
+ (the symbol are _KHR-suffixed but match the 3.0 definitions). This should be supported.
+ */
+
 #include <time.h>
 #include <string.h>
 
@@ -838,6 +852,7 @@ gatherPlatformInfo(struct platform_list *plist, cl_uint p, const struct opt_out 
 
 /*
  * Device properties/extensions used in traits checks, and relevant functions
+ * TODO add version control for 3.0+ platforms
  */
 
 struct device_info_checks {
