@@ -192,6 +192,17 @@ typedef struct _cl_name_version {
 /* cl_amd_object_metadata */
 #define CL_PLATFORM_MAX_KEYS_AMD			0x403C
 
+/* cl_khr_device_uuid extension */
+
+#define CL_UUID_SIZE_KHR 16
+#define CL_LUID_SIZE_KHR 8
+
+#define CL_DEVICE_UUID_KHR          0x106A
+#define CL_DRIVER_UUID_KHR          0x106B
+#define CL_DEVICE_LUID_VALID_KHR    0x106C
+#define CL_DEVICE_LUID_KHR          0x106D
+#define CL_DEVICE_NODE_MASK_KHR     0x106E
+
 /* cl_khr_fp64 */
 #define CL_DEVICE_DOUBLE_FP_CONFIG			0x1032
 

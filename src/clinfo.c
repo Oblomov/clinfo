@@ -889,6 +889,7 @@ struct device_info_checks {
 	char has_terminate_context[25];
 	char has_extended_versioning[27];
 	char has_cxx_for_opencl[22];
+	char has_device_uuid[19];
 	cl_uint dev_version;
 	cl_uint p2p_num_devs;
 };
@@ -924,6 +925,7 @@ DEFINE_EXT_CHECK(subgroup_named_barrier)
 DEFINE_EXT_CHECK(terminate_context)
 DEFINE_EXT_CHECK(extended_versioning)
 DEFINE_EXT_CHECK(cxx_for_opencl)
+DEFINE_EXT_CHECK(device_uuid)
 
 /* In the version checks we negate the opposite conditions
  * instead of double-negating the actual condition
@@ -971,7 +973,6 @@ cl_bool dev_has_ext_ver(const struct device_info_checks *chk)
 {
 	return dev_is_30(chk) || dev_has_extended_versioning(chk);
 }
-
 
 cl_bool dev_is_gpu(const struct device_info_checks *chk)
 {
@@ -1108,6 +1109,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 	CHECK_EXT(terminate_context, cl_khr_terminate_context);
 	CHECK_EXT(extended_versioning, cl_khr_extended_versioning);
 	CHECK_EXT(cxx_for_opencl, cl_ext_cxx_for_opencl);
+	CHECK_EXT(device_uuid, cl_khr_device_uuid);
 }
 
 
@@ -2390,6 +2392,41 @@ device_info_interop_list(struct device_info_ret *ret,
 	free(val);
 }
 
+void device_info_uuid(struct device_info_ret *ret,
+	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
+	const struct opt_out *output)
+{
+	cl_uchar uuid[CL_UUID_SIZE_KHR];
+	_GET_VAL(ret, loc, uuid);
+	if (!ret->err) {
+		strbuf_printf(&ret->str,
+			"%02x%02x%02x%02x-"
+			"%02x%02x-"
+			"%02x%02x-"
+			"%02x%02x-"
+			"%02x%02x%02x%02x%02x%02x",
+			uuid[0],  uuid[1],  uuid[2],  uuid[3],  uuid[4],
+			uuid[5],  uuid[6],
+			uuid[7],  uuid[8],
+			uuid[9],  uuid[10],
+			uuid[11], uuid[12], uuid[13], uuid[14], uuid[15]);
+	}
+}
+
+void device_info_luid(struct device_info_ret *ret,
+	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
+	const struct opt_out *output)
+{
+	cl_uchar uuid[CL_LUID_SIZE_KHR];
+	_GET_VAL(ret, loc, uuid);
+	if (!ret->err) {
+		/* TODO not sure this is the correct representation for LUIDs? */
+		strbuf_printf(&ret->str, "%02x%02x-%02x%02x%02x%02x%02x%02x",
+			uuid[0], uuid[1],
+			uuid[2], uuid[3], uuid[4], uuid[5], uuid[6], uuid[7]);
+	}
+}
+
 
 /*
  * Device info traits
@@ -2424,6 +2461,12 @@ struct device_info_traits dinfo_traits[] = {
 	 * we need to know about the extensions */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_EXTENSIONS, "Device Extensions", str), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_EXTENSIONS_WITH_VERSION, "Device Extensions with Version", ext_version), dev_has_ext_ver },
+
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_UUID_KHR, "Device UUID", uuid), dev_has_device_uuid },
+	{ CLINFO_BOTH, DINFO(CL_DRIVER_UUID_KHR, "Driver UUID", uuid), dev_has_device_uuid },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_LUID_VALID_KHR, "Valid Device LUID", bool), dev_has_device_uuid },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_LUID_KHR, "Device LUID", luid), dev_has_device_uuid },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_NODE_MASK_KHR, "Device Node Mask", hex), dev_has_device_uuid },
 
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_NUMERIC_VERSION, "Device Numeric Version", version), dev_has_ext_ver },
 	{ CLINFO_BOTH, DINFO(CL_DRIVER_VERSION, "Driver Version", str), NULL },
