@@ -47,6 +47,19 @@ shows also offline devices for platforms that expose this feature;
 .BR -l ", " --list
 list platforms and devices by name, with no (other) properties;
 .TP
+.BI -d platform_index : device_index
+.TQ
+.BI --device " platform_index" : device_index
+only show properties for the specified device in the specified platform;
+.TP
+.BI --prop " property-name"
+only show properties whose symbolic name matches
+(contains as a substring) the given
+.IR property-name ;
+the name is normalized as upper-case and with minus sign (-)
+replaced by underscore signs (_); when this flag is specified,
+raw mode is forced;
+.TP
 .BR -h ", " -?
 show usage;
 .TP
