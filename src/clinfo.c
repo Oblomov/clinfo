@@ -189,6 +189,7 @@ static const char images_str[] = " images";
 
 static const char* bool_str[] = { "No", "Yes" };
 static const char* bool_raw_str[] = { "CL_FALSE", "CL_TRUE" };
+static const char* bool_json_str[] = { "false", "true" };
 
 static const char* endian_str[] = { "Big-Endian", "Little-Endian" };
 
@@ -548,29 +549,37 @@ struct unpacked_cl_version unpack_cl_version(cl_uint version)
 	return ret;
 }
 
-void strbuf_version(const char *what, struct _strbuf *str, cl_uint version)
+void strbuf_version(const char *what, struct _strbuf *str, const char *before, cl_uint version, const char *after)
 {
 	struct unpacked_cl_version u = unpack_cl_version(version);
-	strbuf_append(what, str, " (%" PRIu32 ".%" PRIu32 ".%" PRIu32 ")",
-				u.major, u.minor, u.patch);
+	strbuf_append(what, str, "%s%" PRIu32 ".%" PRIu32 ".%" PRIu32 "%s",
+				before, u.major, u.minor, u.patch, after);
 }
 
 void strbuf_name_version(const char *what, struct _strbuf *str, const cl_name_version *ext, size_t num_exts,
 	const struct opt_out *output)
 {
-	realloc_strbuf(str, num_exts*(CL_NAME_VERSION_MAX_NAME_SIZE + 128), "extension versions");
-	set_separator(output->mode == CLINFO_HUMAN ? full_padding : spc_str);
+	realloc_strbuf(str, num_exts*(CL_NAME_VERSION_MAX_NAME_SIZE + 256), "extension versions");
+	set_separator(output->mode == CLINFO_HUMAN ? full_padding : output->json ? comma_str : spc_str);
+	if (output->json) {
+		strbuf_append_str(what, str, "{");
+	}
 	for (size_t i = 0; i < num_exts; ++i) {
 		const cl_name_version  *e = ext + i;
 		if (i > 0) strbuf_append_str(what, str, sep);
-		if (output->mode == CLINFO_HUMAN) {
+		if (output->json || output->mode == CLINFO_HUMAN) {
 			struct unpacked_cl_version u = unpack_cl_version(e->version);
-			strbuf_append(what, str, "%-65s%#8" PRIx32 " (%d.%d.%d)",
+			strbuf_append(what, str,
+				output->json ?
+				"\"%s\" : { \"raw\" : %" PRIu32 ", \"version\" : \"%d.%d.%d\" }" :
+				"%-65s%#8" PRIx32 " (%d.%d.%d)",
 				e->name, e->version, u.major, u.minor, u.patch);
 		} else {
 			strbuf_append(what, str, "%s:%#" PRIx32, e->name, e->version);
 		}
 	}
+	if (output->json)
+		strbuf_append_str(what, str, " }");
 }
 
 /* print strbuf, prefixed by pname, skipping leading whitespace if skip is nonzero,
@@ -618,6 +627,7 @@ platform_info_str(struct platform_info_ret *ret,
 	const struct opt_out* UNUSED(output))
 {
 	GET_STRING_LOC(ret, loc, clGetPlatformInfo, loc->plat, loc->param.plat);
+	ret->needs_escaping = CL_TRUE;
 }
 
 void
@@ -653,9 +663,16 @@ platform_info_version(struct platform_info_ret *ret,
 		clGetPlatformInfo(loc->plat, loc->param.plat, sizeof(ret->value.u32), &ret->value.u32, NULL),
 		loc, "get %s");
 	CHECK_SIZE(ret, loc, ret->value.u32, clGetPlatformInfo, loc->plat, loc->param.plat);
-	strbuf_append(loc->pname, &ret->str, "%#" PRIx32, ret->value.u32);
-	if (output->mode == CLINFO_HUMAN) {
-		strbuf_version(loc->pname, &ret->str, ret->value.u32);
+	if (!ret->err) {
+		strbuf_append(loc->pname, &ret->str,
+			output->json ? "{ \"raw\" : %" PRIu32 ", \"version\" :" : "%#" PRIx32,
+			ret->value.u32);
+		if (output->json || output->mode == CLINFO_HUMAN) {
+			strbuf_version(loc->pname, &ret->str,
+				output->json ? " \"" : " (",
+				ret->value.u32,
+				output->json ? "\" }" : ")");
+		}
 	}
 }
 
@@ -787,6 +804,7 @@ gatherPlatformInfo(struct platform_list *plist, cl_uint p, const struct opt_out 
 
 		reset_strbuf(&ret.str);
 		reset_strbuf(&ret.err_str);
+		ret.needs_escaping = CL_FALSE;
 		traits->show_func(&ret, &loc, pinfo_checks, output);
 
 		/* The property is skipped if this was a conditional property,
@@ -802,7 +820,7 @@ gatherPlatformInfo(struct platform_list *plist, cl_uint p, const struct opt_out 
 		cl_bool requested = (output->prop && strstr(loc.sname, output->prop) != NULL);
 		if (output->detailed || requested) {
 			if (output->json) {
-				json_strbuf(RET_BUF(ret), loc.pname, n++, CL_TRUE);
+				json_strbuf(RET_BUF(ret), loc.pname, n++, ret.err || ret.needs_escaping);
 			} else {
 				show_strbuf(RET_BUF(ret), loc.pname, CL_FALSE, ret.err);
 			}
@@ -1222,7 +1240,7 @@ device_info_##how(struct device_info_ret *ret, \
 }
 
 DEFINE_DEVINFO_SHOW(int, cl_uint, u32, "%" PRIu32)
-DEFINE_DEVINFO_SHOW(hex, cl_uint, u32, "%#" PRIx32)
+DEFINE_DEVINFO_SHOW(hex, cl_uint, u32, output->json ? "%" PRIu32 : "%#" PRIx32)
 DEFINE_DEVINFO_SHOW(long, cl_ulong, u64, "%" PRIu64)
 DEFINE_DEVINFO_SHOW(sz, size_t, s, "%" PRIuS)
 
@@ -1232,6 +1250,7 @@ device_info_str(struct device_info_ret *ret,
 	const struct opt_out* UNUSED(output))
 {
 	GET_STRING_LOC(ret, loc, clGetDeviceInfo, loc->dev, loc->param.dev);
+	ret->needs_escaping = CL_TRUE;
 }
 
 void
@@ -1242,7 +1261,7 @@ device_info_bool(struct device_info_ret *ret,
 	DEV_FETCH(cl_bool, val);
 	if (!ret->err) {
 		const char * const * str = (output->mode == CLINFO_HUMAN ?
-			bool_str : bool_raw_str);
+			bool_str : output->json ? bool_json_str : bool_raw_str);
 		strbuf_append(loc->pname, &ret->str, "%s", str[val]);
 	}
 }
@@ -1262,11 +1281,16 @@ device_info_version(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
 	const struct opt_out *output)
 {
-	DEV_FETCH(cl_version, val);
+	GET_VAL(ret, loc, u32);
 	if (!ret->err) {
-		strbuf_append(loc->pname, &ret->str, "%#" PRIx32, val);
-		if (output->mode == CLINFO_HUMAN) {
-			strbuf_version(loc->pname, &ret->str, val);
+		strbuf_append(loc->pname, &ret->str,
+			output->json ? "{ \" raw \" : %" PRIu32 ", \"version\" :" : "%#" PRIx32,
+			ret->value.u32);
+		if (output->json || output->mode == CLINFO_HUMAN) {
+			strbuf_version(loc->pname, &ret->str,
+				output->json ? " \"" : " (",
+				ret->value.u32,
+				output->json ? "\" }" : ")");
 		}
 	}
 }
@@ -2754,6 +2778,7 @@ printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uint p,
 
 		reset_strbuf(&ret.str);
 		reset_strbuf(&ret.err_str);
+		ret.needs_escaping = CL_TRUE;
 
 		/* Handle headers */
 		if (traits->param == CL_FALSE) {
@@ -2810,7 +2835,7 @@ printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uint p,
 			if (output->brief)
 				printf("%s%s\n", line_pfx, RET_BUF(ret)->buf);
 			else if (output->json)
-				json_strbuf(RET_BUF(ret), loc.pname, n++, CL_TRUE);
+				json_strbuf(RET_BUF(ret), loc.pname, n++, ret.err || ret.needs_escaping);
 			else
 				show_strbuf(RET_BUF(ret), loc.pname, 0, ret.err);
 		}
@@ -2874,7 +2899,7 @@ printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uint p,
 			printf("%s\"%s\" : ", (n > 0 ? comma_str : spc_str),
 				(output->mode == CLINFO_HUMAN ?
 				 versioned_extensions_traits->pname : versioned_extensions_traits->sname));
-			json_stringify(versioned_extensions);
+			fputs(versioned_extensions, stdout);
 			++n;
 		} else {
 			printf("%s" I1_STR "%s\n", line_pfx, (output->mode == CLINFO_HUMAN ?

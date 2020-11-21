@@ -18,6 +18,8 @@ struct platform_info_ret
 		cl_uint u32;
 		cl_ulong u64;
 	} value;
+	/* Does this ret need escaping as JSON? */
+	cl_bool needs_escaping;
 };
 
 /* Return type of the functions that print device info */
@@ -55,6 +57,8 @@ struct device_info_ret {
 		void *ptr; // TODO
 		cl_context ctx; // associated context
 	} base;
+	/* Does this ret need escaping as JSON? */
+	cl_bool needs_escaping;
 };
 
 /* Return type of the functions that gather ICD loader info */
