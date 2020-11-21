@@ -777,9 +777,11 @@ gatherPlatformInfo(struct platform_list *plist, cl_uint p, const struct opt_out 
 		if (ret.err && !checked && output->cond != COND_PROP_SHOW)
 			continue;
 
-		/* when only listing, do not print anything, we're just gathering
-		 * information */
-		if (output->detailed) {
+		/* The property gets printed if we are not just listing,
+		 * or if the user requested a property and this one matches.
+		 * Otherwise, we're just gathering information */
+		cl_bool requested = (output->prop && strstr(loc.sname, output->prop) != NULL);
+		if (output->detailed || requested) {
 			show_strbuf(RET_BUF(ret), loc.pname, 0, ret.err);
 		}
 
@@ -2803,9 +2805,12 @@ printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uint p,
 
 		traits->show_func(&ret, &loc, &chk, output);
 
+		/* Do not print this property if the user requested one and this does not match */
+		const cl_bool requested = !(output->prop && strstr(loc.sname, output->prop) == NULL);
 		if (traits->param == CL_DEVICE_EXTENSIONS) {
 			/* make a backup of the extensions string, regardless of
-			 * errors */
+			 * errors and requested, because we need the information
+			 * to fetch further information */
 			const char *msg = RET_BUF(ret)->buf;
 			ext_len = strlen(msg);
 			extensions_traits = traits;
@@ -2819,13 +2824,15 @@ printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uint p,
 			extensions[ext_len+1] = ' ';
 			extensions[ext_len+2] = '\0';
 		} else if (traits->param == CL_DEVICE_EXTENSIONS_WITH_VERSION) {
+			if (!requested)
+				continue;
 			/* This will be displayed at the end, after we display the output of CL_DEVICE_EXTENSIONS */
 			const char *msg = RET_BUF(ret)->buf;
 			const size_t len = RET_BUF(ret)->sz;
 			versioned_extensions_traits = traits;
 			ALLOC(versioned_extensions, len, "versioned extensions");
 			memcpy(versioned_extensions, msg, len);
-		} else {
+		} else if (requested) {
 			if (ret.err) {
 				/* if there was an error retrieving the property,
 				 * skip if it wasn't expected to work and we
@@ -2855,6 +2862,10 @@ printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uint p,
 			break;
 		case CL_DEVICE_EXTENSIONS:
 			identify_device_extensions(extensions, &chk);
+			if (!requested) {
+				free(extensions);
+				extensions = NULL;
+			}
 			break;
 		case CL_DEVICE_TYPE:
 			chk.devtype = ret.value.devtype;
@@ -3080,10 +3091,12 @@ void showDevices(const struct platform_list *plist, const struct opt_out *output
 	}
 
 	for (p = 0; p < num_platforms; ++p) {
-		// skip non-selected platforms altogether
+		/* skip non-selected platforms altogether */
 		if (output->selected && output->platform != p) continue;
 
-		printPlatformName(plist, p, &str, output);
+		/* skip platform header if only printing specfic properties */
+		if (!output->prop)
+			printPlatformName(plist, p, &str, output);
 
 		printPlatformDevices(plist, p,
 			get_platform_devs(plist, p), pdata[p].ndevs,
@@ -3595,7 +3608,11 @@ struct icdl_data oclIcdProps(const struct platform_list *plist, const struct opt
 			ret.str.buf[0] = '\0';
 			ret.err_str.buf[0] = '\0';
 			icdl_info_str(&ret, &loc);
-			show_strbuf(RET_BUF(ret), loc.pname, 1, ret.err);
+
+			/* Do not print this property if the user requested one and this does not match */
+			const cl_bool requested = !(output->prop && strstr(loc.sname, output->prop) == NULL);
+			if (requested)
+				show_strbuf(RET_BUF(ret), loc.pname, 1, ret.err);
 
 			if (!ret.err && traits->param == CL_ICDL_OCL_VERSION) {
 				icdl.reported_version = getOpenCLVersion(ret.str.buf + 7);
@@ -3658,7 +3675,32 @@ void parse_device_spec(const char *str, struct opt_out *output)
 	}
 	output->platform = p;
 	output->device = d;
+}
 
+void parse_prop(const char *input, struct opt_out *output)
+{
+	/* We normalize the property name by upcasing it and replacing the minus sign (-)
+	 * with the underscore (_). If any other character is found, we consider it an error
+	 */
+
+	size_t len = strlen(input);
+	char *normalized;
+	ALLOC(normalized, len+1, "normalized property name");
+	for (size_t i = 0; i < len; ++i)
+	{
+		char c = input[i];
+		if ( (c == '_') || ( c >= 'A' && c <= 'Z'))
+			normalized[i] = c;
+		else if (c >= 'a' && c <= 'z')
+			normalized[i] = 'A' + (c - 'a');
+		else if (c == '-')
+			normalized[i] = '_';
+		else {
+			fprintf(stderr, "invalid property name substring '%s'\n", input);
+			exit(1);
+		}
+	}
+	output->prop = normalized;
 }
 
 void usage(void)
@@ -3673,6 +3715,7 @@ void usage(void)
 	puts("\t--raw\t\traw output");
 	puts("\t--offline\talso show offline devices");
 	puts("\t--list, -l\tonly list the platforms and devices by name");
+	puts("\t--prop prop-name\tonly list properties matching the given name");
 	puts("\t--device p:d,");
 	puts("\t-d p:d\t\tonly show information about device number d from platform number p");
 	puts("\t-h, -?\t\tshow usage");
@@ -3694,6 +3737,7 @@ int main(int argc, char *argv[])
 
 	output.platform = CL_UINT_MAX;
 	output.device = CL_UINT_MAX;
+	output.prop = NULL;
 	output.mode = CLINFO_HUMAN;
 	output.cond = COND_PROP_CHECK;
 	output.brief = CL_FALSE;
@@ -3723,6 +3767,9 @@ int main(int argc, char *argv[])
 			parse_device_spec(argv[a], &output);
 		} else if (!strncmp(argv[a], "-d", 2)) {
 			parse_device_spec(argv[a] + 2, &output);
+		} else if (!strcmp(argv[a], "--prop")) {
+			++a;
+			parse_prop(argv[a], &output);
 		} else if (!strcmp(argv[a], "-?") || !strcmp(argv[a], "-h")) {
 			usage();
 			return 0;
@@ -3733,8 +3780,11 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "ignoring unknown command-line parameter %s\n", argv[a]);
 		}
 	}
+	/* If a property was specified, we only print in RAW mode */
+	if (output.prop)
+		output.mode = CLINFO_RAW;
 	output.selected = (output.device != CL_UINT_MAX);
-	output.detailed = !output.brief && !output.selected;
+	output.detailed = !output.brief && !output.selected && !output.prop;
 
 	err = clGetPlatformIDs(0, NULL, &plist.num_platforms);
 	if (err != CL_PLATFORM_NOT_FOUND_KHR)
@@ -3762,7 +3812,7 @@ int main(int argc, char *argv[])
 			puts("");
 	}
 	showDevices(&plist, &output);
-	if (output.detailed && !output.selected) {
+	if (output.prop || (output.detailed && !output.selected)) {
 		if (output.mode != CLINFO_RAW)
 			checkNullBehavior(&plist, &output);
 		oclIcdProps(&plist, &output);
@@ -3770,5 +3820,6 @@ int main(int argc, char *argv[])
 
 	free_plist(&plist);
 	free(line_pfx);
+	free((char*)output.prop);
 	return 0;
 }

@@ -27,6 +27,9 @@ struct opt_out {
 	cl_uint device;
 	cl_bool selected;
 
+/* Specify that we should only print information about a specific property */
+	const char *prop;
+
 /* Specify if we should only be listing the platform and devices;
  * can be done in both human and raw mode, and only the platform
  * and device names (and number) will be shown
