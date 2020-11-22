@@ -1928,33 +1928,29 @@ device_info_partition_affinities(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
 	const struct opt_out *output)
 {
-	DEV_FETCH(cl_device_affinity_domain, val);
+	GET_VAL(ret, loc, affinity_domain);
+	const cl_device_affinity_domain val = ret->value.affinity_domain;
 	if (!ret->err && val) {
 		/* iterate over affinity domain strings appending their textual form
 		 * to ret->str */
-		size_t szval = 0;
 		cl_uint i = 0;
+		cl_uint count = 0;
 		const char * const *affstr = (output->mode == CLINFO_HUMAN ?
 			affinity_domain_str : affinity_domain_raw_str);
 		set_separator(output->mode == CLINFO_HUMAN ? comma_str : vbar_str);
 		for (i = 0; i < affinity_domain_count; ++i) {
 			cl_device_affinity_domain cur = (cl_device_affinity_domain)(1) << i;
 			if (val & cur) {
-				/* match: add separator if not first match */
-				add_separator(&ret->str, &szval);
-				szval += bufcpy(&ret->str, szval, affstr[i]);
+				strbuf_append(loc->pname, &ret->str, "%s%s",
+					(count > 0 ? sep : ""), affstr[i]);
+				++count;
 			}
-			if (szval >= ret->str.sz)
-				break;
 		}
 		/* check for extra bits */
-		if (szval < ret->str.sz) {
-			cl_device_affinity_domain known_mask = ((cl_device_affinity_domain)(1) << affinity_domain_count) - 1;
-			cl_device_affinity_domain extra = val & ~known_mask;
-			if (extra) {
-				add_separator(&ret->str, &szval);
-				szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "%#" PRIx64, extra);
-			}
+		cl_device_affinity_domain known_mask = ((cl_device_affinity_domain)(1) << affinity_domain_count) - 1;
+		cl_device_affinity_domain extra = val & ~known_mask;
+		if (extra) {
+			strbuf_append(loc->pname, &ret->str, "%s%#" PRIx64, (count > 0 ? sep : ""), extra);
 		}
 	}
 }
@@ -1964,7 +1960,7 @@ device_info_partition_affinities_ext(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
 	const struct opt_out *output)
 {
-	size_t numval = 0, szval = 0, cursor = 0, slen = 0;
+	size_t numval = 0, szval = 0, cursor = 0;
 	cl_device_partition_property_ext *val = NULL;
 	const char * const *ptstr = (output->mode == CLINFO_HUMAN ?
 		affinity_domain_ext_str : affinity_domain_raw_ext_str);
@@ -1973,13 +1969,12 @@ device_info_partition_affinities_ext(struct device_info_ret *ret,
 
 	GET_VAL_ARRAY(ret, loc);
 
-	szval = 0;
 	if (!ret->err) {
 		for (cursor = 0; cursor < numval; ++cursor) {
 			int str_idx = -1;
 
 			/* add separator for values past the first */
-			add_separator(&ret->str, &szval);
+			if (cursor > 0) strbuf_append_str(loc->pname, &ret->str, sep);
 
 			switch (val[cursor]) {
 			case CL_AFFINITY_DOMAIN_NUMA_EXT: str_idx = 0; break;
@@ -1989,22 +1984,13 @@ device_info_partition_affinities_ext(struct device_info_ret *ret,
 			case CL_AFFINITY_DOMAIN_L1_CACHE_EXT: str_idx = 4; break;
 			case CL_AFFINITY_DOMAIN_NEXT_FISSIONABLE_EXT: str_idx = 5; break;
 			default:
-				szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "<unknown> (%#" PRIx64 ")", val[cursor]);
+				strbuf_append(loc->pname, &ret->str, "<unknown> (%#" PRIx64 ")", val[cursor]);
 				break;
 			}
 			if (str_idx >= 0) {
-				/* string length */
-				const char *str = ptstr[str_idx];
-				slen = strlen(str);
-				strncpy(ret->str.buf + szval, str, slen);
-				szval += slen;
-			}
-			if (szval >= ret->str.sz) {
-				trunc_strbuf(&ret->str);
-				break;
+				strbuf_append_str(loc->pname, &ret->str, ptstr[str_idx]);
 			}
 		}
-		ret->str.buf[szval] = '\0';
 		// TODO: ret->value.??? = val
 	}
 	free(val);
@@ -2028,13 +2014,12 @@ device_info_vecwidth(struct device_info_ret *ret,
 		_GET_VAL(ret, &loc2, native);
 
 		if (!ret->err) {
-			size_t szval = 0;
 			const char *ext = (loc2.param.dev == CL_DEVICE_NATIVE_VECTOR_WIDTH_HALF ?
 				chk->has_half : (loc2.param.dev == CL_DEVICE_NATIVE_VECTOR_WIDTH_DOUBLE ?
 				chk->has_double : NULL));
-			szval = strbuf_printf(&ret->str, "%8u / %-8u", preferred, native);
+			strbuf_append(loc->pname, &ret->str, "%8u / %-8u", preferred, native);
 			if (ext)
-				sprintf(ret->str.buf + szval, " (%s)", *ext ? ext : na);
+				strbuf_append(loc->pname, &ret->str, " (%s)", *ext ? ext : na);
 		}
 	}
 	ret->value.u32v.s[0] = preferred;
@@ -2054,17 +2039,17 @@ device_info_fpconf(struct device_info_ret *ret,
 		(loc->param.dev == CL_DEVICE_HALF_FP_CONFIG && dev_has_half(chk)) ||
 		(loc->param.dev == CL_DEVICE_DOUBLE_FP_CONFIG && dev_has_double(chk));
 
-	DEV_FETCH(cl_device_fp_config, val);
+	GET_VAL(ret, loc, fpconfig);
 	/* Sanitize! */
 	if (ret->err && !get_it) {
 		ret->err = CL_SUCCESS;
-		val = 0;
+		ret->value.fpconfig = 0;
 	}
 
 
 	if (!ret->err) {
-		size_t szval = 0;
 		cl_uint i = 0;
+		cl_uint count = 0;
 		const char * const *fpstr = (output->mode == CLINFO_HUMAN ?
 			fp_conf_str : fp_conf_raw_str);
 		set_separator(vbar_str);
@@ -2087,7 +2072,7 @@ device_info_fpconf(struct device_info_ret *ret,
 				fprintf(stderr, "unsupported floating-point configuration parameter %s\n", loc->pname);
 			}
 			/* show 'why' it's being shown */
-			szval += strbuf_printf(&ret->str, "(%s)", why);
+			strbuf_append(loc->pname, &ret->str, "(%s)", why);
 		}
 		if (get_it) {
 			size_t num_flags = fp_conf_count;
@@ -2099,12 +2084,14 @@ device_info_fpconf(struct device_info_ret *ret,
 
 			for (i = 0; i < num_flags; ++i) {
 				cl_device_fp_config cur = (cl_device_fp_config)(1) << i;
+				cl_bool present = !!(ret->value.fpconfig & cur);
 				if (output->mode == CLINFO_HUMAN) {
-					szval += sprintf(ret->str.buf + szval, "\n%s" I2_STR "%s",
-						line_pfx, fpstr[i], bool_str[!!(val & cur)]);
-				} else if (val & cur) {
-					add_separator(&ret->str, &szval);
-					szval += bufcpy(&ret->str, szval, fpstr[i]);
+					strbuf_append(loc->pname, &ret->str, "\n%s" I2_STR "%s",
+						line_pfx, fpstr[i], bool_str[present]);
+				} else if (present) {
+					strbuf_append(loc->pname, &ret->str, "%s%s",
+						(count > 0 ? sep : ""), fpstr[i]);
+					++count;
 				}
 			}
 		}
@@ -2117,26 +2104,29 @@ device_info_qprop(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks *chk,
 	const struct opt_out *output)
 {
-	DEV_FETCH(cl_command_queue_properties, val);
+	GET_VAL(ret, loc, qprop);
 	if (!ret->err) {
-		size_t szval = 0;
 		cl_uint i = 0;
+		cl_uint count = 0;
 		const char * const *qpstr = (output->mode == CLINFO_HUMAN ?
 			queue_prop_str : queue_prop_raw_str);
 		set_separator(vbar_str);
 		for (i = 0; i < queue_prop_count; ++i) {
 			cl_command_queue_properties cur = (cl_command_queue_properties)(1) << i;
+			cl_bool present =!!(ret->value.qprop & cur);
 			if (output->mode == CLINFO_HUMAN) {
-				szval += sprintf(ret->str.buf + szval, "\n%s" I2_STR "%s",
-					line_pfx, qpstr[i], bool_str[!!(val & cur)]);
-			} else if (val & cur) {
-				add_separator(&ret->str, &szval);
-				szval += bufcpy(&ret->str, szval, qpstr[i]);
+				strbuf_append(loc->pname, &ret->str, "\n%s" I2_STR "%s",
+					line_pfx, qpstr[i], bool_str[present]);
+			} else if (present) {
+				strbuf_append(loc->pname, &ret->str, "%s%s",
+					(count > 0 ? sep : ""), qpstr[i]);
+				++count;
 			}
 		}
+		/* TODO FIXME extra bits? */
 		if (output->mode == CLINFO_HUMAN && loc->param.dev == CL_DEVICE_QUEUE_PROPERTIES &&
 			dev_has_intel_local_thread(chk))
-			sprintf(ret->str.buf + szval, "\n%s" I2_STR "%s",
+			strbuf_append(loc->pname, &ret->str, "\n%s" I2_STR "%s",
 				line_pfx, "Local thread execution (Intel)", bool_str[CL_TRUE]);
 	}
 }
@@ -2147,23 +2137,26 @@ device_info_execap(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
 	const struct opt_out *output)
 {
-	DEV_FETCH(cl_device_exec_capabilities, val);
+	GET_VAL(ret, loc, execap);
 	if (!ret->err) {
-		size_t szval = 0;
 		cl_uint i = 0;
+		cl_uint count = 0;
 		const char * const *qpstr = (output->mode == CLINFO_HUMAN ?
 			execap_str : execap_raw_str);
 		set_separator(vbar_str);
 		for (i = 0; i < execap_count; ++i) {
 			cl_device_exec_capabilities cur = (cl_device_exec_capabilities)(1) << i;
+			cl_bool present =!!(ret->value.execap & cur);
 			if (output->mode == CLINFO_HUMAN) {
-				szval += sprintf(ret->str.buf + szval, "\n%s" I2_STR "%s",
-					line_pfx, qpstr[i], bool_str[!!(val & cur)]);
-			} else if (val & cur) {
-				add_separator(&ret->str, &szval);
-				szval += bufcpy(&ret->str, szval, qpstr[i]);
+				strbuf_append(loc->pname, &ret->str, "\n%s" I2_STR "%s",
+					line_pfx, qpstr[i], bool_str[present]);
+			} else if (present) {
+				strbuf_append(loc->pname, &ret->str, "%s%s",
+					(count > 0 ? sep : ""), qpstr[i]);
+				++count;
 			}
 		}
+		/* TODO FIXME extra bits? */
 	}
 }
 
