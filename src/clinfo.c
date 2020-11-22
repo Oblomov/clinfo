@@ -556,6 +556,11 @@ void strbuf_version(const char *what, struct _strbuf *str, const char *before, c
 				before, u.major, u.minor, u.patch, after);
 }
 
+void set_common_separator(const struct opt_out *output)
+{
+	set_separator(output->json || output->mode == CLINFO_HUMAN ? comma_str : vbar_str);
+}
+
 void strbuf_name_version(const char *what, struct _strbuf *str, const cl_name_version *ext, size_t num_exts,
 	const struct opt_out *output)
 {
@@ -1373,14 +1378,19 @@ device_info_free_mem_amd(struct device_info_ret *ret,
 	GET_VAL(ret, loc, u64v2);
 	if (!ret->err) {
 		size_t cursor = 0;
+		if (output->json)
+			strbuf_append_str_len(loc->pname, &ret->str, " [", 2);
 		for (cursor = 0; cursor < 2; ++cursor) {
 			cl_ulong v = ret->value.u64v2.s[cursor];
 			if (cursor > 0)
-				strbuf_append_str_len(loc->pname, &ret->str, " ", 1);
+				strbuf_append_str(loc->pname, &ret->str,
+					output->json ? comma_str : spc_str);
 			strbuf_append(loc->pname, &ret->str, "%" PRIuS, v);
 			if (output->mode == CLINFO_HUMAN)
 				strbuf_mem(loc->pname, &ret->str, v*UINT64_C(1024));
 		}
+		if (output->json)
+			strbuf_append_str_len(loc->pname, &ret->str, " ]", 2);
 	}
 }
 
@@ -1409,12 +1419,15 @@ device_info_szptr_sep(struct device_info_ret *ret, const char *human_sep,
 	GET_VAL_ARRAY(ret, loc);
 	if (!ret->err) {
 		size_t counter = 0;
-		set_separator(output->mode == CLINFO_HUMAN ? human_sep : spc_str);
-		szval = 0;
+		set_separator(output->mode == CLINFO_HUMAN ? human_sep : output->json ? comma_str : spc_str);
+		if (output->json)
+			strbuf_append_str_len(loc->pname, &ret->str, " [", 2);
 		for (counter = 0; counter < numval; ++counter) {
 			if (counter > 0) strbuf_append_str(loc->pname, &ret->str, sep);
 			strbuf_append(loc->pname, &ret->str, "%" PRIuS, val[counter]);
 		}
+		if (output->json)
+			strbuf_append_str_len(loc->pname, &ret->str, " ]", 2);
 		// TODO: ret->value.??? = val;
 	}
 	free(val);
@@ -1593,20 +1606,27 @@ device_info_devtype(struct device_info_ret *ret,
 {
 	GET_VAL(ret, loc, devtype);
 	if (!ret->err) {
+		const char *quote = output->json ? "\"" : "";
+		if (output->json)
+			strbuf_append(loc->pname, &ret->str,
+				"{ \"raw\" : %" PRIu64 ", \"type\" : [ ",
+				ret->value.devtype);
+
 		/* iterate over device type strings, appending their textual form
 		 * to ret->str */
 		cl_uint i = (cl_uint)actual_devtype_count;
 		const char * const *devstr = (output->mode == CLINFO_HUMAN ?
 			device_type_str : device_type_raw_str);
-		set_separator(output->mode == CLINFO_HUMAN ? comma_str : vbar_str);
+		set_common_separator(output);
 		cl_uint count = 0;
 		for (; i > 0; --i) {
 			/* assemble CL_DEVICE_TYPE_* from index i */
 			cl_device_type cur = (cl_device_type)(1) << (i-1);
 			if (ret->value.devtype & cur) {
 				/* match: add separator if not first match */
-				if (count > 0) strbuf_append_str(loc->pname, &ret->str, sep);
-				strbuf_append_str(loc->pname, &ret->str, devstr[i]);
+				strbuf_append(loc->pname, &ret->str, "%s%s%s%s",
+					(count > 0 ? sep : ""),
+					quote, devstr[i], quote);
 				++count;
 			}
 		}
@@ -1614,9 +1634,11 @@ device_info_devtype(struct device_info_ret *ret,
 		cl_device_type known_mask = ((cl_device_type)(1) << actual_devtype_count) - 1;
 		cl_device_type extra = ret->value.devtype & ~known_mask;
 		if (extra) {
-			if (count > 0) strbuf_append_str(loc->pname, &ret->str, sep);
-			strbuf_append(loc->pname, &ret->str, "%#" PRIx64, extra);
+			strbuf_append(loc->pname, &ret->str, "%s%s%#" PRIx64 "%s",
+				(count > 0 ? sep : ""), quote, extra, quote);
 		}
+		if (output->json)
+			strbuf_append_str(loc->pname, &ret->str, " ] }");
 	}
 }
 
@@ -1630,6 +1652,7 @@ device_info_cachetype(struct device_info_ret *ret,
 		const char * const *ar = (output->mode == CLINFO_HUMAN ?
 			cache_type_str : cache_type_raw_str);
 		strbuf_append_str(loc->pname, &ret->str, ar[ret->value.cachetype]);
+		ret->needs_escaping = CL_TRUE;
 	}
 }
 
@@ -1643,6 +1666,7 @@ device_info_lmemtype(struct device_info_ret *ret,
 		const char * const *ar = (output->mode == CLINFO_HUMAN ?
 			lmem_type_str : lmem_type_raw_str);
 		strbuf_append_str(loc->pname, &ret->str, ar[ret->value.lmemtype]);
+		ret->needs_escaping = CL_TRUE;
 	}
 }
 
@@ -1653,15 +1677,22 @@ device_info_atomic_caps(struct device_info_ret *ret,
 {
 	GET_VAL(ret, loc, bits);
 	if (!ret->err) {
+		const char *quote = output->json ? "\"" : "";
+		if (output->json)
+			strbuf_append(loc->pname, &ret->str,
+				"{ \"raw\" : %" PRIu64 ", \"capabilities\" : [ ",
+				ret->value.bits);
+
 		cl_uint i = 0;
 		cl_uint count = 0;
 		const char * const * capstr = (output->mode == CLINFO_HUMAN ?
 			atomic_cap_str : atomic_cap_raw_str);
-		set_separator(output->mode == CLINFO_HUMAN ? comma_str : vbar_str);
+		set_common_separator(output);
 		for (i = 0; i < atomic_cap_count; ++i) {
 			if (ret->value.bits & (1 << i)) {
-				if (count > 0) strbuf_append_str(loc->pname, &ret->str, sep);
-				strbuf_append(loc->pname, &ret->str, capstr[i]);
+				strbuf_append(loc->pname, &ret->str, "%s%s%s%s",
+					(count > 0 ? sep : ""),
+					quote, capstr[i], quote);
 				++count;
 			}
 		}
@@ -1669,9 +1700,11 @@ device_info_atomic_caps(struct device_info_ret *ret,
 		cl_bitfield known_mask = ((cl_bitfield)(1) << atomic_cap_count) - 1;
 		cl_bitfield extra = ret->value.bits & ~known_mask;
 		if (extra) {
-			if (count > 0) strbuf_append_str(loc->pname, &ret->str, sep);
-			strbuf_append(loc->pname, &ret->str, "%#" PRIx64, extra);
+			strbuf_append(loc->pname, &ret->str, "%s%s%#" PRIx64 "%s",
+				(count > 0 ? sep : ""), quote, extra, quote);
 		}
+		if (output->json)
+			strbuf_append_str(loc->pname, &ret->str, " ] }");
 	}
 }
 
@@ -1682,15 +1715,22 @@ device_info_device_enqueue_caps(struct device_info_ret *ret,
 {
 	GET_VAL(ret, loc, bits);
 	if (!ret->err) {
+		const char *quote = output->json ? "\"" : "";
+		if (output->json)
+			strbuf_append(loc->pname, &ret->str,
+				"{ \"raw\" : %" PRIu64 ", \"capabilities\" : [ ",
+				ret->value.bits);
+
 		cl_uint i = 0;
 		cl_uint count = 0;
 		const char * const * capstr = (output->mode == CLINFO_HUMAN ?
 			device_enqueue_cap_str : device_enqueue_cap_raw_str);
-		set_separator(output->mode == CLINFO_HUMAN ? comma_str : vbar_str);
+		set_common_separator(output);
 		for (i = 0; i < device_enqueue_cap_count; ++i) {
 			if (ret->value.bits & (1 << i)) {
-				if (count > 0) strbuf_append_str(loc->pname, &ret->str, sep);
-				strbuf_append(loc->pname, &ret->str, capstr[i]);
+				strbuf_append(loc->pname, &ret->str, "%s%s%s%s",
+					(count > 0 ? sep : ""),
+					quote, capstr[i], quote);
 				++count;
 			}
 		}
@@ -1698,9 +1738,11 @@ device_info_device_enqueue_caps(struct device_info_ret *ret,
 		cl_bitfield known_mask = ((cl_bitfield)(1) << device_enqueue_cap_count) - 1;
 		cl_bitfield extra = ret->value.bits & ~known_mask;
 		if (extra) {
-			if (count > 0) strbuf_append_str(loc->pname, &ret->str, sep);
-			strbuf_append(loc->pname, &ret->str, "%#" PRIx64, extra);
+			strbuf_append(loc->pname, &ret->str, "%s%s%#" PRIx64 "%s",
+				(count > 0 ? sep : ""), quote, extra, quote);
 		}
+		if (output->json)
+			strbuf_append_str(loc->pname, &ret->str, " ] }");
 	}
 }
 
@@ -1714,6 +1756,12 @@ device_info_core_ids(struct device_info_ret *ret,
 	cl_ulong val = ret->value.u64;
 
 	if (!ret->err) {
+		const char *quote = output->json ? "\"" : "";
+		if (output->json)
+			strbuf_append(loc->pname, &ret->str,
+				"{ \"raw\" : %" PRIu64 ", \"core_ids\" : [ ",
+				ret->value.u64);
+
 		/* The value is a bitfield where each set bit corresponds to a core ID
 		 * value that can be returned by the device-side function. We print them
 		 * here as ranges, such as 0-4, 8-12 */
@@ -1733,12 +1781,17 @@ device_info_core_ids(struct device_info_ret *ret,
 
 			/* print the range [range_start, cur_bit[ */
 			if (range_start >= 0 && range_start < CORE_ID_END) {
-				strbuf_append(loc->pname, &ret->str, "%s%d", sep, range_start);
+				strbuf_append(loc->pname, &ret->str, "%s%s%d", sep, quote, range_start);
 				if (cur_bit - range_start > 1)
 					strbuf_append(loc->pname, &ret->str, "-%d", cur_bit - 1);
 				set_separator(comma_str);
+				if (output->json)
+					strbuf_append_str(loc->pname, &ret->str, quote);
 			}
 		} while (cur_bit < CORE_ID_END);
+
+		if (output->json)
+			strbuf_append_str(loc->pname, &ret->str, " ] }");
 	}
 }
 
@@ -1752,6 +1805,12 @@ device_info_job_slots(struct device_info_ret *ret,
 	cl_uint val = ret->value.u32;
 
 	if (!ret->err) {
+		const char *quote = output->json ? "\"" : "";
+		if (output->json)
+			strbuf_append(loc->pname, &ret->str,
+				"{ \"raw\" : %" PRIu32 ", \"slots\" : [ ",
+				ret->value.u32);
+
 		/* The value is a bitfield where each set bit corresponds to an available job slot.
 		 * We print them here as ranges, such as 0-4, 8-12 */
 		int range_start = -1;
@@ -1770,12 +1829,17 @@ device_info_job_slots(struct device_info_ret *ret,
 
 			/* print the range [range_start, cur_bit[ */
 			if (range_start >= 0 && range_start < JOB_SLOT_END) {
-				strbuf_append(loc->pname, &ret->str, "%s%d", sep, range_start);
+				strbuf_append(loc->pname, &ret->str, "%s%s%d", sep, quote, range_start);
 				if (cur_bit - range_start > 1)
 					strbuf_append(loc->pname, &ret->str, "-%d", cur_bit - 1);
 				set_separator(comma_str);
+				if (output->json)
+					strbuf_append_str(loc->pname, &ret->str, quote);
 			}
 		} while (cur_bit < JOB_SLOT_END);
+
+		if (output->json)
+			strbuf_append_str(loc->pname, &ret->str, " ] }");
 	}
 }
 
@@ -1809,6 +1873,8 @@ device_info_devtopo_amd(struct device_info_ret *ret,
 	/* TODO how to do this in CLINFO_RAW mode */
 	if (!ret->err) {
 		devtopo_str(ret, &ret->value.devtopo);
+		/* TODO JSONify */
+		ret->needs_escaping = CL_TRUE;
 	}
 }
 
@@ -1905,11 +1971,14 @@ device_info_partition_types(struct device_info_ret *ret,
 	const char * const *ptstr = (output->mode == CLINFO_HUMAN ?
 		partition_type_str : partition_type_raw_str);
 
-	set_separator(output->mode == CLINFO_HUMAN ? comma_str : vbar_str);
-
 	GET_VAL_ARRAY(ret, loc);
 
 	if (!ret->err) {
+		const char *quote = output->json ? "\"" : "";
+		set_common_separator(output);
+		if (output->json)
+			strbuf_append_str_len(loc->pname, &ret->str, "[ ", 2);
+
 		for (cursor = 0; cursor < numval; ++cursor) {
 			int str_idx = -1;
 
@@ -1923,7 +1992,9 @@ device_info_partition_types(struct device_info_ret *ret,
 			case CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN: str_idx = 3; break;
 			case CL_DEVICE_PARTITION_BY_NAMES_INTEL: str_idx = 4; break;
 			default:
-				strbuf_append(loc->pname, &ret->str, "by <unknown> (%#" PRIxPTR ")", val[cursor]);
+				strbuf_append(loc->pname, &ret->str,
+					"%sby <unknown> (%#" PRIxPTR ")%s",
+					quote, val[cursor], quote);
 				break;
 			}
 			if (str_idx >= 0) {
@@ -1931,9 +2002,13 @@ device_info_partition_types(struct device_info_ret *ret,
 				size_t slen = strlen(ptstr[str_idx]);
 				if (output->mode == CLINFO_RAW && str_idx > 0)
 					slen -= 4;
+				strbuf_append_str(loc->pname, &ret->str, quote);
 				strbuf_append_str_len(loc->pname, &ret->str, ptstr[str_idx], slen);
+				strbuf_append_str(loc->pname, &ret->str, quote);
 			}
 		}
+		if (output->json)
+			strbuf_append_str_len(loc->pname, &ret->str, " ]", 2);
 		// TODO ret->value.??? = val
 	}
 	free(val);
@@ -1949,11 +2024,14 @@ device_info_partition_types_ext(struct device_info_ret *ret,
 	const char * const *ptstr = (output->mode == CLINFO_HUMAN ?
 		partition_type_str : partition_type_raw_str);
 
-	set_separator(output->mode == CLINFO_HUMAN ? comma_str : vbar_str);
-
 	GET_VAL_ARRAY(ret, loc);
 
 	if (!ret->err) {
+		const char *quote = output->json ? "\"" : "";
+		set_common_separator(output);
+		if (output->json)
+			strbuf_append_str_len(loc->pname, &ret->str, "[ ", 1);
+
 		for (cursor = 0; cursor < numval; ++cursor) {
 			int str_idx = -1;
 
@@ -1967,13 +2045,18 @@ device_info_partition_types_ext(struct device_info_ret *ret,
 			case CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN_EXT: str_idx = 3; break;
 			case CL_DEVICE_PARTITION_BY_NAMES_EXT: str_idx = 4; break;
 			default:
-				strbuf_append(loc->pname, &ret->str, "by <unknown> (%#" PRIx64 ")", val[cursor]);
+				strbuf_append(loc->pname, &ret->str,
+					"%sby <unknown> (%#" PRIx64 ")%s",
+					quote, val[cursor], quote);
 				break;
 			}
 			if (str_idx >= 0) {
-				strbuf_append_str(loc->pname, &ret->str, ptstr[str_idx]);
+				strbuf_append(loc->pname, &ret->str, "%s%s%s",
+					quote, ptstr[str_idx], quote);
 			}
 		}
+		if (output->json)
+			strbuf_append_str_len(loc->pname, &ret->str, " ]", 2);
 		// TODO ret->value.??? = val
 	}
 	free(val);
@@ -1988,19 +2071,28 @@ device_info_partition_affinities(struct device_info_ret *ret,
 {
 	GET_VAL(ret, loc, affinity_domain);
 	const cl_device_affinity_domain val = ret->value.affinity_domain;
+
+	if (output->json)
+		strbuf_append(loc->pname, &ret->str,
+			"{ \"raw\" : %" PRIu64 ", \"domain\" : [ ",
+			val);
+
 	if (!ret->err && val) {
+		const char *quote = output->json ? "\"" : "";
+
 		/* iterate over affinity domain strings appending their textual form
 		 * to ret->str */
 		cl_uint i = 0;
 		cl_uint count = 0;
 		const char * const *affstr = (output->mode == CLINFO_HUMAN ?
 			affinity_domain_str : affinity_domain_raw_str);
-		set_separator(output->mode == CLINFO_HUMAN ? comma_str : vbar_str);
+		set_common_separator(output);
 		for (i = 0; i < affinity_domain_count; ++i) {
 			cl_device_affinity_domain cur = (cl_device_affinity_domain)(1) << i;
 			if (val & cur) {
-				strbuf_append(loc->pname, &ret->str, "%s%s",
-					(count > 0 ? sep : ""), affstr[i]);
+				strbuf_append(loc->pname, &ret->str, "%s%s%s%s",
+					(count > 0 ? sep : ""),
+					quote, affstr[i], quote);
 				++count;
 			}
 		}
@@ -2008,9 +2100,12 @@ device_info_partition_affinities(struct device_info_ret *ret,
 		cl_device_affinity_domain known_mask = ((cl_device_affinity_domain)(1) << affinity_domain_count) - 1;
 		cl_device_affinity_domain extra = val & ~known_mask;
 		if (extra) {
-			strbuf_append(loc->pname, &ret->str, "%s%#" PRIx64, (count > 0 ? sep : ""), extra);
+			strbuf_append(loc->pname, &ret->str, "%s%s%#" PRIx64 "%s",
+				(count > 0 ? sep : ""), quote, extra, quote);
 		}
 	}
+	if (output->json)
+		strbuf_append_str(loc->pname, &ret->str, " ] }");
 }
 
 void
@@ -2023,11 +2118,14 @@ device_info_partition_affinities_ext(struct device_info_ret *ret,
 	const char * const *ptstr = (output->mode == CLINFO_HUMAN ?
 		affinity_domain_ext_str : affinity_domain_raw_ext_str);
 
-	set_separator(output->mode == CLINFO_HUMAN ? comma_str : vbar_str);
-
 	GET_VAL_ARRAY(ret, loc);
 
 	if (!ret->err) {
+		const char *quote = output->json ? "\"" : "";
+		set_common_separator(output);
+		if (output->json)
+			strbuf_append_str_len(loc->pname, &ret->str, "[ ", 2);
+
 		for (cursor = 0; cursor < numval; ++cursor) {
 			int str_idx = -1;
 
@@ -2042,13 +2140,18 @@ device_info_partition_affinities_ext(struct device_info_ret *ret,
 			case CL_AFFINITY_DOMAIN_L1_CACHE_EXT: str_idx = 4; break;
 			case CL_AFFINITY_DOMAIN_NEXT_FISSIONABLE_EXT: str_idx = 5; break;
 			default:
-				strbuf_append(loc->pname, &ret->str, "<unknown> (%#" PRIx64 ")", val[cursor]);
+				strbuf_append(loc->pname, &ret->str,
+					"%s<unknown> (%#" PRIx64 ")%s",
+					quote, val[cursor], quote);
 				break;
 			}
 			if (str_idx >= 0) {
-				strbuf_append_str(loc->pname, &ret->str, ptstr[str_idx]);
+				strbuf_append(loc->pname, &ret->str, "%s%s%s",
+					quote, ptstr[str_idx], quote);
 			}
 		}
+		if (output->json)
+			strbuf_append_str_len(loc->pname, &ret->str, " ]", 2);
 		// TODO: ret->value.??? = val
 	}
 	free(val);
@@ -2104,13 +2207,17 @@ device_info_fpconf(struct device_info_ret *ret,
 		ret->value.fpconfig = 0;
 	}
 
+	if (output->json)
+		strbuf_append(loc->pname, &ret->str,
+			"{ \"raw\" : %" PRIu64 ", \"config\" : [ ",
+			ret->value.fpconfig);
 
 	if (!ret->err) {
 		cl_uint i = 0;
 		cl_uint count = 0;
 		const char * const *fpstr = (output->mode == CLINFO_HUMAN ?
 			fp_conf_str : fp_conf_raw_str);
-		set_separator(vbar_str);
+		set_common_separator(output);
 		if (output->mode == CLINFO_HUMAN) {
 			const char *why = na;
 			switch (loc->param.dev) {
@@ -2133,6 +2240,7 @@ device_info_fpconf(struct device_info_ret *ret,
 			strbuf_append(loc->pname, &ret->str, "(%s)", why);
 		}
 		if (get_it) {
+			const char *quote = output->json ? "\"" : "";
 			size_t num_flags = fp_conf_count;
 			/* The last flag, CL_FP_CORRECTLY_ROUNDED_DIVIDE_SQRT is only considered
 			 * in the single-precision case. half and double don't consider it,
@@ -2147,13 +2255,15 @@ device_info_fpconf(struct device_info_ret *ret,
 					strbuf_append(loc->pname, &ret->str, "\n%s" I2_STR "%s",
 						line_pfx, fpstr[i], bool_str[present]);
 				} else if (present) {
-					strbuf_append(loc->pname, &ret->str, "%s%s",
-						(count > 0 ? sep : ""), fpstr[i]);
+					strbuf_append(loc->pname, &ret->str, "%s%s%s%s",
+						(count > 0 ? sep : ""), quote, fpstr[i], quote);
 					++count;
 				}
 			}
 		}
 	}
+	if (output->json)
+		strbuf_append_str(loc->pname, &ret->str, " ] }");
 }
 
 /* Queue properties */
@@ -2164,11 +2274,17 @@ device_info_qprop(struct device_info_ret *ret,
 {
 	GET_VAL(ret, loc, qprop);
 	if (!ret->err) {
+		const char *quote = output->json ? "\"" : "";
+		if (output->json)
+			strbuf_append(loc->pname, &ret->str,
+				"{ \"raw\" : %" PRIu64 ", \"queue_prop\" : [ ",
+				ret->value.qprop);
+
 		cl_uint i = 0;
 		cl_uint count = 0;
 		const char * const *qpstr = (output->mode == CLINFO_HUMAN ?
 			queue_prop_str : queue_prop_raw_str);
-		set_separator(vbar_str);
+		set_common_separator(output);
 		for (i = 0; i < queue_prop_count; ++i) {
 			cl_command_queue_properties cur = (cl_command_queue_properties)(1) << i;
 			cl_bool present =!!(ret->value.qprop & cur);
@@ -2176,8 +2292,8 @@ device_info_qprop(struct device_info_ret *ret,
 				strbuf_append(loc->pname, &ret->str, "\n%s" I2_STR "%s",
 					line_pfx, qpstr[i], bool_str[present]);
 			} else if (present) {
-				strbuf_append(loc->pname, &ret->str, "%s%s",
-					(count > 0 ? sep : ""), qpstr[i]);
+				strbuf_append(loc->pname, &ret->str, "%s%s%s%s",
+					(count > 0 ? sep : ""), quote, qpstr[i], quote);
 				++count;
 			}
 		}
@@ -2186,6 +2302,8 @@ device_info_qprop(struct device_info_ret *ret,
 			dev_has_intel_local_thread(chk))
 			strbuf_append(loc->pname, &ret->str, "\n%s" I2_STR "%s",
 				line_pfx, "Local thread execution (Intel)", bool_str[CL_TRUE]);
+		if (output->json)
+			strbuf_append_str(loc->pname, &ret->str, " ] }");
 	}
 }
 
@@ -2197,11 +2315,17 @@ device_info_execap(struct device_info_ret *ret,
 {
 	GET_VAL(ret, loc, execap);
 	if (!ret->err) {
+		const char *quote = output->json ? "\"" : "";
+		if (output->json)
+			strbuf_append(loc->pname, &ret->str,
+				"{ \"raw\" : %" PRIu64 ", \"type\" : [ ",
+				ret->value.execap);
+
 		cl_uint i = 0;
 		cl_uint count = 0;
 		const char * const *qpstr = (output->mode == CLINFO_HUMAN ?
 			execap_str : execap_raw_str);
-		set_separator(vbar_str);
+		set_common_separator(output);
 		for (i = 0; i < execap_count; ++i) {
 			cl_device_exec_capabilities cur = (cl_device_exec_capabilities)(1) << i;
 			cl_bool present =!!(ret->value.execap & cur);
@@ -2209,12 +2333,14 @@ device_info_execap(struct device_info_ret *ret,
 				strbuf_append(loc->pname, &ret->str, "\n%s" I2_STR "%s",
 					line_pfx, qpstr[i], bool_str[present]);
 			} else if (present) {
-				strbuf_append(loc->pname, &ret->str, "%s%s",
-					(count > 0 ? sep : ""), qpstr[i]);
+				strbuf_append(loc->pname, &ret->str, "%s%s%s%s",
+					(count > 0 ? sep : ""), quote, qpstr[i], quote);
 				++count;
 			}
 		}
 		/* TODO FIXME extra bits? */
+		if (output->json)
+			strbuf_append_str(loc->pname, &ret->str, " ] }");
 	}
 }
 
@@ -2248,10 +2374,16 @@ device_info_svm_cap(struct device_info_ret *ret,
 	GET_VAL(ret, loc, svmcap);
 
 	if (!ret->err) {
+		const char *quote = output->json ? "\"" : "";
+		if (output->json)
+			strbuf_append(loc->pname, &ret->str,
+				"{ \"raw\" : %" PRIu64 ", \"type\" : [ ",
+				ret->value.svmcap);
+
 		cl_uint i = 0;
 		const char * const *scstr = (output->mode == CLINFO_HUMAN ?
 			svm_cap_str : svm_cap_raw_str);
-		set_separator(vbar_str);
+		set_common_separator(output);
 		if (output->mode == CLINFO_HUMAN && checking_core) {
 			/* show 'why' it's being shown */
 			strbuf_append(loc->pname, &ret->str, "(%s%s%s)",
@@ -2267,11 +2399,13 @@ device_info_svm_cap(struct device_info_ret *ret,
 				strbuf_append(loc->pname, &ret->str, "\n%s" I2_STR "%s",
 					line_pfx, scstr[i], bool_str[present]);
 			} else if (present) {
-				strbuf_append(loc->pname, &ret->str, "%s%s",
-					(count > 0 ? sep : ""), scstr[i]);
+				strbuf_append(loc->pname, &ret->str, "%s%s%s%s",
+					(count > 0 ? sep : ""), quote, scstr[i], quote);
 				++count;
 			}
 		}
+		if (output->json)
+			strbuf_append_str(loc->pname, &ret->str, " ] }");
 	}
 }
 
@@ -2282,18 +2416,25 @@ device_info_terminate_capability(struct device_info_ret *ret,
 	const struct opt_out *output)
 {
 	GET_VAL(ret, loc, termcap);
+	if (output->json)
+		strbuf_append(loc->pname, &ret->str,
+			"{ \"raw\" : %" PRIu64 ", \"terminate\" : [ ",
+			ret->value.termcap);
+
 	if (!ret->err && ret->value.termcap) {
+		const char *quote = output->json ? "\"" : "";
 		/* iterate over terminate capability strings appending their textual form
 		 * to ret->str */
 		cl_uint i = 0;
 		cl_uint count = 0;
 		const char * const *capstr = (output->mode == CLINFO_HUMAN ?
 			terminate_capability_str : terminate_capability_raw_str);
-		set_separator(output->mode == CLINFO_HUMAN ? comma_str : vbar_str);
+		set_common_separator(output);
 		for (i = 0; i < terminate_capability_count; ++i) {
 			cl_device_terminate_capability_khr cur = (cl_device_terminate_capability_khr)(1) << i;
 			if (ret->value.termcap & cur) {
-				strbuf_append(loc->pname, &ret->str, "%s%s", (count > 0 ? sep : ""), capstr[i]);
+				strbuf_append(loc->pname, &ret->str, "%s%s%s%s",
+					(count > 0 ? sep : ""), quote, capstr[i], quote);
 				++count;
 			}
 		}
@@ -2301,9 +2442,12 @@ device_info_terminate_capability(struct device_info_ret *ret,
 		cl_device_terminate_capability_khr known_mask = ((cl_device_terminate_capability_khr)(1) << terminate_capability_count) - 1;
 		cl_device_terminate_capability_khr extra = ret->value.termcap & ~known_mask;
 		if (extra) {
-			strbuf_append(loc->pname, &ret->str, "%s%#" PRIx64, (count > 0 ? sep : ""), extra);
+			strbuf_append(loc->pname, &ret->str, "%s%s%#" PRIx64 "%s",
+				(count > 0 ? sep : ""), quote, extra, quote);
 		}
 	}
+	if (output->json)
+		strbuf_append_str(loc->pname, &ret->str, " ] }");
 }
 
 void
@@ -2320,10 +2464,13 @@ device_info_p2p_dev_list(struct device_info_ret *ret,
 	_GET_VAL_VALUES(ret, loc);
 	if (!ret->err) {
 		size_t cursor = 0;
+		strbuf_append_str_len(loc->pname, &ret->str, "[ ", 2);
+		set_common_separator(output);
 		for (cursor = 0; cursor < numval; ++cursor) {
 			strbuf_append(loc->pname, &ret->str, "%s%p",
-				(cursor > 0 ? " " : ""), (void*)val[cursor]);
+				(cursor > 0 ? sep : ""), (void*)val[cursor]);
 		}
+		strbuf_append_str_len(loc->pname, &ret->str, " ]", 2);
 		// TODO: ret->value.??? = val;
 	}
 	free(val);
@@ -2379,6 +2526,8 @@ device_info_interop_list(struct device_info_ret *ret,
 		}
 		// TODO: ret->value.??? = val;
 	}
+	// TODO JSONify
+	ret->needs_escaping = CL_TRUE;
 	free(val);
 }
 
@@ -2401,6 +2550,7 @@ void device_info_uuid(struct device_info_ret *ret,
 			uuid[9],  uuid[10],
 			uuid[11], uuid[12], uuid[13], uuid[14], uuid[15]);
 	}
+	ret->needs_escaping = CL_TRUE;
 }
 
 void device_info_luid(struct device_info_ret *ret,
@@ -2415,6 +2565,7 @@ void device_info_luid(struct device_info_ret *ret,
 			uuid[0], uuid[1],
 			uuid[2], uuid[3], uuid[4], uuid[5], uuid[6], uuid[7]);
 	}
+	ret->needs_escaping = CL_TRUE;
 }
 
 
@@ -2778,7 +2929,7 @@ printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uint p,
 
 		reset_strbuf(&ret.str);
 		reset_strbuf(&ret.err_str);
-		ret.needs_escaping = CL_TRUE;
+		ret.needs_escaping = CL_FALSE;
 
 		/* Handle headers */
 		if (traits->param == CL_FALSE) {
