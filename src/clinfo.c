@@ -1351,11 +1351,11 @@ device_info_time_offset(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
 	const struct opt_out *output)
 {
-	DEV_FETCH(cl_ulong, val);
+	GET_VAL(ret, loc, u64);
 	if (!ret->err) {
 		size_t szval = 0;
-		time_t time = val/UINT64_C(1000000000);
-		szval += strbuf_printf(&ret->str, "%" PRIu64 "ns (", val);
+		time_t time = ret->value.u64/UINT64_C(1000000000);
+		szval += strbuf_printf(&ret->str, "%" PRIu64 "ns (", ret->value.u64);
 		szval += bufcpy(&ret->str, szval, ctime(&time));
 		/* overwrite ctime's newline with the closing parenthesis */
 		if (szval < ret->str.sz)
