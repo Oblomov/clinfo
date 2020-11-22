@@ -15,13 +15,15 @@
 struct _strbuf
 {
 	char *buf;
-	size_t sz;
+	size_t sz; /* allocated size */
+	size_t end; /* offset to terminating null byte */
 };
 
 static inline void init_strbuf(struct _strbuf *str)
 {
 	str->buf = NULL;
 	str->sz = 0;
+	str->end = 0;
 }
 
 static inline void free_strbuf(struct _strbuf *str)
@@ -30,7 +32,11 @@ static inline void free_strbuf(struct _strbuf *str)
 	init_strbuf(str);
 }
 
-#define strbuf_printf(str, ...) snprintf((str)->buf, (str)->sz, __VA_ARGS__)
+static inline void reset_strbuf(struct _strbuf *str)
+{
+	str->end = 0;
+	if (str->buf) str->buf[0] = '\0';
+}
 
 static inline void realloc_strbuf(struct _strbuf *str, size_t nusz, const char* what)
 {
@@ -39,6 +45,8 @@ static inline void realloc_strbuf(struct _strbuf *str, size_t nusz, const char* 
 		str->sz = nusz;
 	}
 }
+
+#define strbuf_printf(str, ...) snprintf((str)->buf, (str)->sz, __VA_ARGS__)
 
 #define GET_STRING(str, err, cmd, param, param_str, ...) do { \
 	size_t nusz; \

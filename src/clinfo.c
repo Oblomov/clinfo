@@ -766,8 +766,8 @@ gatherPlatformInfo(struct platform_list *plist, cl_uint p, const struct opt_out 
 
 		cur_sfx = (output->mode == CLINFO_HUMAN && traits->sfx) ? traits->sfx : empty_str;
 
-		ret.str.buf[0] = '\0';
-		ret.err_str.buf[0] = '\0';
+		reset_strbuf(&ret.str);
+		reset_strbuf(&ret.err_str);
 		traits->show_func(&ret, &loc, pinfo_checks, output);
 
 		/* The property is skipped if this was a conditional property,
@@ -2793,8 +2793,8 @@ printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uint p,
 
 		cur_sfx = (output->mode == CLINFO_HUMAN && traits->sfx) ? traits->sfx : empty_str;
 
-		ret.str.buf[0] = '\0';
-		ret.err_str.buf[0] = '\0';
+		reset_strbuf(&ret.str);
+		reset_strbuf(&ret.err_str);
 
 		/* Handle headers */
 		if (traits->param == CL_FALSE) {
@@ -3078,7 +3078,7 @@ void showDevices(const struct platform_list *plist, const struct opt_out *output
 			strbuf_printf(&str, " +-- %sDevice #%" PRIu32 ": ",
 				(output->offline ? "Offline " : ""), maxdevs);
 		else
-			str.buf[0] = '\0'; /* reset */
+			reset_strbuf(&str);
 		/* TODO we have no prefix in HUMAN detailed output mode,
 		 * consider adding one
 		 */
@@ -3087,7 +3087,7 @@ void showDevices(const struct platform_list *plist, const struct opt_out *output
 	if (str.buf[0]) {
 		line_pfx_len = (int)(strlen(str.buf) + 1);
 		REALLOC(line_pfx, line_pfx_len, "line prefix");
-		str.buf[0] = '\0'; /* reset */
+		reset_strbuf(&str);
 	}
 
 	for (p = 0; p < num_platforms; ++p) {
@@ -3605,8 +3605,8 @@ struct icdl_data oclIcdProps(const struct platform_list *plist, const struct opt
 				traits->pname : traits->sname);
 			loc.param.icdl = traits->param;
 
-			ret.str.buf[0] = '\0';
-			ret.err_str.buf[0] = '\0';
+			reset_strbuf(&ret.str);
+			reset_strbuf(&ret.err_str);
 			icdl_info_str(&ret, &loc);
 
 			/* Do not print this property if the user requested one and this does not match */
