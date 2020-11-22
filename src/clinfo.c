@@ -2173,7 +2173,7 @@ device_info_arch(struct device_info_ret *ret,
 	if (!ret->err) {
 		DEV_FETCH_LOC(cl_bool, val, &loc2);
 		if (!ret->err) {
-			strbuf_printf(&ret->str, "%" PRIu32 ", %s", bits, endian_str[val]);
+			strbuf_append(loc->pname, &ret->str, "%" PRIu32 ", %s", bits, endian_str[val]);
 		}
 	}
 }
@@ -2187,29 +2187,31 @@ device_info_svm_cap(struct device_info_ret *ret,
 	const cl_bool is_20 = dev_is_20(chk);
 	const cl_bool checking_core = (loc->param.dev == CL_DEVICE_SVM_CAPABILITIES);
 	const cl_bool has_amd_svm = (checking_core && dev_has_amd_svm(chk));
-	DEV_FETCH(cl_device_svm_capabilities, val);
+	GET_VAL(ret, loc, svmcap);
 
 	if (!ret->err) {
-		size_t szval = 0;
 		cl_uint i = 0;
 		const char * const *scstr = (output->mode == CLINFO_HUMAN ?
 			svm_cap_str : svm_cap_raw_str);
 		set_separator(vbar_str);
 		if (output->mode == CLINFO_HUMAN && checking_core) {
 			/* show 'why' it's being shown */
-			szval += strbuf_printf(&ret->str, "(%s%s%s)",
+			strbuf_append(loc->pname, &ret->str, "(%s%s%s)",
 				(is_20 ? core : empty_str),
 				(is_20 && has_amd_svm ? comma_str : empty_str),
 				chk->has_amd_svm);
 		}
+		cl_uint count = 0;
 		for (i = 0; i < svm_cap_count; ++i) {
 			cl_device_svm_capabilities cur = (cl_device_svm_capabilities)(1) << i;
+			cl_bool present = !!(ret->value.svmcap & cur);
 			if (output->mode == CLINFO_HUMAN) {
-				szval += sprintf(ret->str.buf + szval, "\n%s" I2_STR "%s",
-					line_pfx, scstr[i], bool_str[!!(val & cur)]);
-			} else if (val & cur) {
-				add_separator(&ret->str, &szval);
-				szval += bufcpy(&ret->str, szval, scstr[i]);
+				strbuf_append(loc->pname, &ret->str, "\n%s" I2_STR "%s",
+					line_pfx, scstr[i], bool_str[present]);
+			} else if (present) {
+				strbuf_append(loc->pname, &ret->str, "%s%s",
+					(count > 0 ? sep : ""), scstr[i]);
+				++count;
 			}
 		}
 	}
@@ -2221,33 +2223,27 @@ device_info_terminate_capability(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
 	const struct opt_out *output)
 {
-	DEV_FETCH(cl_device_terminate_capability_khr, val);
-	if (!ret->err && val) {
+	GET_VAL(ret, loc, termcap);
+	if (!ret->err && ret->value.termcap) {
 		/* iterate over terminate capability strings appending their textual form
 		 * to ret->str */
-		size_t szval = 0;
 		cl_uint i = 0;
+		cl_uint count = 0;
 		const char * const *capstr = (output->mode == CLINFO_HUMAN ?
 			terminate_capability_str : terminate_capability_raw_str);
 		set_separator(output->mode == CLINFO_HUMAN ? comma_str : vbar_str);
 		for (i = 0; i < terminate_capability_count; ++i) {
 			cl_device_terminate_capability_khr cur = (cl_device_terminate_capability_khr)(1) << i;
-			if (val & cur) {
-				/* match: add separator if not first match */
-				add_separator(&ret->str, &szval);
-				szval += bufcpy(&ret->str, szval, capstr[i]);
+			if (ret->value.termcap & cur) {
+				strbuf_append(loc->pname, &ret->str, "%s%s", (count > 0 ? sep : ""), capstr[i]);
+				++count;
 			}
-			if (szval >= ret->str.sz)
-				break;
 		}
 		/* check for extra bits */
-		if (szval < ret->str.sz) {
-			cl_device_terminate_capability_khr known_mask = ((cl_device_terminate_capability_khr)(1) << terminate_capability_count) - 1;
-			cl_device_terminate_capability_khr extra = val & ~known_mask;
-			if (extra) {
-				add_separator(&ret->str, &szval);
-				szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "%#" PRIx64, extra);
-			}
+		cl_device_terminate_capability_khr known_mask = ((cl_device_terminate_capability_khr)(1) << terminate_capability_count) - 1;
+		cl_device_terminate_capability_khr extra = ret->value.termcap & ~known_mask;
+		if (extra) {
+			strbuf_append(loc->pname, &ret->str, "%s%#" PRIx64, (count > 0 ? sep : ""), extra);
 		}
 	}
 }
@@ -2266,13 +2262,9 @@ device_info_p2p_dev_list(struct device_info_ret *ret,
 	_GET_VAL_VALUES(ret, loc);
 	if (!ret->err) {
 		size_t cursor = 0;
-		szval = 0;
-		for (cursor= 0; cursor < numval; ++cursor) {
-			if (szval > 0) {
-				ret->str.buf[szval] = ' ';
-				++szval;
-			}
-			szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "%p", (void*)val[cursor]);
+		for (cursor = 0; cursor < numval; ++cursor) {
+			strbuf_append(loc->pname, &ret->str, "%s%p",
+				(cursor > 0 ? " " : ""), (void*)val[cursor]);
 		}
 		// TODO: ret->value.??? = val;
 	}
@@ -2300,7 +2292,7 @@ device_info_interop_list(struct device_info_ret *ret,
 				/* A null value is used as group terminator, but we only print it
 				 * if it's not the final one
 				 */
-				szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "%s", groupsep);
+				strbuf_append_str(loc->pname, &ret->str, groupsep);
 				first = CL_TRUE;
 			}
 			if (current) {
@@ -2308,8 +2300,7 @@ device_info_interop_list(struct device_info_ret *ret,
 				const cl_interop_name *n = cl_interop_names;
 
 				if (!first) {
-					ret->str.buf[szval] = ' ';
-					++szval;
+					strbuf_append_str(loc->pname, &ret->str, " ");
 				}
 
 				while (n < interop_name_end) {
@@ -2321,15 +2312,11 @@ device_info_interop_list(struct device_info_ret *ret,
 				}
 				if (found) {
 					cl_uint i = current - n->from;
-					szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "%s", n->value[i][human_raw]);
+					strbuf_append(loc->pname, &ret->str, "%s", n->value[i][human_raw]);
 				} else {
-					szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "%#" PRIx32, val[cursor]);
+					strbuf_append(loc->pname, &ret->str, "%#" PRIx32, val[cursor]);
 				}
 				first = CL_FALSE;
-			}
-			if (szval >= ret->str.sz) {
-				trunc_strbuf(&ret->str);
-				break;
 			}
 		}
 		// TODO: ret->value.??? = val;
@@ -2344,7 +2331,7 @@ void device_info_uuid(struct device_info_ret *ret,
 	cl_uchar uuid[CL_UUID_SIZE_KHR];
 	_GET_VAL(ret, loc, uuid);
 	if (!ret->err) {
-		strbuf_printf(&ret->str,
+		strbuf_append(loc->pname, &ret->str,
 			"%02x%02x%02x%02x-"
 			"%02x%02x-"
 			"%02x%02x-"
@@ -2366,7 +2353,7 @@ void device_info_luid(struct device_info_ret *ret,
 	_GET_VAL(ret, loc, uuid);
 	if (!ret->err) {
 		/* TODO not sure this is the correct representation for LUIDs? */
-		strbuf_printf(&ret->str, "%02x%02x-%02x%02x%02x%02x%02x%02x",
+		strbuf_append(loc->pname, &ret->str, "%02x%02x-%02x%02x%02x%02x%02x%02x",
 			uuid[0], uuid[1],
 			uuid[2], uuid[3], uuid[4], uuid[5], uuid[6], uuid[7]);
 	}
