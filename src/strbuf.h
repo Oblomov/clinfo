@@ -83,8 +83,11 @@ static inline void strbuf_append_str_len(const char *what, struct _strbuf *str,
 		realloc_strbuf(str, str->end + len + 1, what);
 	}
 	/* copy up to the terminating NULL */
-	memcpy(str->buf + str->end, to_append, len + 1);
+	memcpy(str->buf + str->end, to_append, len);
 	str->end += len;
+	/* ensure we have a NULL in last position, since len may have been used
+	 * to override the original string length */
+	str->buf[str->end] = '\0';
 }
 
 static inline void strbuf_append_str(const char *what, struct _strbuf *str, const char *to_append)

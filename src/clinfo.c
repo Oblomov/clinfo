@@ -1652,13 +1652,13 @@ device_info_core_ids(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
 	const struct opt_out *output)
 {
-	DEV_FETCH(cl_ulong, val);
+	GET_VAL(ret, loc, u64);
+	cl_ulong val = ret->value.u64;
 
 	if (!ret->err) {
 		/* The value is a bitfield where each set bit corresponds to a core ID
 		 * value that can be returned by the device-side function. We print them
 		 * here as ranges, such as 0-4, 8-12 */
-		size_t szval = 0;
 		int range_start = -1;
 		int cur_bit = 0;
 		set_separator(empty_str);
@@ -1675,16 +1675,13 @@ device_info_core_ids(struct device_info_ret *ret,
 
 			/* print the range [range_start, cur_bit[ */
 			if (range_start >= 0 && range_start < CORE_ID_END) {
-				szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1,
-					"%s%d", sep, range_start);
+				strbuf_append(loc->pname, &ret->str, "%s%d", sep, range_start);
 				if (cur_bit - range_start > 1)
-					szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1,
-						"-%d", cur_bit - 1);
+					strbuf_append(loc->pname, &ret->str, "-%d", cur_bit - 1);
 				set_separator(comma_str);
 			}
 		} while (cur_bit < CORE_ID_END);
 	}
-	ret->value.u64 = val;
 }
 
 /* cl_arm_job_slot_selection */
@@ -1693,12 +1690,12 @@ device_info_job_slots(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
 	const struct opt_out *output)
 {
-	DEV_FETCH(cl_uint, val);
+	GET_VAL(ret, loc, u32);
+	cl_uint val = ret->value.u32;
 
 	if (!ret->err) {
 		/* The value is a bitfield where each set bit corresponds to an available job slot.
 		 * We print them here as ranges, such as 0-4, 8-12 */
-		size_t szval = 0;
 		int range_start = -1;
 		int cur_bit = 0;
 		set_separator(empty_str);
@@ -1715,16 +1712,13 @@ device_info_job_slots(struct device_info_ret *ret,
 
 			/* print the range [range_start, cur_bit[ */
 			if (range_start >= 0 && range_start < JOB_SLOT_END) {
-				szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1,
-					"%s%d", sep, range_start);
+				strbuf_append(loc->pname, &ret->str, "%s%d", sep, range_start);
 				if (cur_bit - range_start > 1)
-					szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1,
-						"-%d", cur_bit - 1);
+					strbuf_append(loc->pname, &ret->str, "-%d", cur_bit - 1);
 				set_separator(comma_str);
 			}
 		} while (cur_bit < JOB_SLOT_END);
 	}
-	ret->value.u32 = val;
 }
 
 /* stringify a cl_device_topology_amd */
@@ -1735,12 +1729,12 @@ void devtopo_str(struct device_info_ret *ret, const cl_device_topology_amd *devt
 		/* leave empty */
 		break;
 	case CL_DEVICE_TOPOLOGY_TYPE_PCIE_AMD:
-		strbuf_printf(&ret->str, "PCI-E, %02x:%02x.%u",
+		strbuf_append("devtopo", &ret->str, "PCI-E, %02x:%02x.%u",
 			(cl_uchar)(devtopo->pcie.bus),
 			devtopo->pcie.device, devtopo->pcie.function);
 		break;
 	default:
-		strbuf_printf(&ret->str, "<unknown (%u): %u %u %u %u %u>",
+		strbuf_append("devtopo", &ret->str, "<unknown (%u): %u %u %u %u %u>",
 			devtopo->raw.type,
 			devtopo->raw.data[0], devtopo->raw.data[1],
 			devtopo->raw.data[2],
@@ -1753,10 +1747,10 @@ device_info_devtopo_amd(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
 	const struct opt_out *output)
 {
-	DEV_FETCH(cl_device_topology_amd, val);
+	GET_VAL(ret, loc, devtopo);
 	/* TODO how to do this in CLINFO_RAW mode */
 	if (!ret->err) {
-		devtopo_str(ret, &val);
+		devtopo_str(ret, &ret->value.devtopo);
 	}
 }
 
@@ -1797,7 +1791,7 @@ device_info_cc_nv(struct device_info_ret *ret,
 		RESET_LOC_PARAM(loc2, dev, CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV);
 		_GET_VAL(ret, &loc2, minor);
 		if (!ret->err) {
-			strbuf_printf(&ret->str, "%" PRIu32 ".%" PRIu32 "", major, minor);
+			strbuf_append("NV CC", &ret->str, "%" PRIu32 ".%" PRIu32 "", major, minor);
 		}
 	}
 	ret->value.u32v.s[0] = major;
@@ -1817,7 +1811,7 @@ device_info_gfxip_amd(struct device_info_ret *ret,
 		RESET_LOC_PARAM(loc2, dev, CL_DEVICE_GFXIP_MINOR_AMD);
 		_GET_VAL(ret, &loc2, minor);
 		if (!ret->err) {
-			strbuf_printf(&ret->str, "%" PRIu32 ".%" PRIu32 "", major, minor);
+			strbuf_append("AMD GFXIP", &ret->str, "%" PRIu32 ".%" PRIu32 "", major, minor);
 		}
 	}
 	ret->value.u32v.s[0] = major;
@@ -1833,16 +1827,13 @@ device_info_partition_header(struct device_info_ret *ret,
 {
 	cl_bool is_12 = dev_is_12(chk);
 	cl_bool has_fission = dev_has_fission(chk);
-	size_t szval = strbuf_printf(&ret->str, "(%s%s%s%s)",
+	strbuf_append("dev partition", &ret->str, "(%s%s%s%s)",
 		(is_12 ? core : empty_str),
 		(is_12 && has_fission ? comma_str : empty_str),
 		chk->has_fission,
 		(!(is_12 || has_fission) ? na : empty_str));
 
 	ret->err = CL_SUCCESS;
-
-	if (szval >= ret->str.sz)
-		trunc_strbuf(&ret->str);
 }
 
 /* Device partition properties */
@@ -1851,7 +1842,7 @@ device_info_partition_types(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
 	const struct opt_out *output)
 {
-	size_t numval = 0, szval = 0, cursor = 0, slen = 0;
+	size_t numval = 0, szval = 0, cursor = 0;
 	cl_device_partition_property *val = NULL;
 	const char * const *ptstr = (output->mode == CLINFO_HUMAN ?
 		partition_type_str : partition_type_raw_str);
@@ -1860,13 +1851,12 @@ device_info_partition_types(struct device_info_ret *ret,
 
 	GET_VAL_ARRAY(ret, loc);
 
-	szval = 0;
 	if (!ret->err) {
 		for (cursor = 0; cursor < numval; ++cursor) {
 			int str_idx = -1;
 
 			/* add separator for values past the first */
-			add_separator(&ret->str, &szval);
+			if (cursor > 0) strbuf_append_str(loc->pname, &ret->str, sep);
 
 			switch (val[cursor]) {
 			case 0: str_idx = 0; break;
@@ -1875,19 +1865,15 @@ device_info_partition_types(struct device_info_ret *ret,
 			case CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN: str_idx = 3; break;
 			case CL_DEVICE_PARTITION_BY_NAMES_INTEL: str_idx = 4; break;
 			default:
-				szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "by <unknown> (%#" PRIxPTR ")", val[cursor]);
+				strbuf_append(loc->pname, &ret->str, "by <unknown> (%#" PRIxPTR ")", val[cursor]);
 				break;
 			}
 			if (str_idx >= 0) {
 				/* string length, minus _EXT */
-				slen = strlen(ptstr[str_idx]);
+				size_t slen = strlen(ptstr[str_idx]);
 				if (output->mode == CLINFO_RAW && str_idx > 0)
 					slen -= 4;
-				szval += bufcpy_len(&ret->str, szval, ptstr[str_idx], slen);
-			}
-			if (szval >= ret->str.sz) {
-				trunc_strbuf(&ret->str);
-				break;
+				strbuf_append_str_len(loc->pname, &ret->str, ptstr[str_idx], slen);
 			}
 		}
 		// TODO ret->value.??? = val
@@ -1900,7 +1886,7 @@ device_info_partition_types_ext(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
 	const struct opt_out *output)
 {
-	size_t numval = 0, szval = 0, cursor = 0, slen = 0;
+	size_t numval = 0, szval = 0, cursor = 0;
 	cl_device_partition_property_ext *val = NULL;
 	const char * const *ptstr = (output->mode == CLINFO_HUMAN ?
 		partition_type_str : partition_type_raw_str);
@@ -1909,13 +1895,12 @@ device_info_partition_types_ext(struct device_info_ret *ret,
 
 	GET_VAL_ARRAY(ret, loc);
 
-	szval = 0;
 	if (!ret->err) {
 		for (cursor = 0; cursor < numval; ++cursor) {
 			int str_idx = -1;
 
 			/* add separator for values past the first */
-			add_separator(&ret->str, &szval);
+			if (cursor > 0) strbuf_append_str(loc->pname, &ret->str, sep);
 
 			switch (val[cursor]) {
 			case 0: str_idx = 0; break;
@@ -1924,22 +1909,13 @@ device_info_partition_types_ext(struct device_info_ret *ret,
 			case CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN_EXT: str_idx = 3; break;
 			case CL_DEVICE_PARTITION_BY_NAMES_EXT: str_idx = 4; break;
 			default:
-				szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "by <unknown> (%#" PRIx64 ")", val[cursor]);
+				strbuf_append(loc->pname, &ret->str, "by <unknown> (%#" PRIx64 ")", val[cursor]);
 				break;
 			}
 			if (str_idx >= 0) {
-				/* string length */
-				slen = strlen(ptstr[str_idx]);
-				strncpy(ret->str.buf + szval, ptstr[str_idx], slen);
-				szval += slen;
-			}
-			if (szval >= ret->str.sz) {
-				trunc_strbuf(&ret->str);
-				break;
+				strbuf_append_str(loc->pname, &ret->str, ptstr[str_idx]);
 			}
 		}
-		if (szval < ret->str.sz)
-			ret->str.buf[szval] = '\0';
 		// TODO ret->value.??? = val
 	}
 	free(val);
