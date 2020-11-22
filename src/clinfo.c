@@ -1533,32 +1533,31 @@ device_info_devtype(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
 	const struct opt_out *output)
 {
-	DEV_FETCH(cl_device_type, val);
+	GET_VAL(ret, loc, devtype);
 	if (!ret->err) {
 		/* iterate over device type strings, appending their textual form
 		 * to ret->str */
 		cl_uint i = (cl_uint)actual_devtype_count;
 		const char * const *devstr = (output->mode == CLINFO_HUMAN ?
 			device_type_str : device_type_raw_str);
-		size_t szval = 0;
 		set_separator(output->mode == CLINFO_HUMAN ? comma_str : vbar_str);
+		cl_uint count = 0;
 		for (; i > 0; --i) {
 			/* assemble CL_DEVICE_TYPE_* from index i */
 			cl_device_type cur = (cl_device_type)(1) << (i-1);
-			if (val & cur) {
+			if (ret->value.devtype & cur) {
 				/* match: add separator if not first match */
-				add_separator(&ret->str, &szval);
-				szval += bufcpy(&ret->str, szval, devstr[i]);
+				if (count > 0) strbuf_append_str(loc->pname, &ret->str, sep);
+				strbuf_append_str(loc->pname, &ret->str, devstr[i]);
+				++count;
 			}
 		}
 		/* check for extra bits */
-		if (szval < ret->str.sz) {
-			cl_device_type known_mask = ((cl_device_type)(1) << actual_devtype_count) - 1;
-			cl_device_type extra = val & ~known_mask;
-			if (extra) {
-				add_separator(&ret->str, &szval);
-				szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "%#" PRIx64, extra);
-			}
+		cl_device_type known_mask = ((cl_device_type)(1) << actual_devtype_count) - 1;
+		cl_device_type extra = ret->value.devtype & ~known_mask;
+		if (extra) {
+			if (count > 0) strbuf_append_str(loc->pname, &ret->str, sep);
+			strbuf_append(loc->pname, &ret->str, "%#" PRIx64, extra);
 		}
 	}
 }
@@ -1568,11 +1567,11 @@ device_info_cachetype(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
 	const struct opt_out *output)
 {
-	DEV_FETCH(cl_device_mem_cache_type, val);
+	GET_VAL(ret, loc, cachetype);
 	if (!ret->err) {
 		const char * const *ar = (output->mode == CLINFO_HUMAN ?
 			cache_type_str : cache_type_raw_str);
-		bufcpy(&ret->str, 0, ar[val]);
+		strbuf_append_str(loc->pname, &ret->str, ar[ret->value.cachetype]);
 	}
 }
 
@@ -1581,13 +1580,12 @@ device_info_lmemtype(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
 	const struct opt_out *output)
 {
-	DEV_FETCH(cl_device_local_mem_type, val);
+	GET_VAL(ret, loc, lmemtype);
 	if (!ret->err) {
 		const char * const *ar = (output->mode == CLINFO_HUMAN ?
 			lmem_type_str : lmem_type_raw_str);
-		bufcpy(&ret->str, 0, ar[val]);
+		strbuf_append_str(loc->pname, &ret->str, ar[ret->value.lmemtype]);
 	}
-	ret->value.lmemtype = val;
 }
 
 void
@@ -1595,29 +1593,26 @@ device_info_atomic_caps(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
 	const struct opt_out *output)
 {
-	DEV_FETCH(cl_bitfield, val);
+	GET_VAL(ret, loc, bits);
 	if (!ret->err) {
-		size_t szval = 0;
 		cl_uint i = 0;
+		cl_uint count = 0;
 		const char * const * capstr = (output->mode == CLINFO_HUMAN ?
 			atomic_cap_str : atomic_cap_raw_str);
 		set_separator(output->mode == CLINFO_HUMAN ? comma_str : vbar_str);
 		for (i = 0; i < atomic_cap_count; ++i) {
-			if (val & (1 << i)) {
-				add_separator(&ret->str, &szval);
-				szval += bufcpy(&ret->str, szval, capstr[i]);
+			if (ret->value.bits & (1 << i)) {
+				if (count > 0) strbuf_append_str(loc->pname, &ret->str, sep);
+				strbuf_append(loc->pname, &ret->str, capstr[i]);
+				++count;
 			}
-			if (szval >= ret->str.sz)
-				break;
 		}
 		/* check for extra bits */
-		if (szval < ret->str.sz) {
-			cl_bitfield known_mask = ((cl_bitfield)(1) << atomic_cap_count) - 1;
-			cl_bitfield extra = val & ~known_mask;
-			if (extra) {
-				add_separator(&ret->str, &szval);
-				szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "%#" PRIx64, extra);
-			}
+		cl_bitfield known_mask = ((cl_bitfield)(1) << atomic_cap_count) - 1;
+		cl_bitfield extra = ret->value.bits & ~known_mask;
+		if (extra) {
+			if (count > 0) strbuf_append_str(loc->pname, &ret->str, sep);
+			strbuf_append(loc->pname, &ret->str, "%#" PRIx64, extra);
 		}
 	}
 }
@@ -1627,29 +1622,26 @@ device_info_device_enqueue_caps(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
 	const struct opt_out *output)
 {
-	DEV_FETCH(cl_bitfield, val);
+	GET_VAL(ret, loc, bits);
 	if (!ret->err) {
-		size_t szval = 0;
 		cl_uint i = 0;
+		cl_uint count = 0;
 		const char * const * capstr = (output->mode == CLINFO_HUMAN ?
 			device_enqueue_cap_str : device_enqueue_cap_raw_str);
 		set_separator(output->mode == CLINFO_HUMAN ? comma_str : vbar_str);
 		for (i = 0; i < device_enqueue_cap_count; ++i) {
-			if (val & (1 << i)) {
-				add_separator(&ret->str, &szval);
-				szval += bufcpy(&ret->str, szval, capstr[i]);
+			if (ret->value.bits & (1 << i)) {
+				if (count > 0) strbuf_append_str(loc->pname, &ret->str, sep);
+				strbuf_append(loc->pname, &ret->str, capstr[i]);
+				++count;
 			}
-			if (szval >= ret->str.sz)
-				break;
 		}
 		/* check for extra bits */
-		if (szval < ret->str.sz) {
-			cl_bitfield known_mask = ((cl_bitfield)(1) << device_enqueue_cap_count) - 1;
-			cl_bitfield extra = val & ~known_mask;
-			if (extra) {
-				add_separator(&ret->str, &szval);
-				szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "%#" PRIx64, extra);
-			}
+		cl_bitfield known_mask = ((cl_bitfield)(1) << device_enqueue_cap_count) - 1;
+		cl_bitfield extra = ret->value.bits & ~known_mask;
+		if (extra) {
+			if (count > 0) strbuf_append_str(loc->pname, &ret->str, sep);
+			strbuf_append(loc->pname, &ret->str, "%#" PRIx64, extra);
 		}
 	}
 }

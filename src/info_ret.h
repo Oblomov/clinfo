@@ -37,6 +37,7 @@ struct device_info_ret {
 		cl_int i32;
 		cl_uint u32;
 		cl_uint4 u32v;
+		cl_bitfield bits;
 		cl_bool b;
 		cl_device_type devtype;
 		cl_device_mem_cache_type cachetype;
