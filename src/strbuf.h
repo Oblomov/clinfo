@@ -9,6 +9,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include "memory.h"
 #include "fmtmacros.h"
 
@@ -46,6 +47,49 @@ static inline void free_strbuf(struct _strbuf *str)
 	free(str->buf);
 	str->buf = NULL;
 	reset_strbuf(str);
+}
+
+static inline void strbuf_append(const char *what, struct _strbuf *str, const char *fmt, ...)
+{
+	va_list ap;
+	size_t room = str->sz - str->end - 1;
+	size_t written = 0;
+
+	/* write if we have room */
+	va_start(ap, fmt);
+	written = vsnprintf(str->buf + str->end, room, fmt, ap);
+	va_end(ap);
+
+	/* if we would have written more, we need to expand the storage */
+	if (written >= room) {
+		realloc_strbuf(str, str->end + written + 1, what);
+		room = str->sz - str->end;
+
+		/* and re-write */
+		va_start(ap, fmt);
+		written = vsnprintf(str->buf + str->end, room, fmt, ap);
+		va_end(ap);
+	}
+	str->end += written;
+}
+
+static inline void strbuf_append_str_len(const char *what, struct _strbuf *str,
+	const char *to_append, /* string to append */
+	size_t len) /* length of string to append */
+{
+	size_t room = str->sz - str->end - 1;
+
+	if (len >= room) {
+		realloc_strbuf(str, str->end + len + 1, what);
+	}
+	/* copy up to the terminating NULL */
+	memcpy(str->buf + str->end, to_append, len + 1);
+	str->end += len;
+}
+
+static inline void strbuf_append_str(const char *what, struct _strbuf *str, const char *to_append)
+{
+	strbuf_append_str_len(what, str, to_append, strlen(to_append));
 }
 
 #define strbuf_printf(str, ...) snprintf((str)->buf, (str)->sz, __VA_ARGS__)

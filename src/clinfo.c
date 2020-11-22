@@ -548,37 +548,27 @@ struct unpacked_cl_version unpack_cl_version(cl_uint version)
 	return ret;
 }
 
-size_t strbuf_version(struct _strbuf *str, cl_uint version, size_t szval)
+void strbuf_version(const char *what, struct _strbuf *str, cl_uint version)
 {
 	struct unpacked_cl_version u = unpack_cl_version(version);
-	return sprintf(str->buf + szval, " (%" PRIu32 ".%" PRIu32 ".%" PRIu32 ")",
+	strbuf_append(what, str, " (%" PRIu32 ".%" PRIu32 ".%" PRIu32 ")",
 				u.major, u.minor, u.patch);
-
 }
 
-void strbuf_name_version(struct _strbuf *str, const cl_name_version *ext, size_t num_exts,
+void strbuf_name_version(const char *what, struct _strbuf *str, const cl_name_version *ext, size_t num_exts,
 	const struct opt_out *output)
 {
-	size_t szval = 0;
 	realloc_strbuf(str, num_exts*(CL_NAME_VERSION_MAX_NAME_SIZE + 128), "extension versions");
 	set_separator(output->mode == CLINFO_HUMAN ? full_padding : spc_str);
 	for (size_t i = 0; i < num_exts; ++i) {
 		const cl_name_version  *e = ext + i;
-		add_separator(str, &szval);
+		if (i > 0) strbuf_append_str(what, str, sep);
 		if (output->mode == CLINFO_HUMAN) {
 			struct unpacked_cl_version u = unpack_cl_version(e->version);
-			szval += snprintf(str->buf + szval,
-				str->sz - szval - 1, "%-65s%#8" PRIx32 " (%d.%d.%d)",
+			strbuf_append(what, str, "%-65s%#8" PRIx32 " (%d.%d.%d)",
 				e->name, e->version, u.major, u.minor, u.patch);
 		} else {
-			szval += snprintf(str->buf + szval,
-				str->sz - szval - 1,
-				"%s:%#" PRIx32,
-				e->name, e->version);
-		}
-		if (szval >= str->sz) {
-			trunc_strbuf(str);
-			break;
+			strbuf_append(what, str, "%s:%#" PRIx32, e->name, e->version);
 		}
 	}
 }
@@ -611,7 +601,7 @@ platform_info_ulong(struct platform_info_ret *ret,
 		clGetPlatformInfo(loc->plat, loc->param.plat, sizeof(ret->value.u64), &ret->value.u64, NULL),
 		loc, "get %s");
 	CHECK_SIZE(ret, loc, ret->value.u64, clGetPlatformInfo, loc->plat, loc->param.plat);
-	strbuf_printf(&ret->str, "%" PRIu64, ret->value.u64);
+	strbuf_append(loc->pname, &ret->str, "%" PRIu64, ret->value.u64);
 }
 
 void
@@ -623,7 +613,7 @@ platform_info_sz(struct platform_info_ret *ret,
 		clGetPlatformInfo(loc->plat, loc->param.plat, sizeof(ret->value.s), &ret->value.s, NULL),
 		loc, "get %s");
 	CHECK_SIZE(ret, loc, ret->value.s, clGetPlatformInfo, loc->plat, loc->param.plat);
-	strbuf_printf(&ret->str, "%" PRIuS, ret->value.s);
+	strbuf_append(loc->pname, &ret->str, "%" PRIuS, ret->value.s);
 }
 
 void
@@ -635,9 +625,9 @@ platform_info_version(struct platform_info_ret *ret,
 		clGetPlatformInfo(loc->plat, loc->param.plat, sizeof(ret->value.u32), &ret->value.u32, NULL),
 		loc, "get %s");
 	CHECK_SIZE(ret, loc, ret->value.u32, clGetPlatformInfo, loc->plat, loc->param.plat);
-	size_t szval = strbuf_printf(&ret->str, "%#" PRIx32, ret->value.u32);
+	strbuf_append(loc->pname, &ret->str, "%#" PRIx32, ret->value.u32);
 	if (output->mode == CLINFO_HUMAN) {
-		strbuf_version(&ret->str, ret->value.u32, szval);
+		strbuf_version(loc->pname, &ret->str, ret->value.u32);
 	}
 }
 
@@ -659,7 +649,7 @@ platform_info_ext_version(struct platform_info_ret *ret,
 	}
 	if (!ret->err) {
 		size_t num_exts = nusz / sizeof(cl_name_version);
-		strbuf_name_version(&ret->str, ext, num_exts, output);
+		strbuf_name_version(loc->pname, &ret->str, ext, num_exts, output);
 	}
 	free(ext);
 }
@@ -1186,7 +1176,7 @@ DEFINE_DEVINFO_FETCH(cl_device_terminate_capability_khr, termcap)
 	type var = device_fetch_##type(ret, loc, chk, output)
 #define DEV_FETCH(type, var) DEV_FETCH_LOC(type, var, loc)
 
-#define FMT_VAL(ret, fmt, val) if (!ret->err) strbuf_printf(&ret->str, fmt, val)
+#define FMT_VAL(loc, ret, fmt, val) if (!ret->err) strbuf_append(loc->pname, &ret->str, fmt, val)
 
 #define DEFINE_DEVINFO_SHOW(how, type, field, fmt) \
 void \
@@ -1195,7 +1185,7 @@ device_info_##how(struct device_info_ret *ret, \
 	const struct opt_out *output) \
 { \
 	DEV_FETCH(type, val); \
-	if (!ret->err) FMT_VAL(ret, fmt, val); \
+	if (!ret->err) FMT_VAL(loc, ret, fmt, val); \
 }
 
 DEFINE_DEVINFO_SHOW(int, cl_uint, u32, "%" PRIu32)
@@ -1241,12 +1231,10 @@ device_info_version(struct device_info_ret *ret,
 {
 	DEV_FETCH(cl_version, val);
 	if (!ret->err) {
-		size_t szval = strbuf_printf(&ret->str, "%#" PRIx32, val);
+		strbuf_append(loc->pname, &ret->str, "%#" PRIx32, val);
 		if (output->mode == CLINFO_HUMAN) {
-			strbuf_version(&ret->str, val, szval);
+			strbuf_version(loc->pname, &ret->str, val);
 		}
-
-
 	}
 }
 
@@ -1259,7 +1247,7 @@ device_info_ext_version(struct device_info_ret *ret,
 	size_t szval = 0, numval = 0;
 	GET_VAL_ARRAY(ret, loc);
 	if (!ret->err) {
-		strbuf_name_version(&ret->str, val, numval, output);
+		strbuf_name_version(loc->pname, &ret->str, val, numval, output);
 	}
 	free(val);
 }
