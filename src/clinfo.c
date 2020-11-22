@@ -1421,10 +1421,11 @@ getWGsizes(struct device_info_ret *ret, const struct info_loc *loc, size_t *wgm,
 		goto out;
 
 	for (cursor = 0; cursor < wgm_sz; ++cursor) {
-		strbuf_printf(&ret->str, "sum%u", 1<<cursor);
+		strbuf_append(__func__, &ret->str, "sum%u", 1<<cursor);
 		if (cursor == 0)
 			ret->str.buf[3] = 0; // scalar kernel is called 'sum'
 		krn = clCreateKernel(prg, ret->str.buf, &ret->err);
+		reset_strbuf(&ret->str);
 		if (REPORT_ERROR(&ret->err_str, ret->err, "create kernel")) goto out;
 		ret->err = clGetKernelWorkGroupInfo(krn, loc->dev, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE,
 			sizeof(*wgm), wgm + cursor, NULL);

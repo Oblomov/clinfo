@@ -95,8 +95,6 @@ static inline void strbuf_append_str(const char *what, struct _strbuf *str, cons
 	strbuf_append_str_len(what, str, to_append, strlen(to_append));
 }
 
-#define strbuf_printf(str, ...) snprintf((str)->buf, (str)->sz, __VA_ARGS__)
-
 #define GET_STRING(str, err, cmd, param, param_str, ...) do { \
 	size_t nusz; \
 	err = cmd(__VA_ARGS__, param, 0, NULL, &nusz); \
