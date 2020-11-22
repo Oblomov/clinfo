@@ -56,7 +56,8 @@ static inline void free_strbuf(struct _strbuf *str)
 	if (REPORT_ERROR(str, err, "get " param_str " size")) break; \
 	realloc_strbuf(str, nusz, #param); \
 	err = cmd(__VA_ARGS__, param, (str)->sz, (str)->buf, NULL); \
-	REPORT_ERROR(str, err, "get " param_str); \
+	if (REPORT_ERROR(str, err, "get " param_str)) break; \
+	(str)->end = nusz; \
 } while (0)
 
 #define GET_STRING_LOC(ret, loc, cmd, ...) do { \
@@ -69,6 +70,9 @@ static inline void free_strbuf(struct _strbuf *str)
 		ret->err = REPORT_ERROR_LOC(ret, \
 			cmd(__VA_ARGS__, ret->str.sz, ret->str.buf, NULL), \
 			loc, "get %s"); \
+	} \
+	if (!ret->err) { \
+		ret->str.end = nusz; \
 	} \
 } while (0)
 
