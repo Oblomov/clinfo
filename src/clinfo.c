@@ -3062,7 +3062,7 @@ void checkNullGetPlatformName(const struct opt_out *output)
 
 	ret.err = clGetPlatformInfo(NULL, CL_PLATFORM_NAME, ret.str.sz, ret.str.buf, NULL);
 	if (ret.err == CL_INVALID_PLATFORM) {
-		bufcpy(&ret.err_str, 0, no_plat(output));
+		strbuf_append(__func__, &ret.err_str, no_plat(output));
 	} else {
 		loc.line = __LINE__ + 1;
 		REPORT_ERROR_LOC(&ret, ret.err, &loc, "get %s");
@@ -3112,7 +3112,7 @@ cl_uint checkNullGetDevices(const struct platform_list *plist, const struct opt_
 
 	switch (ret.err) {
 	case CL_INVALID_PLATFORM:
-		bufcpy(&ret.err_str, 0, no_plat(output));
+		strbuf_append_str(__func__, &ret.err_str, no_plat(output));
 		break;
 	case CL_DEVICE_NOT_FOUND:
 		 /* No devices were found, see if there are platforms with
@@ -3132,19 +3132,19 @@ cl_uint checkNullGetDevices(const struct platform_list *plist, const struct opt_
 
 		switch (found) {
 		case 0:
-			bufcpy(&ret.err_str, 0, (output->mode == CLINFO_HUMAN ?
+			strbuf_append_str(__func__, &ret.err_str, (output->mode == CLINFO_HUMAN ?
 				"<error: 0 devices, no matching platform!>" :
 				"CL_DEVICE_NOT_FOUND | CL_INVALID_PLATFORM"));
 			break;
 		case 1:
-			strbuf_printf(&ret.err_str, "%s%s%s%s",
+			strbuf_append(__func__, &ret.err_str, "%s%s%s%s",
 				no_dev_found(output),
 				(output->mode == CLINFO_HUMAN ? " [" : " | "),
 				(output->mode == CLINFO_HUMAN ? pdata[pidx].pname : pdata[pidx].sname),
 				(output->mode == CLINFO_HUMAN ? "?]" : "?"));
 			break;
 		default: /* found > 1 */
-			bufcpy(&ret.err_str, 0, (output->mode == CLINFO_HUMAN ?
+			strbuf_append_str(__func__, &ret.err_str, (output->mode == CLINFO_HUMAN ?
 				"<error: 0 devices, multiple matching platforms!>" :
 				"CL_DEVICE_NOT_FOUND | ????"));
 			break;
@@ -3169,7 +3169,7 @@ cl_uint checkNullGetDevices(const struct platform_list *plist, const struct opt_
 		for (i = 0; i < num_platforms; ++i) {
 			if (platform[i] == plat) {
 				pidx = i;
-				strbuf_printf(&ret.str, "%s [%s]",
+				strbuf_append(__func__, &ret.str, "%s [%s]",
 					(output->mode == CLINFO_HUMAN ? "Success" : "CL_SUCCESS"),
 					pdata[i].sname);
 				break;
@@ -3177,7 +3177,7 @@ cl_uint checkNullGetDevices(const struct platform_list *plist, const struct opt_
 		}
 		if (i == num_platforms) {
 			ret.err = CL_INVALID_PLATFORM;
-			strbuf_printf(&ret.err_str, "<error: platform %p not found>", (void*)plat);
+			strbuf_append(__func__, &ret.err_str, "<error: platform %p not found>", (void*)plat);
 		}
 	}
 	printf(I1_STR "%s\n",
@@ -3200,7 +3200,7 @@ void checkNullCtx(struct device_info_ret *ret,
 	loc.line = __LINE__+2;
 
 	if (!REPORT_ERROR_LOC(ret, ret->err, &loc, "create context with device from %s platform"))
-		strbuf_printf(&ret->str, "%s [%s]",
+		strbuf_append(__func__, &ret->str, "%s [%s]",
 			(output->mode == CLINFO_HUMAN ? "Success" : "CL_SUCCESS"),
 			plist->pdata[pidx].sname);
 	if (ctx) {
@@ -3246,23 +3246,24 @@ void checkNullCtxFromType(const struct platform_list *plist, const struct opt_ou
 	for (t = 1; t < devtype_count; ++t) { /* we skip 0 */
 		loc.sname = device_type_raw_str[t];
 
-		strbuf_printf(&ret.str, "clCreateContextFromType(NULL, %s)", loc.sname);
+		strbuf_append(__func__, &ret.str, "clCreateContextFromType(NULL, %s)", loc.sname);
 		sprintf(def, I1_STR, ret.str.buf);
+		reset_strbuf(&ret.str);
 
 		loc.line = __LINE__+1;
 		ctx = clCreateContextFromType(NULL, devtype[t], NULL, NULL, &ret.err);
 
 		switch (ret.err) {
 		case CL_INVALID_PLATFORM:
-			bufcpy(&ret.err_str, 0, no_plat(output)); break;
+			strbuf_append_str(__func__, &ret.err_str, no_plat(output)); break;
 		case CL_DEVICE_NOT_FOUND:
-			bufcpy(&ret.err_str, 0, no_dev_found(output)); break;
+			strbuf_append_str(__func__, &ret.err_str, no_dev_found(output)); break;
 		case CL_INVALID_DEVICE_TYPE: /* e.g. _CUSTOM device on 1.1 platform */
-			bufcpy(&ret.err_str, 0, invalid_dev_type(output)); break;
+			strbuf_append_str(__func__, &ret.err_str, invalid_dev_type(output)); break;
 		case CL_INVALID_VALUE: /* This is what apple returns for the case above */
-			bufcpy(&ret.err_str, 0, invalid_dev_type(output)); break;
+			strbuf_append_str(__func__, &ret.err_str, invalid_dev_type(output)); break;
 		case CL_DEVICE_NOT_AVAILABLE:
-			bufcpy(&ret.err_str, 0, no_dev_avail(output)); break;
+			strbuf_append_str(__func__, &ret.err_str, no_dev_avail(output)); break;
 		default:
 			if (REPORT_ERROR_LOC(&ret, ret.err, &loc, "create context from type %s")) break;
 
@@ -3283,7 +3284,7 @@ void checkNullCtxFromType(const struct platform_list *plist, const struct opt_ou
 			ndevs = szval/sizeof(cl_device_id);
 			if (ndevs < 1) {
 				ret.err = CL_DEVICE_NOT_FOUND;
-				bufcpy(&ret.err_str, 0, "<error: context created with no devices>");
+				strbuf_append_str(__func__, &ret.err_str, "<error: context created with no devices>");
 			}
 
 			/* get the platform from the first device */
@@ -3293,20 +3294,19 @@ void checkNullCtxFromType(const struct platform_list *plist, const struct opt_ou
 			if (REPORT_ERROR_LOC(&ret, ret.err, &loc, "get %s")) break;
 			loc.plat = plat;
 
-			szval = 0;
 			for (i = 0; i < num_platforms; ++i) {
 				if (platform[i] == plat)
 					break;
 			}
 			if (i == num_platforms) {
 				ret.err = CL_INVALID_PLATFORM;
-				strbuf_printf(&ret.err_str, "<error: platform %p not found>", (void*)plat);
+				strbuf_append(__func__, &ret.err_str, "<error: platform %p not found>", (void*)plat);
 				break;
 			} else {
-				szval += strbuf_printf(&ret.str, "%s (%" PRIuS ")",
+				strbuf_append(__func__, &ret.str, "%s (%" PRIuS ")",
 					(output->mode == CLINFO_HUMAN ? "Success" : "CL_SUCCESS"),
 					ndevs);
-				szval += snprintf(ret.str.buf + szval, ret.str.sz - szval, "\n" I2_STR "%s",
+				strbuf_append(__func__, &ret.str, "\n" I2_STR "%s",
 					platname_prop, pdata[i].pname);
 			}
 			for (i = 0; i < ndevs; ++i) {
@@ -3314,22 +3314,17 @@ void checkNullCtxFromType(const struct platform_list *plist, const struct opt_ou
 				/* for each device, show the device name */
 				/* TODO some other unique ID too, e.g. PCI address, if available? */
 
-				szval += snprintf(ret.str.buf + szval, ret.str.sz - szval, "\n" I2_STR, devname_prop);
-				if (szval >= ret.str.sz) {
-					trunc_strbuf(&ret.str);
-					break;
-				}
+				strbuf_append(__func__, &ret.str, "\n" I2_STR, devname_prop);
 
 				RESET_LOC_PARAM(loc, dev, CL_DEVICE_NAME);
 				loc.dev = devs[i];
 				loc.line = __LINE__+1;
-				ret.err = clGetDeviceInfo(devs[i], CL_DEVICE_NAME, ret.str.sz - szval, ret.str.buf + szval, &szname);
+				ret.err = clGetDeviceInfo(devs[i], CL_DEVICE_NAME, ret.str.sz - ret.str.end, ret.str.buf + ret.str.end, &szname);
 				if (REPORT_ERROR_LOC(&ret, ret.err, &loc, "get %s")) break;
-				szval += szname - 1;
+				ret.str.end += szname - 1;
 			}
 			if (i != ndevs)
 				break; /* had an error earlier, bail */
-
 		}
 
 		if (ctx) {
@@ -3337,6 +3332,8 @@ void checkNullCtxFromType(const struct platform_list *plist, const struct opt_ou
 			ctx = NULL;
 		}
 		printf("%s%s\n", def, RET_BUF(ret)->buf);
+		reset_strbuf(&ret.str);
+		reset_strbuf(&ret.err_str);
 	}
 	free(devs);
 	UNINIT_RET(ret);
@@ -3365,23 +3362,25 @@ void checkNullBehavior(const struct platform_list *plist, const struct opt_out *
 
 	if (p == num_platforms) {
 		ret.err = CL_INVALID_PLATFORM;
-		bufcpy(&ret.err_str, 0, no_plat(output));
+		strbuf_append(__func__, &ret.err_str, no_plat(output));
 	} else if (pdata[p].ndevs == 0) {
 		ret.err = CL_DEVICE_NOT_FOUND;
-		bufcpy(&ret.err_str, 0, no_dev_found(output));
+		strbuf_append(__func__, &ret.err_str, no_dev_found(output));
 	} else {
 		if (p < num_platforms) {
 			checkNullCtx(&ret, plist, p, "default", output);
 		} else {
 			/* this shouldn't happen, but still ... */
 			ret.err = CL_OUT_OF_HOST_MEMORY;
-			bufcpy(&ret.err_str, 0, "<error: overflow in default platform scan>");
+			strbuf_append(__func__, &ret.err_str, 0, "<error: overflow in default platform scan>");
 		}
 	}
 	printf(I1_STR "%s\n", "clCreateContext(NULL, ...) [default]", RET_BUF(ret)->buf);
 
 	/* Look for a device from a non-default platform, if there are any */
 	if (p == num_platforms || num_platforms > 1) {
+		reset_strbuf(&ret.str);
+		reset_strbuf(&ret.err_str);
 		cl_uint p2 = 0;
 		while (p2 < num_platforms && (p2 == p || pdata[p2].ndevs == 0)) {
 			p2++;
@@ -3390,7 +3389,7 @@ void checkNullBehavior(const struct platform_list *plist, const struct opt_out *
 			checkNullCtx(&ret, plist, p2, "non-default", output);
 		} else {
 			ret.err = CL_DEVICE_NOT_FOUND;
-			bufcpy(&ret.str, 0, "<error: no devices in non-default plaforms>");
+			strbuf_append(__func__, &ret.str, "<error: no devices in non-default plaforms>");
 		}
 		printf(I1_STR "%s\n", "clCreateContext(NULL, ...) [other]", RET_BUF(ret)->buf);
 	}
@@ -3517,8 +3516,9 @@ struct icdl_data oclIcdProps(const struct platform_list *plist, const struct opt
 		if (output->mode == CLINFO_RAW) {
 			line_pfx_len = (int)(strlen(oclicdl_pfx) + 5);
 			REALLOC(line_pfx, line_pfx_len, "line prefix OCL ICD");
-			strbuf_printf(&ret.str, "[%s/*]", oclicdl_pfx);
+			strbuf_append(loc.pname, &ret.str, "[%s/*]", oclicdl_pfx);
 			sprintf(line_pfx, "%*s", -line_pfx_len, ret.str.buf);
+			reset_strbuf(&ret.str);
 		}
 
 		for (loc.line = 0; loc.line < ARRAY_SIZE(linfo_traits); ++loc.line) {
