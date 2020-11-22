@@ -1334,13 +1334,11 @@ device_info_time_offset(struct device_info_ret *ret,
 {
 	GET_VAL(ret, loc, u64);
 	if (!ret->err) {
-		size_t szval = 0;
 		time_t time = ret->value.u64/UINT64_C(1000000000);
-		szval += strbuf_printf(&ret->str, "%" PRIu64 "ns (", ret->value.u64);
-		szval += bufcpy(&ret->str, szval, ctime(&time));
+		strbuf_append(loc->pname, &ret->str, "%" PRIu64 "ns (", ret->value.u64);
+		strbuf_append_str(loc->pname, &ret->str, ctime(&time));
 		/* overwrite ctime's newline with the closing parenthesis */
-		if (szval < ret->str.sz)
-			ret->str.buf[szval - 1] = ')';
+		ret->str.buf[ret->str.end - 1] = ')';
 	}
 }
 
@@ -1357,12 +1355,8 @@ device_info_szptr_sep(struct device_info_ret *ret, const char *human_sep,
 		set_separator(output->mode == CLINFO_HUMAN ? human_sep : spc_str);
 		szval = 0;
 		for (counter = 0; counter < numval; ++counter) {
-			add_separator(&ret->str, &szval);
-			szval += snprintf(ret->str.buf + szval, ret->str.sz - szval - 1, "%" PRIuS, val[counter]);
-			if (szval >= ret->str.sz) {
-				trunc_strbuf(&ret->str);
-				break;
-			}
+			if (counter > 0) strbuf_append_str(loc->pname, &ret->str, sep);
+			strbuf_append(loc->pname, &ret->str, "%" PRIuS, val[counter]);
 		}
 		// TODO: ret->value.??? = val;
 	}
@@ -1463,7 +1457,7 @@ device_info_wg(struct device_info_ret *ret,
 
 	getWGsizes(ret, loc, wgm, NUM_KERNELS, output);
 	if (!ret->err) {
-		strbuf_printf(&ret->str, "%" PRIuS, wgm[0]);
+		strbuf_append("get WG sizes", &ret->str, "%" PRIuS, wgm[0]);
 	}
 	ret->value.s = wgm[0];
 }
@@ -1480,7 +1474,7 @@ device_info_img_sz_2d(struct device_info_ret *ret,
 		RESET_LOC_PARAM(loc2, dev, CL_DEVICE_IMAGE2D_MAX_WIDTH);
 		_GET_VAL(ret, &loc2, width);
 		if (!ret->err) {
-			strbuf_printf(&ret->str, "%" PRIuS "x%" PRIuS, width, height);
+			strbuf_append("image size 2D", &ret->str, "%" PRIuS "x%" PRIuS, width, height);
 		}
 	}
 	ret->value.u32v.s[0] = width;
@@ -1499,7 +1493,7 @@ device_info_img_sz_intel_planar_yuv(struct device_info_ret *ret,
 		RESET_LOC_PARAM(loc2, dev, CL_DEVICE_PLANAR_YUV_MAX_WIDTH_INTEL);
 		_GET_VAL(ret, &loc2, width);
 		if (!ret->err) {
-			strbuf_printf(&ret->str, "%" PRIuS "x%" PRIuS, width, height);
+			 strbuf_append("image size planar YUV", &ret->str, "%" PRIuS "x%" PRIuS, width, height);
 		}
 	}
 	ret->value.u32v.s[0] = width;
@@ -1522,7 +1516,8 @@ device_info_img_sz_3d(struct device_info_ret *ret,
 			RESET_LOC_PARAM(loc2, dev, CL_DEVICE_IMAGE3D_MAX_DEPTH);
 			_GET_VAL(ret, &loc2, depth);
 			if (!ret->err) {
-				strbuf_printf(&ret->str, "%" PRIuS "x%" PRIuS "x%" PRIuS,
+				strbuf_append("image size 3D", &ret->str,
+					"%" PRIuS "x%" PRIuS "x%" PRIuS,
 					width, height, depth);
 			}
 		}
