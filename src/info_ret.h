@@ -68,10 +68,8 @@ struct icdl_info_ret
 #define RET_BUF(ret) (ret.err ? &ret.err_str : &ret.str)
 #define RET_BUF_PTR(ret) (ret->err ? &ret->err_str : &ret->str)
 #define INIT_RET(ret, msg) do { \
-	init_strbuf(&ret.str); \
-	init_strbuf(&ret.err_str); \
-	realloc_strbuf(&ret.str, 1024,  msg " info string values"); \
-	realloc_strbuf(&ret.err_str, 1024, msg " info error values"); \
+	init_strbuf(&ret.str, msg " info string values"); \
+	init_strbuf(&ret.err_str, msg " info error values"); \
 } while (0)
 
 #define UNINIT_RET(ret) do { \

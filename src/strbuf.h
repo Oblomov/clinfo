@@ -19,17 +19,12 @@ struct _strbuf
 	size_t end; /* offset to terminating null byte */
 };
 
-static inline void init_strbuf(struct _strbuf *str)
+static inline void realloc_strbuf(struct _strbuf *str, size_t nusz, const char* what)
 {
-	str->buf = NULL;
-	str->sz = 0;
-	str->end = 0;
-}
-
-static inline void free_strbuf(struct _strbuf *str)
-{
-	free(str->buf);
-	init_strbuf(str);
+	if (nusz > str->sz) {
+		REALLOC(str->buf, nusz, what);
+		str->sz = nusz;
+	}
 }
 
 static inline void reset_strbuf(struct _strbuf *str)
@@ -38,12 +33,19 @@ static inline void reset_strbuf(struct _strbuf *str)
 	if (str->buf) str->buf[0] = '\0';
 }
 
-static inline void realloc_strbuf(struct _strbuf *str, size_t nusz, const char* what)
+static inline void init_strbuf(struct _strbuf *str, const char *what)
 {
-	if (nusz > str->sz) {
-		REALLOC(str->buf, nusz, what);
-		str->sz = nusz;
-	}
+	str->end = 0;
+	str->sz = 0;
+	str->buf = NULL;
+	realloc_strbuf(str, 1024, what);
+}
+
+static inline void free_strbuf(struct _strbuf *str)
+{
+	free(str->buf);
+	str->buf = NULL;
+	reset_strbuf(str);
 }
 
 #define strbuf_printf(str, ...) snprintf((str)->buf, (str)->sz, __VA_ARGS__)

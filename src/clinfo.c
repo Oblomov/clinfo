@@ -1430,7 +1430,7 @@ getWGsizes(struct device_info_ret *ret, const struct info_loc *loc, size_t *wgm,
 	/* for a program build failure, dump the log to stderr before bailing */
 	if (log_err == CL_BUILD_PROGRAM_FAILURE) {
 		struct _strbuf logbuf;
-		init_strbuf(&logbuf);
+		init_strbuf(&logbuf, "program build log");
 		GET_STRING(&logbuf, ret->err,
 			clGetProgramBuildInfo, CL_PROGRAM_BUILD_LOG, "CL_PROGRAM_BUILD_LOG", prg, loc->dev);
 		if (ret->err == CL_SUCCESS) {
@@ -3064,8 +3064,7 @@ void showDevices(const struct platform_list *plist, const struct opt_out *output
 
 	cl_uint p;
 	struct _strbuf str;
-	init_strbuf(&str);
-	realloc_strbuf(&str, 1024, "show devices");
+	init_strbuf(&str, __func__);
 
 	if (output->mode == CLINFO_RAW) {
 		if (output->brief)
