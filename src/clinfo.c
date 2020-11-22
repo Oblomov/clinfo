@@ -584,6 +584,34 @@ void show_strbuf(const struct _strbuf *strbuf, const char *pname, int skip, cl_i
 		err ? empty_str : cur_sfx);
 }
 
+/* print a JSON string version of NULL-terminated string str, escaping \ and " and wrapping it all in "
+ */
+static inline
+void json_stringify(const char *str)
+{
+	putchar('"');
+	while (*str) {
+		if (*str == '\\' || *str == '"')
+			putchar('\\');
+		putchar(*str);
+		++str;
+	}
+	putchar('"');
+}
+
+/* print JSON version of strbuf, prefixed by pname, skipping leading whitespace if skip is nonzero,
+ * quoting and escaping as string if is_string is nonzero
+ */
+static inline
+void json_strbuf(const struct _strbuf *strbuf, const char *pname, cl_uint n, cl_bool is_string)
+{
+	printf("%s\"%s\" : ", (n > 0 ? comma_str : spc_str), pname);
+	if (is_string)
+		json_stringify(strbuf->buf);
+	else
+		fputs(strbuf->buf, stdout);
+}
+
 void
 platform_info_str(struct platform_info_ret *ret,
 	const struct info_loc *loc, const struct platform_info_checks* UNUSED(chk),
@@ -738,6 +766,7 @@ gatherPlatformInfo(struct platform_list *plist, cl_uint p, const struct opt_out 
 	reset_loc(&loc, __func__);
 	loc.plat = plist->platform[p];
 
+	cl_uint n = 0; /* number of platform properties shown, for JSON */
 	for (loc.line = 0; loc.line < ARRAY_SIZE(pinfo_traits); ++loc.line) {
 		const struct platform_info_traits *traits = pinfo_traits + loc.line;
 
@@ -772,7 +801,11 @@ gatherPlatformInfo(struct platform_list *plist, cl_uint p, const struct opt_out 
 		 * Otherwise, we're just gathering information */
 		cl_bool requested = (output->prop && strstr(loc.sname, output->prop) != NULL);
 		if (output->detailed || requested) {
-			show_strbuf(RET_BUF(ret), loc.pname, 0, ret.err);
+			if (output->json) {
+				json_strbuf(RET_BUF(ret), loc.pname, n++, CL_TRUE);
+			} else {
+				show_strbuf(RET_BUF(ret), loc.pname, CL_FALSE, ret.err);
+			}
 		}
 
 		if (ret.err)
@@ -2684,6 +2717,7 @@ printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uint p,
 	loc.plat = plist->platform[p];
 	loc.dev = dev;
 
+	cl_uint n = 0; /* number of device properties shown, for JSON */
 	for (loc.line = 0; loc.line < ARRAY_SIZE(dinfo_traits); ++loc.line) {
 
 		const struct device_info_traits *traits = dinfo_traits + loc.line;
@@ -2775,6 +2809,8 @@ printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uint p,
 			}
 			if (output->brief)
 				printf("%s%s\n", line_pfx, RET_BUF(ret)->buf);
+			else if (output->json)
+				json_strbuf(RET_BUF(ret), loc.pname, n++, CL_TRUE);
 			else
 				show_strbuf(RET_BUF(ret), loc.pname, 0, ret.err);
 		}
@@ -2822,14 +2858,30 @@ printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uint p,
 	if (extensions) {
 		// undo the padding
 		extensions[ext_len + 1] = '\0';
-		printf("%s" I1_STR "%s\n", line_pfx, (output->mode == CLINFO_HUMAN ?
-				extensions_traits->pname :
-				extensions_traits->sname), extensions + 1);
+		if (output->json) {
+			printf("%s\"%s\" : ", (n > 0 ? comma_str : spc_str),
+				(output->mode == CLINFO_HUMAN ?
+				 extensions_traits->pname : extensions_traits->sname));
+			json_stringify(extensions + 1);
+			++n;
+		} else
+			printf("%s" I1_STR "%s\n", line_pfx, (output->mode == CLINFO_HUMAN ?
+					extensions_traits->pname : extensions_traits->sname),
+				extensions + 1);
 	}
 	if (versioned_extensions) {
-		printf("%s" I1_STR "%s\n", line_pfx, (output->mode == CLINFO_HUMAN ?
-				versioned_extensions_traits->pname :
-				versioned_extensions_traits->sname), versioned_extensions);
+		if (output->json) {
+			printf("%s\"%s\" : ", (n > 0 ? comma_str : spc_str),
+				(output->mode == CLINFO_HUMAN ?
+				 versioned_extensions_traits->pname : versioned_extensions_traits->sname));
+			json_stringify(versioned_extensions);
+			++n;
+		} else {
+			printf("%s" I1_STR "%s\n", line_pfx, (output->mode == CLINFO_HUMAN ?
+					versioned_extensions_traits->pname :
+					versioned_extensions_traits->sname),
+				versioned_extensions);
+		}
 	}
 	free(extensions);
 	free(versioned_extensions);
@@ -2944,7 +2996,10 @@ void printPlatformDevices(const struct platform_list *plist, cl_uint p,
 		these_are_offline ? amd_offline_info_whitelist : NULL;
 	cl_uint d;
 
-	if (output->detailed)
+	if (output->json)
+		printf("%s\"%s\" : [", (these_are_offline ? comma_str : spc_str),
+			(these_are_offline ? "offline" : "online"));
+	else if (output->detailed)
 		printf("%s" I0_STR "%" PRIu32 "\n",
 			line_pfx,
 			num_devs_header(output, these_are_offline),
@@ -2976,12 +3031,22 @@ void printPlatformDevices(const struct platform_list *plist, cl_uint p,
 			sprintf(line_pfx, "%*s", -line_pfx_len, str->buf);
 			reset_strbuf(str);
 		}
+
+		if (output->json)
+			printf("%s{", d > 0 ? comma_str : spc_str);
+
 		printDeviceInfo(dev, plist, p, param_whitelist, output);
-		if (output->detailed && d < pdata[p].ndevs - 1)
+
+		if (output->json)
+			printf(" }");
+		else if (output->detailed && d < pdata[p].ndevs - 1)
 			puts("");
+
 		fflush(stdout);
 		fflush(stderr);
 	}
+	if (output->json)
+		fputs(" ]", stdout);
 }
 
 
@@ -3020,8 +3085,11 @@ void showDevices(const struct platform_list *plist, const struct opt_out *output
 		/* skip non-selected platforms altogether */
 		if (output->selected && output->platform != p) continue;
 
-		/* skip platform header if only printing specfic properties */
-		if (!output->prop)
+		/* Open the JSON devices list for this platform */
+		if (output->json)
+			printf("%s{", p > 0 ? comma_str : spc_str);
+		/* skip platform header if only printing specfic properties, */
+		else if (!output->prop)
 			printPlatformName(plist, p, &str, output);
 
 		printPlatformDevices(plist, p,
@@ -3047,7 +3115,11 @@ void showDevices(const struct platform_list *plist, const struct opt_out *output
 			}
 			UNINIT_RET(ret);
 		}
-		if (output->detailed)
+
+		/* Close JSON object for this platform */
+		if (output->json)
+			fputs(" }", stdout);
+		else if (output->detailed)
 			puts("");
 	}
 	free_strbuf(&str);
@@ -3516,7 +3588,9 @@ struct icdl_data oclIcdProps(const struct platform_list *plist, const struct opt
 		if (output->mode != CLINFO_RAW)
 			puts("\nICD loader properties");
 
-		if (output->mode == CLINFO_RAW) {
+		if (output->json) {
+			fputs(", \"icd_loader\" : {", stdout);
+		} else if (output->mode == CLINFO_RAW) {
 			line_pfx_len = (int)(strlen(oclicdl_pfx) + 5);
 			REALLOC(line_pfx, line_pfx_len, "line prefix OCL ICD");
 			strbuf_append(loc.pname, &ret.str, "[%s/*]", oclicdl_pfx);
@@ -3524,6 +3598,7 @@ struct icdl_data oclIcdProps(const struct platform_list *plist, const struct opt
 			reset_strbuf(&ret.str);
 		}
 
+		cl_uint n = 0; /* number of ICD loader properties shown, for JSON */
 		for (loc.line = 0; loc.line < ARRAY_SIZE(linfo_traits); ++loc.line) {
 			const struct icdl_info_traits *traits = linfo_traits + loc.line;
 			loc.sname = traits->sname;
@@ -3537,13 +3612,20 @@ struct icdl_data oclIcdProps(const struct platform_list *plist, const struct opt
 
 			/* Do not print this property if the user requested one and this does not match */
 			const cl_bool requested = !(output->prop && strstr(loc.sname, output->prop) == NULL);
-			if (requested)
-				show_strbuf(RET_BUF(ret), loc.pname, 1, ret.err);
+			if (requested) {
+				if (output->json)
+					json_strbuf(RET_BUF(ret), loc.pname, n++, CL_TRUE);
+				else
+					show_strbuf(RET_BUF(ret), loc.pname, 1, ret.err);
+			}
 
 			if (!ret.err && traits->param == CL_ICDL_OCL_VERSION) {
 				icdl.reported_version = getOpenCLVersion(ret.str.buf + 7);
 			}
 		}
+
+		if (output->json)
+			fputs(" }", stdout);
 		UNINIT_RET(ret);
 	}
 
@@ -3668,6 +3750,7 @@ int main(int argc, char *argv[])
 	output.cond = COND_PROP_CHECK;
 	output.brief = CL_FALSE;
 	output.offline = CL_FALSE;
+	output.json = CL_FALSE;
 	output.check_size = CL_FALSE;
 
 	/* if there's a 'raw' in the program name, switch to raw output mode */
@@ -3686,6 +3769,8 @@ int main(int argc, char *argv[])
 			output.mode = CLINFO_HUMAN;
 		else if (!strcmp(argv[a], "--offline"))
 			output.offline = CL_TRUE;
+		else if (!strcmp(argv[a], "--json"))
+			output.json = CL_TRUE;
 		else if (!strcmp(argv[a], "-l") || !strcmp(argv[a], "--list"))
 			output.brief = CL_TRUE;
 		else if (!strcmp(argv[a], "-d") || !strcmp(argv[a], "--device")) {
@@ -3706,8 +3791,10 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "ignoring unknown command-line parameter %s\n", argv[a]);
 		}
 	}
-	/* If a property was specified, we only print in RAW mode */
-	if (output.prop)
+	/* If a property was specified, we only print in RAW mode.
+	 * Likewise, JSON format assumes RAW
+	 */
+	if (output.prop || output.json)
 		output.mode = CLINFO_RAW;
 	output.selected = (output.device != CL_UINT_MAX);
 	output.detailed = !output.brief && !output.selected && !output.prop;
@@ -3716,13 +3803,15 @@ int main(int argc, char *argv[])
 	if (err != CL_PLATFORM_NOT_FOUND_KHR)
 		CHECK_ERROR(err, "number of platforms");
 
-	if (output.detailed)
+	if (output.detailed && !output.json)
 		printf(I0_STR "%" PRIu32 "\n",
 			(output.mode == CLINFO_HUMAN ?
 			 "Number of platforms" : "#PLATFORMS"),
 			plist.num_platforms);
-	if (!plist.num_platforms)
+	if (!plist.num_platforms) {
+		if (output.json) puts("{ platforms: [] }");
 		return 0;
+	}
 
 	alloc_plist(&plist);
 	err = clGetPlatformIDs(plist.num_platforms, plist.platform, NULL);
@@ -3730,19 +3819,47 @@ int main(int argc, char *argv[])
 
 	ALLOC(line_pfx, 1, "line prefix");
 
+	/* Open the JSON object and the JSON platforms list */
+	if (output.json)
+		fputs("{ \"platforms\" : [", stdout);
+
 	for (p = 0; p < plist.num_platforms; ++p) {
 		// skip non-selected platforms altogether
 		if (output.selected && output.platform != p) continue;
+
+		/* Open a JSON object for this platform */
+		if (output.json)
+			printf("%s{", p > 0 ? comma_str : spc_str);
+
 		gatherPlatformInfo(&plist, p, &output);
-		if (output.detailed)
+
+		/* Close JSON object for this platform */
+		if (output.json)
+			fputs(" }", stdout);
+		else if (output.detailed)
 			puts("");
 	}
+
+	/* Close JSON platforms list, open JSON devices list */
+	if (output.json)
+		fputs(" ], \"devices\" : [", stdout);
+
 	showDevices(&plist, &output);
+
+	/* Close JSON devices list */
+	if (output.json)
+		fputs(" ]", stdout);
+
 	if (output.prop || (output.detailed && !output.selected)) {
 		if (output.mode != CLINFO_RAW)
 			checkNullBehavior(&plist, &output);
 		oclIcdProps(&plist, &output);
 	}
+
+	/* Close the JSON object */
+	if (output.json)
+		fputs(" }", stdout);
+
 
 	free_plist(&plist);
 	free(line_pfx);

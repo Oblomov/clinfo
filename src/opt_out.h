@@ -39,6 +39,10 @@ struct opt_out {
 	cl_bool brief;
 	cl_bool detailed; // !brief
 	cl_bool offline;
+
+/* JSON output for RAW */
+	cl_bool json;
+
 /* clGetDeviceInfo returns CL_INVALID_VALUE both for unknown properties
  * and when the destination variable is too small. Set the following to CL_TRUE
  * to check which one is the case
