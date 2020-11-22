@@ -1210,7 +1210,7 @@ device_info_bool(struct device_info_ret *ret,
 	if (!ret->err) {
 		const char * const * str = (output->mode == CLINFO_HUMAN ?
 			bool_str : bool_raw_str);
-		strbuf_printf(&ret->str, "%s", str[val]);
+		strbuf_append(loc->pname, &ret->str, "%s", str[val]);
 	}
 }
 
@@ -1221,7 +1221,7 @@ device_info_bits(struct device_info_ret *ret,
 {
 	DEV_FETCH(cl_uint, val);
 	if (!ret->err)
-		strbuf_printf(&ret->str, "%" PRIu32 " bits (%" PRIu32 " bytes)", val, val/8);
+		strbuf_append(loc->pname, &ret->str, "%" PRIu32 " bits (%" PRIu32 " bytes)", val, val/8);
 }
 
 void
@@ -1252,7 +1252,7 @@ device_info_ext_version(struct device_info_ret *ret,
 	free(val);
 }
 
-size_t strbuf_mem(struct _strbuf *str, cl_ulong val, size_t szval)
+void strbuf_mem(const char *what, struct _strbuf *str, cl_ulong val)
 {
 	double dbl = (double)val;
 	size_t sfx = 0;
@@ -1260,8 +1260,7 @@ size_t strbuf_mem(struct _strbuf *str, cl_ulong val, size_t szval)
 		dbl /= 1024;
 		++sfx;
 	}
-	return sprintf(str->buf + szval, " (%.4lg%s)",
-		dbl, memsfx[sfx]);
+	strbuf_append(what, str, " (%.4lg%s)", dbl, memsfx[sfx]);
 }
 
 void
@@ -1269,11 +1268,11 @@ device_info_mem(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
 	const struct opt_out *output)
 {
-	DEV_FETCH(cl_ulong, val);
+	GET_VAL(ret, loc, u64);
 	if (!ret->err) {
-		size_t szval = strbuf_printf(&ret->str, "%" PRIu64, val);
-		if (output->mode == CLINFO_HUMAN && val > 1024)
-			strbuf_mem(&ret->str, val, szval);
+		strbuf_append(loc->pname, &ret->str, "%" PRIu64, ret->value.u64);
+		if (output->mode == CLINFO_HUMAN && ret->value.u64 > 1024)
+			strbuf_mem(loc->pname, &ret->str, ret->value.u64);
 	}
 }
 
@@ -1282,11 +1281,11 @@ device_info_mem_int(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
 	const struct opt_out *output)
 {
-	DEV_FETCH(cl_uint, val);
+	GET_VAL(ret, loc, u32);
 	if (!ret->err) {
-		size_t szval = strbuf_printf(&ret->str, "%" PRIu32, val);
-		if (output->mode == CLINFO_HUMAN && val > 1024)
-			strbuf_mem(&ret->str, val, szval);
+		strbuf_append(loc->pname, &ret->str, "%" PRIu32, ret->value.u32);
+		if (output->mode == CLINFO_HUMAN && ret->value.u32 > 1024)
+			strbuf_mem(loc->pname, &ret->str, ret->value.u32);
 	}
 }
 
@@ -1295,11 +1294,11 @@ device_info_mem_sz(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
 	const struct opt_out *output)
 {
-	DEV_FETCH(size_t, val);
+	GET_VAL(ret, loc, s);
 	if (!ret->err) {
-		size_t szval = strbuf_printf(&ret->str, "%" PRIuS, val);
-		if (output->mode == CLINFO_HUMAN && val > 1024)
-			strbuf_mem(&ret->str, val, szval);
+		strbuf_append(loc->pname, &ret->str, "%" PRIuS, ret->value.s);
+		if (output->mode == CLINFO_HUMAN && ret->value.s > 1024)
+			strbuf_mem(loc->pname, &ret->str, ret->value.s);
 	}
 }
 
@@ -1314,24 +1313,18 @@ device_info_free_mem_amd(struct device_info_ret *ret,
 	// At least now these are documented in the ROCm source code: the first value
 	// is the total amount of free memory, and the second is the size of the largest
 	// free block. So let's just manually ask for both values
-	size_t *val = NULL;
-	size_t numval = 2, szval = numval*sizeof(*val);
-	_GET_VAL_VALUES(ret, loc);
+	GET_VAL(ret, loc, u64v2);
 	if (!ret->err) {
 		size_t cursor = 0;
-		szval = 0;
-		for (cursor = 0; cursor < numval; ++cursor) {
-			if (szval > 0) {
-				ret->str.buf[szval] = ' ';
-				++szval;
-			}
-			szval += sprintf(ret->str.buf + szval, "%" PRIuS, val[cursor]);
+		for (cursor = 0; cursor < 2; ++cursor) {
+			cl_ulong v = ret->value.u64v2.s[cursor];
+			if (cursor > 0)
+				strbuf_append_str_len(loc->pname, &ret->str, " ", 1);
+			strbuf_append(loc->pname, &ret->str, "%" PRIuS, v);
 			if (output->mode == CLINFO_HUMAN)
-				szval += strbuf_mem(&ret->str, val[cursor]*UINT64_C(1024), szval);
-			ret->value.u64v.s[cursor] = val[cursor];
+				strbuf_mem(loc->pname, &ret->str, v*UINT64_C(1024));
 		}
 	}
-	free(val);
 }
 
 void
