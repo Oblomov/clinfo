@@ -2768,8 +2768,10 @@ printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uint p,
 
 			} else {
 				/* on success, but empty result, show (n/a) */
-				if (ret.str.buf[0] == '\0')
-					bufcpy(&ret.str, 0, not_specified(output));
+				if (ret.str.buf[0] == '\0') {
+					reset_strbuf(&ret.str);
+					strbuf_append_str(loc.pname, &ret.str, not_specified(output));
+				}
 			}
 			if (output->brief)
 				printf("%s%s\n", line_pfx, RET_BUF(ret)->buf);

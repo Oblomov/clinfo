@@ -129,51 +129,6 @@ static inline const char* skip_leading_ws(const char *str)
 	return ret;
 }
 
-/* replace last 3 chars in _strbuf with ... */
-static const char ellip[] = "...";
-
-static inline void trunc_strbuf(struct _strbuf *str)
-{
-	memcpy(str->buf + str->sz - 4, ellip, 4);
-}
-
-/* copy a string to _strbuf, at the given offset,
- * returning the amount of bytes written (excluding the
- * closing NULL byte)
- */
-static inline size_t bufcpy_len(struct _strbuf *str,
-	size_t offset, const char *src, size_t len)
-{
-	size_t maxlen = str->sz - offset - 1;
-	char *dst = str->buf + offset;
-	int trunc = 0;
-	if (str->sz < offset) {
-		fprintf(stderr, "bufcpy overflow copying %s at offset %" PRIuS "/%" PRIuS " (%s)\n",
-			src, offset, str->sz, str->buf);
-		maxlen = 0;
-		trunc = 1;
-	}
-	if (len > maxlen) {
-		len = maxlen;
-		trunc = 1;
-		/* TODO enlarge str->buf instead, if maxlen > 0 */
-	}
-	memcpy(dst, src, len);
-	offset += len;
-	if (trunc)
-		trunc_strbuf(str);
-	else
-		str->buf[offset] = '\0';
-	return len;
-}
-
-/* As above, auto-compute string length */
-static inline size_t bufcpy(struct _strbuf *str, size_t offset, const char *src)
-{
-	return bufcpy_len(str, offset, src, strlen(src));
-}
-
-
 /* Separators: we want to be able to prepend separators as needed to _strbuf,
  * which we do only if halfway through the buffer. The callers should first
  * call a 'set_separator' and then use add_separator(&offset) to add it, where szval
@@ -187,13 +142,6 @@ void set_separator(const char* _sep)
 {
 	sep = _sep;
 	sepsz = strlen(sep);
-}
-
-/* Note that no overflow check is done: it is assumed that _strbuf will have enough room */
-void add_separator(struct _strbuf *str, size_t *offset)
-{
-	if (*offset)
-		*offset += bufcpy_len(str, *offset, sep, sepsz);
 }
 
 #endif
