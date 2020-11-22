@@ -36,10 +36,10 @@ static inline void reset_strbuf(struct _strbuf *str)
 
 static inline void init_strbuf(struct _strbuf *str, const char *what)
 {
-	str->end = 0;
 	str->sz = 0;
 	str->buf = NULL;
 	realloc_strbuf(str, 1024, what);
+	reset_strbuf(str);
 }
 
 static inline void free_strbuf(struct _strbuf *str)

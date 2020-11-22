@@ -2919,11 +2919,12 @@ void printPlatformName(const struct platform_list *plist, cl_uint p, struct _str
 		pinfo_traits[0].sname);
 	const int prefix_width = -line_pfx_len*(!output->brief);
 	if (output->brief) {
-		strbuf_printf(str, "%s%" PRIu32 ": ", brief_prefix, p);
+		strbuf_append(__func__, str, "%s%" PRIu32 ": ", brief_prefix, p);
 	} else if (output->mode == CLINFO_RAW) {
-		strbuf_printf(str, "[%s/*]", pdata->sname);
+		strbuf_append(__func__, str, "[%s/*]", pdata->sname);
 	}
 	sprintf(line_pfx, "%*s", prefix_width, str->buf);
+	reset_strbuf(str);
 
 	if (output->brief)
 		printf("%s%s\n", line_pfx, pdata->pname);
@@ -2968,8 +2969,9 @@ void printPlatformDevices(const struct platform_list *plist, cl_uint p,
 				line_pfx[1] = '`';
 		} else if (line_pfx_len > 0) {
 			cl_int sd = (these_are_offline ? -1 : 1)*(cl_int)d;
-			strbuf_printf(str, "[%s/%" PRId32 "]", pdata->sname, sd);
+			strbuf_append(__func__, str, "[%s/%" PRId32 "]", pdata->sname, sd);
 			sprintf(line_pfx, "%*s", -line_pfx_len, str->buf);
+			reset_strbuf(str);
 		}
 		printDeviceInfo(dev, plist, p, param_whitelist, output);
 		if (output->detailed && d < pdata[p].ndevs - 1)
@@ -2992,16 +2994,14 @@ void showDevices(const struct platform_list *plist, const struct opt_out *output
 
 	if (output->mode == CLINFO_RAW) {
 		if (output->brief)
-			strbuf_printf(&str, "%" PRIu32 ".%" PRIu32 ": ", num_platforms, maxdevs);
+			strbuf_append(__func__, &str, "%" PRIu32 ".%" PRIu32 ": ", num_platforms, maxdevs);
 		else
-			strbuf_printf(&str, "[%*s/%" PRIu32 "] ",
+			strbuf_append(__func__, &str, "[%*s/%" PRIu32 "] ",
 				plist->max_sname_len, "", maxdevs);
 	} else {
 		if (output->brief)
-			strbuf_printf(&str, " +-- %sDevice #%" PRIu32 ": ",
+			strbuf_append(__func__, &str, " +-- %sDevice #%" PRIu32 ": ",
 				(output->offline ? "Offline " : ""), maxdevs);
-		else
-			reset_strbuf(&str);
 		/* TODO we have no prefix in HUMAN detailed output mode,
 		 * consider adding one
 		 */
