@@ -92,11 +92,11 @@ directories, the headers will be found. If not, you will have to
 override `CPPFLAGS` with e.g. `export CPPFLAGS=/path/to/where/headers/are`
 before running `make`.)
 
-You can then `cd clinfo` and build the application with
+You can then `cd clinfo` and build the application. You can try simply
+running `make` since Android should be autodetected now, buf it
+this fails you can also force the detectio with
 
 	make OS=Android
-
-(The `OS` value must be specified because currently Android is not autodetected.)
 
 If linking fails due to a missing `libOpenCL.so`, then your Android
 machine probably doesn't support OpenCL. Otherwise, you should have a
