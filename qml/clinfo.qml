@@ -75,14 +75,54 @@ ApplicationWindow
           InfoLabel { text: "Name" }
           InfoField { id: icdl_name }
 
-          InfoLabel { text: "Version" }
-          InfoField { id: icdl_version }
-
           InfoLabel { text: "Vendor" }
           InfoField { id: icdl_vendor }
 
+          InfoLabel { text: "Version" }
+          InfoField { id: icdl_version }
+
           InfoLabel { text: "OpenCL Version" }
           InfoField { id: icdl_ocl_version }
+        }
+      }
+
+      TabBar {
+        id: platform_tabs
+        Layout.alignment: Qt.AlignTop | Qt.AlignHCenter
+        Layout.fillWidth: true
+
+        Component {
+          id: platform_tab
+          TabButton { }
+        }
+      }
+
+      StackLayout {
+        id: platform_pages
+        width: parent.width
+        currentIndex: platform_tabs.currentIndex
+
+        Component {
+          id: platform_page
+
+          GroupBox {
+            property string platform_name;
+            property string platform_version;
+            property string platform_vendor;
+
+
+            GridLayout {
+              width: parent.width
+              columns: 4
+
+              InfoLabel { text: "Name" }
+              InfoField { text: platform_name }
+              InfoLabel { text: "Vendor" }
+              InfoField { text: platform_vendor }
+              InfoLabel { text: "Version" }
+              InfoField { text: platform_version ; Layout.columnSpan: 3 }
+            }
+          }
         }
       }
     }
@@ -110,6 +150,22 @@ ApplicationWindow
       icdl_version.text = l.CL_ICDL_VERSION;
       icdl_ocl_version.text = l.CL_ICDL_OCL_VERSION;
       icdl_vendor.text = l.CL_ICDL_VENDOR;
+    }
+
+    var plist = object.platforms;
+    var dlist = object.devices;
+    for (var p = 0; p < plist.length; ++p) {
+      var plat = plist[p];
+      platform_tabs.addItem(platform_tab.createObject(platform_tabs, {
+        active: true,
+        text: plat.CL_PLATFORM_NAME
+      }));
+      platform_page.createObject(platform_pages, {
+        active: true,
+        platform_name: plat.CL_PLATFORM_NAME,
+        platform_version: plat.CL_PLATFORM_VERSION,
+        platform_vendor: plat.CL_PLATFORM_VENDOR
+      });
     }
   }
 
