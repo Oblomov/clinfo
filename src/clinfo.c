@@ -3801,7 +3801,9 @@ struct icdl_data oclIcdProps(const struct platform_list *plist, const struct opt
 		}
 
 		if (output->json)
-			fputs(" }", stdout);
+			printf("%s\"_detected_version\" : \"%" PRIu32 ".%" PRIu32 "\" }",
+				(n > 0 ? comma_str : spc_str),
+				SPLIT_CL_VERSION(icdl.detected_version));
 		UNINIT_RET(ret);
 	}
 
