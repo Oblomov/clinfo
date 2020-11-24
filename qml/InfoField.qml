@@ -4,8 +4,11 @@ import QtQuick.Controls 2.12
 
 
 TextField {
+  property int span;
+  span: 1;
   Layout.fillWidth: true
-  readOnly: true;
+  Layout.columnSpan: span
+  readOnly: true
   text: "(unknown)"
   onFocusChanged: {
     if (focus) {

@@ -106,21 +106,19 @@ ApplicationWindow
           id: platform_page
 
           GroupBox {
-            property string platform_name;
-            property string platform_version;
-            property string platform_vendor;
-
 
             GridLayout {
+              id: layout
               width: parent.width
               columns: 4
+            }
 
-              InfoLabel { text: "Name" }
-              InfoField { text: platform_name }
-              InfoLabel { text: "Vendor" }
-              InfoField { text: platform_vendor }
-              InfoLabel { text: "Version" }
-              InfoField { text: platform_version ; Layout.columnSpan: 3 }
+            function addProperty(name, value, span = 1) {
+              var l = { text: name };
+              var f = { text: value };
+              if (span > 1) { f.span = 2*span - 1; }
+              Qt.createComponent("InfoLabel.qml").createObject(layout, l);
+              Qt.createComponent("InfoField.qml").createObject(layout, f);
             }
           }
         }
@@ -144,6 +142,7 @@ ApplicationWindow
 
   function processData(object)
   {
+    const icdl_builtin = [ "CL_ICDL_NAME", "CL_ICDL_VERSION", "CL_ICDL_OCL_VERSION", "CL_ICDL_VENDOR" ];
     var l = object.icd_loader;
     if (l) {
       icdl_name.text = l.CL_ICDL_NAME;
@@ -151,6 +150,9 @@ ApplicationWindow
       icdl_ocl_version.text = l.CL_ICDL_OCL_VERSION;
       icdl_vendor.text = l.CL_ICDL_VENDOR;
     }
+
+    const platform_builtin = [ "CL_PLATFORM_NAME", "CL_PLATFORM_VENDOR", "CL_PLATFORM_VERSION",
+      "CL_PLATFORM_PROFILE", "CL_PLATFORM_ICD_SUFFIX_KHR", "CL_PLATFORM_EXTENSIONS" ];
 
     var plist = object.platforms;
     var dlist = object.devices;
@@ -160,12 +162,26 @@ ApplicationWindow
         active: true,
         text: plat.CL_PLATFORM_NAME
       }));
-      platform_page.createObject(platform_pages, {
-        active: true,
-        platform_name: plat.CL_PLATFORM_NAME,
-        platform_version: plat.CL_PLATFORM_VERSION,
-        platform_vendor: plat.CL_PLATFORM_VENDOR
-      });
+      var page = platform_page.createObject(platform_pages, { active: true });
+      page.addProperty("Name", plat.CL_PLATFORM_NAME);
+      page.addProperty("Vendor", plat.CL_PLATFORM_VENDOR);
+      page.addProperty("Version", plat.CL_PLATFORM_VERSION, 2);
+      page.addProperty("Profile", plat.CL_PLATFORM_PROFILE);
+      page.addProperty("ICD suffix", plat.CL_PLATFORM_ICD_SUFFIX_KHR);
+      page.addProperty("Extensions", plat.CL_PLATFORM_EXTENSIONS, 2);
+      for (var name in plat) {
+        if (platform_builtin.includes(name)) { continue; }
+        /* Assemble a proper name */
+        var present_name = name.replace(/^CL_PLATFORM_/, '').
+          replace(/_/g, ' ');
+        // TODO Title case, but recognize extension suffixes (how?)
+        // TODO even better, use the clinfo own map
+        var value = plat[name];
+        if (typeof(value) == 'object') {
+          value = value.raw
+        }
+        page.addProperty(present_name, '' + value);
+      }
     }
   }
 
