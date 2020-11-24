@@ -759,13 +759,13 @@ struct platform_info_traits pinfo_traits[] = {
 	PINFO(CL_PLATFORM_NAME, "Name", NULL, str),
 	PINFO(CL_PLATFORM_VENDOR, "Vendor", NULL, str),
 	PINFO(CL_PLATFORM_VERSION, "Version", NULL, str),
-	PINFO_COND(CL_PLATFORM_NUMERIC_VERSION, "Numeric Version", NULL, version, plat_has_ext_ver),
 	PINFO(CL_PLATFORM_PROFILE, "Profile", NULL, str),
 	PINFO(CL_PLATFORM_EXTENSIONS, "Extensions", NULL, str),
 	PINFO_COND(CL_PLATFORM_EXTENSIONS_WITH_VERSION, "Extensions with Version", NULL, ext_version, plat_has_ext_ver),
+	PINFO_COND(CL_PLATFORM_NUMERIC_VERSION, "Numeric Version", NULL, version, plat_has_ext_ver),
+	PINFO_COND(CL_PLATFORM_ICD_SUFFIX_KHR, "Extensions function suffix", NULL, str, khr_icd_p),
 	PINFO_COND(CL_PLATFORM_MAX_KEYS_AMD, "Max metadata object keys (AMD)", NULL, sz, plat_has_amd_object_metadata),
-	PINFO_COND(CL_PLATFORM_HOST_TIMER_RESOLUTION, "Host timer resolution", "ns", ulong, plat_is_21),
-	PINFO_COND(CL_PLATFORM_ICD_SUFFIX_KHR, "Extensions function suffix", NULL, str, khr_icd_p)
+	PINFO_COND(CL_PLATFORM_HOST_TIMER_RESOLUTION, "Host timer resolution", "ns", ulong, plat_is_21)
 };
 
 /* Collect (and optionally show) information on a specific platform,
