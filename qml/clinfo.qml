@@ -7,6 +7,10 @@ import QtQuick.Controls 2.12
 ApplicationWindow
 {
   visible: true
+  /* A minimum size for legibility. A better strategy would be to adopt
+   * a fluid design */
+  minimumWidth:  800
+  minimumHeight: 600
 
   id: clinfo
   title: "QML OpenCL info"
