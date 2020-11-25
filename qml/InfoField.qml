@@ -9,9 +9,11 @@ TextField {
   Layout.fillWidth: true
   Layout.columnSpan: span
   readOnly: true
+  autoScroll: false
   text: "(unknown)"
   onFocusChanged: {
     if (focus) {
+      autoScroll = true;
       selectAll()
     }
   }
