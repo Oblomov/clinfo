@@ -54,7 +54,7 @@ BINMODE ?= 555
 MANDIR ?= $(PREFIX)/man
 MANMODE ?= 444
 
-ANDROID_VENDOR_PATH = ${ANDROID_ROOT}/vendor/lib64
+ANDROID_VENDOR_PATH ?= ${ANDROID_ROOT}/vendor/lib64
 
 LDFLAGS_Android += -Wl,-rpath-link=${ANDROID_VENDOR_PATH} -L${ANDROID_VENDOR_PATH}
 
@@ -69,16 +69,46 @@ LDLIBS_Darwin_exclude = -lOpenCL
 
 LDLIBS += $(LDLIBS_${OS}) $(LDLIBS__common:$(LDLIBS_${OS}_exclude)=)
 
+# The main target is the executable, which is normally called clinfo.
+# However, on Android, due to the lack of support for RPATH, clinfo
+# needs an approprite LD_LIBRARY_PATH, so we map `clinfo` to a shell script
+# that sets LD_LIBRARY_PATH and invokes the real program, which is now called
+# clinfo.real.
 #
-# Standard targets
-#
+# Of course on Android we need to buid both, but not on other OSes
 
-$(PROG): $(PROG).o
+
+EXT.Android = .real
+EXENAME = $(PROG)$(EXT.${OS})
+
+TARGETS.Android = $(PROG)
+TARGETS = $(EXENAME) $(TARGETS.${OS})
+
+all: $(TARGETS)
+
+#
+# Targets to actually build the stuff
+#
+# Many versions of make define a LINK.c as a synthetic rule to link
+# C object files. In case it's not defined already, propose our own:
+LINK.c ?= $(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS)
+
+# Recipe for the actual executable, either clinfo (non-Android)
+# or clinfo.real (on Androd)
+$(EXENAME): $(PROG).o
+	$(LINK.c) -o $@ $< $(LDLIBS)
 
 $(PROG).o: $(PROG).c $(HDR)
 
+# For Android: create a wrapping shell script to run
+# clinfo with the appropriate LD_LIBRARY_PATH.
+$(OS:Android=)$(PROG):
+	@echo '#!/bin/sh' > $@
+	@echo 'LD_LIBRARY_PATH="${ANDROID_VENDOR_PATH}:${ANDROID_VENDOR_PATH}/egl:$$LD_LIBRARY_PATH" ./$(EXENAME) "$$@"' >> $@
+	chmod +x $@
+
 clean:
-	$(RM) $(PROG).o $(PROG)
+	$(RM) $(PROG).o $(TARGETS)
 
 $(BINDIR):
 	install -d $@
