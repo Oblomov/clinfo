@@ -14,33 +14,10 @@ ApplicationWindow
   GroupBox {
 
     anchors.fill: parent
-    anchors.margins: font.pixelSize
-
-    label: Rectangle {
-
-      id: titleBox
-
-      width: titleBoxText.width + font.pixelSize*2
-      height: titleBoxText.font.pixelSize + font.pixelSize
-
-      anchors.horizontalCenter: parent.horizontalCenter
-      anchors.bottom: parent.top
-      anchors.bottomMargin: -height/2
-      color: clinfo.color
-
-      Text {
-        id: titleBoxText
-        text: clinfo.title
-        anchors.centerIn: parent
-      }
-
-    }
 
     ColumnLayout {
       anchors {
         fill: parent
-        margins: font.pixelSize/2
-        topMargin: font.pixelSize
       }
 
       GroupBox {
@@ -48,28 +25,11 @@ ApplicationWindow
         Layout.alignment: Qt.AlignTop | Qt.AlignHCenter
         Layout.fillWidth: true
 
-        label: Rectangle {
-
-          id: icdLoaderTitleBox
-
-          width: icdLoaderTitleBoxText.width + font.pixelSize*2
-          height: icdLoaderTitleBoxText.font.pixelSize + font.pixelSize
-
-          anchors.horizontalCenter: parent.horizontalCenter
-          anchors.bottom: parent.top
-          anchors.bottomMargin: -height/2
-          color: clinfo.color
-
-          Text {
-            id: icdLoaderTitleBoxText
-            text: "libOpenCL (ICD loader)"
-            anchors.centerIn: parent
-          }
-
-        }
+        title: "libOpenCL (ICD loader)"
 
         GridLayout {
           width: parent.width
+
           columns: 4
 
           InfoLabel { text: "Name" }
