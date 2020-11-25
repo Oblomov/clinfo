@@ -42,7 +42,13 @@ ApplicationWindow
           InfoField { id: icdl_version }
 
           InfoLabel { text: "OpenCL Version" }
-          InfoField { id: icdl_ocl_version }
+
+          RowLayout {
+              InfoField { id: icdl_ocl_version }
+
+              InfoLabel { text: "Detected" }
+              InfoField { id: icdl_ocl_version_detected }
+          }
         }
       }
 
@@ -108,6 +114,7 @@ ApplicationWindow
       icdl_name.text = l.CL_ICDL_NAME;
       icdl_version.text = l.CL_ICDL_VERSION;
       icdl_ocl_version.text = l.CL_ICDL_OCL_VERSION;
+      icdl_ocl_version_detected.text = l._detected_version;
       icdl_vendor.text = l.CL_ICDL_VENDOR;
     }
 
