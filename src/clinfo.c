@@ -15,7 +15,11 @@
 # define DL_MODULE GetModuleHandle("OpenCL")
 #else
 # include <dlfcn.h>
+#ifdef RTLD_DEFAULT
+# define DL_MODULE RTLD_DEFAULT
+#else
 # define DL_MODULE ((void*)0) /* This would be RTLD_DEFAULT */
+#endif
 #endif
 
 /* Load STDC format macros (PRI*), or define them
