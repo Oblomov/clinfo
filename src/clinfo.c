@@ -1599,7 +1599,57 @@ device_info_img_sz_3d(struct device_info_ret *ret,
 	ret->value.u32v.s[2] = depth;
 }
 
+void
+device_info_bitfield(struct device_info_ret *ret,
+	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
+	const struct opt_out *output,
+	const cl_bitfield bits,
+	const size_t bit_str_count, /* number of entries in bit_str */
+	const char * const * bit_str, /* array of strings describing the bits */
+	const char * bits_name) /* JSON name for this bitfield */
+{
+	const char *quote = output->json ? "\"" : "";
+	/* number of matches so far, for separator placement */
+	cl_uint count = 0;
+	/* iterator */
+	cl_uint i = 0;
+	/* leftovers bits */
+	cl_bitfield known_mask, extra;
 
+	set_common_separator(output);
+
+	if (output->json)
+		strbuf_append(loc->pname, &ret->str,
+			"{ \"raw\" : %" PRIu64 ", \"%s\" : [ ",
+			bits, bits_name);
+
+	if (bits) {
+		for (i = 0; i < bit_str_count; ++i) {
+			if (bits & (1 << i)) {
+				strbuf_append(loc->pname, &ret->str, "%s%s%s%s",
+					(count > 0 ? sep : ""),
+					quote, bit_str[i], quote);
+				++count;
+			}
+		}
+
+		/* check for extra bits */
+		known_mask = ((cl_bitfield)(1) << bit_str_count) - 1;
+		extra = bits & ~known_mask;
+		if (extra) {
+			strbuf_append(loc->pname, &ret->str, "%s%s%#" PRIx64 "%s",
+				(count > 0 ? sep : ""), quote, extra, quote);
+		}
+	}
+
+	if (output->json)
+		strbuf_append_str(loc->pname, &ret->str, " ] }");
+}
+
+
+/* This could use device_info_bitfield, but we prefer to go through fields in reverse,
+ * so we just dup the code
+ */
 void
 device_info_devtype(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
@@ -1616,6 +1666,8 @@ device_info_devtype(struct device_info_ret *ret,
 		/* leftovers bits */
 		cl_device_type known_mask, extra;
 
+		set_common_separator(output);
+
 		if (output->json)
 			strbuf_append(loc->pname, &ret->str,
 				"{ \"raw\" : %" PRIu64 ", \"type\" : [ ",
@@ -1623,7 +1675,6 @@ device_info_devtype(struct device_info_ret *ret,
 
 		/* iterate over device type strings, appending their textual form
 		 * to ret->str */
-		set_common_separator(output);
 		for (; i > 0; --i) {
 			/* assemble CL_DEVICE_TYPE_* from index i */
 			cl_device_type cur = (cl_device_type)(1) << (i-1);
@@ -1684,39 +1735,10 @@ device_info_atomic_caps(struct device_info_ret *ret,
 {
 	GET_VAL(ret, loc, bits);
 	if (!ret->err) {
-		const char *quote = output->json ? "\"" : "";
-		const char * const * capstr = (output->mode == CLINFO_HUMAN ?
-			atomic_cap_str : atomic_cap_raw_str);
-		cl_uint i = 0;
-		/* number of matches so far, for separator placement */
-		cl_uint count = 0;
-		/* leftovers bits */
-		cl_bitfield known_mask, extra;
-
-		if (output->json)
-			strbuf_append(loc->pname, &ret->str,
-				"{ \"raw\" : %" PRIu64 ", \"capabilities\" : [ ",
-				ret->value.bits);
-
-		set_common_separator(output);
-		for (i = 0; i < atomic_cap_count; ++i) {
-			if (ret->value.bits & (1 << i)) {
-				strbuf_append(loc->pname, &ret->str, "%s%s%s%s",
-					(count > 0 ? sep : ""),
-					quote, capstr[i], quote);
-				++count;
-			}
-		}
-
-		/* check for extra bits */
-		known_mask = ((cl_bitfield)(1) << atomic_cap_count) - 1;
-		extra = ret->value.bits & ~known_mask;
-		if (extra) {
-			strbuf_append(loc->pname, &ret->str, "%s%s%#" PRIx64 "%s",
-				(count > 0 ? sep : ""), quote, extra, quote);
-		}
-		if (output->json)
-			strbuf_append_str(loc->pname, &ret->str, " ] }");
+		device_info_bitfield(ret, loc, chk, output, ret->value.bits,
+			atomic_cap_count, (output->mode == CLINFO_HUMAN ?
+				atomic_cap_str : atomic_cap_raw_str),
+			"capabilities");
 	}
 }
 
@@ -1727,40 +1749,10 @@ device_info_device_enqueue_caps(struct device_info_ret *ret,
 {
 	GET_VAL(ret, loc, bits);
 	if (!ret->err) {
-		const char *quote = output->json ? "\"" : "";
-		const char * const * capstr = (output->mode == CLINFO_HUMAN ?
-			device_enqueue_cap_str : device_enqueue_cap_raw_str);
-		cl_uint i = 0;
-		/* number of matches so far, for separator placement */
-		cl_uint count = 0;
-		/* leftovers bits */
-		cl_device_type known_mask, extra;
-
-		if (output->json)
-			strbuf_append(loc->pname, &ret->str,
-				"{ \"raw\" : %" PRIu64 ", \"capabilities\" : [ ",
-				ret->value.bits);
-
-		set_common_separator(output);
-		for (i = 0; i < device_enqueue_cap_count; ++i) {
-			if (ret->value.bits & (1 << i)) {
-				strbuf_append(loc->pname, &ret->str, "%s%s%s%s",
-					(count > 0 ? sep : ""),
-					quote, capstr[i], quote);
-				++count;
-			}
-		}
-
-		/* check for extra bits */
-		known_mask = ((cl_bitfield)(1) << device_enqueue_cap_count) - 1;
-		extra = ret->value.bits & ~known_mask;
-		if (extra) {
-			strbuf_append(loc->pname, &ret->str, "%s%s%#" PRIx64 "%s",
-				(count > 0 ? sep : ""), quote, extra, quote);
-		}
-
-		if (output->json)
-			strbuf_append_str(loc->pname, &ret->str, " ] }");
+		device_info_bitfield(ret, loc, chk, output, ret->value.bits,
+			device_enqueue_cap_count, (output->mode == CLINFO_HUMAN ?
+				device_enqueue_cap_str : device_enqueue_cap_raw_str),
+			"capabilities");
 	}
 }
 
@@ -2091,45 +2083,14 @@ device_info_partition_affinities(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
 	const struct opt_out *output)
 {
-	cl_device_affinity_domain val;
 	GET_VAL(ret, loc, affinity_domain);
-	val = ret->value.affinity_domain;
 
-	if (output->json)
-		strbuf_append(loc->pname, &ret->str,
-			"{ \"raw\" : %" PRIu64 ", \"domain\" : [ ",
-			val);
-
-	if (!ret->err && val) {
-		const char *quote = output->json ? "\"" : "";
-		const char * const *affstr = (output->mode == CLINFO_HUMAN ?
-			affinity_domain_str : affinity_domain_raw_str);
-		cl_device_affinity_domain known_mask, extra;
-
-		cl_uint i = 0;
-		cl_uint count = 0;
-		/* iterate over affinity domain strings appending their textual form
-		 * to ret->str */
-		set_common_separator(output);
-		for (i = 0; i < affinity_domain_count; ++i) {
-			cl_device_affinity_domain cur = (cl_device_affinity_domain)(1) << i;
-			if (val & cur) {
-				strbuf_append(loc->pname, &ret->str, "%s%s%s%s",
-					(count > 0 ? sep : ""),
-					quote, affstr[i], quote);
-				++count;
-			}
-		}
-		/* check for extra bits */
-		known_mask = ((cl_device_affinity_domain)(1) << affinity_domain_count) - 1;
-		extra = val & ~known_mask;
-		if (extra) {
-			strbuf_append(loc->pname, &ret->str, "%s%s%#" PRIx64 "%s",
-				(count > 0 ? sep : ""), quote, extra, quote);
-		}
+	if (!ret->err) {
+		device_info_bitfield(ret, loc, chk, output, ret->value.affinity_domain,
+			affinity_domain_count, (output->mode == CLINFO_HUMAN ?
+				affinity_domain_str : affinity_domain_raw_str),
+			"domain");
 	}
-	if (output->json)
-		strbuf_append_str(loc->pname, &ret->str, " ] }");
 }
 
 void
@@ -2441,39 +2402,13 @@ device_info_terminate_capability(struct device_info_ret *ret,
 	const struct opt_out *output)
 {
 	GET_VAL(ret, loc, termcap);
-	if (output->json)
-		strbuf_append(loc->pname, &ret->str,
-			"{ \"raw\" : %" PRIu64 ", \"terminate\" : [ ",
-			ret->value.termcap);
 
-	if (!ret->err && ret->value.termcap) {
-		const char *quote = output->json ? "\"" : "";
-		const char * const *capstr = (output->mode == CLINFO_HUMAN ?
-			terminate_capability_str : terminate_capability_raw_str);
-		cl_uint i = 0;
-		cl_uint count = 0;
-		cl_device_terminate_capability_khr  known_mask, extra;
-		set_common_separator(output);
-		/* iterate over terminate capability strings appending their textual form
-		 * to ret->str */
-		for (i = 0; i < terminate_capability_count; ++i) {
-			cl_device_terminate_capability_khr cur = (cl_device_terminate_capability_khr)(1) << i;
-			if (ret->value.termcap & cur) {
-				strbuf_append(loc->pname, &ret->str, "%s%s%s%s",
-					(count > 0 ? sep : ""), quote, capstr[i], quote);
-				++count;
-			}
-		}
-		/* check for extra bits */
-		known_mask = ((cl_device_terminate_capability_khr)(1) << terminate_capability_count) - 1;
-		extra = ret->value.termcap & ~known_mask;
-		if (extra) {
-			strbuf_append(loc->pname, &ret->str, "%s%s%#" PRIx64 "%s",
-				(count > 0 ? sep : ""), quote, extra, quote);
-		}
+	if (!ret->err) {
+		device_info_bitfield(ret, loc, chk, output, ret->value.termcap,
+			terminate_capability_count, (output->mode == CLINFO_HUMAN ?
+				terminate_capability_str : terminate_capability_raw_str),
+			"terminate");
 	}
-	if (output->json)
-		strbuf_append_str(loc->pname, &ret->str, " ] }");
 }
 
 void
