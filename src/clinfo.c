@@ -776,6 +776,7 @@ void
 gatherPlatformInfo(struct platform_list *plist, cl_uint p, const struct opt_out *output)
 {
 	cl_int len = 0;
+	cl_uint n = 0; /* number of platform properties shown, for JSON */
 
 	struct platform_data *pdata = plist->pdata + p;
 	struct platform_info_checks *pinfo_checks = plist->platform_checks + p;
@@ -788,9 +789,9 @@ gatherPlatformInfo(struct platform_list *plist, cl_uint p, const struct opt_out 
 	reset_loc(&loc, __func__);
 	loc.plat = plist->platform[p];
 
-	cl_uint n = 0; /* number of platform properties shown, for JSON */
 	for (loc.line = 0; loc.line < ARRAY_SIZE(pinfo_traits); ++loc.line) {
 		const struct platform_info_traits *traits = pinfo_traits + loc.line;
+		cl_bool requested;
 
 		/* checked is true if there was no condition to check for, or if the
 		 * condition was satisfied
@@ -822,7 +823,7 @@ gatherPlatformInfo(struct platform_list *plist, cl_uint p, const struct opt_out 
 		/* The property gets printed if we are not just listing,
 		 * or if the user requested a property and this one matches.
 		 * Otherwise, we're just gathering information */
-		cl_bool requested = (output->prop && strstr(loc.sname, output->prop) != NULL);
+		requested = (output->prop && strstr(loc.sname, output->prop) != NULL);
 		if (output->detailed || requested) {
 			if (output->json) {
 				json_strbuf(RET_BUF(ret), loc.pname, n++, ret.err || ret.needs_escaping);
@@ -1607,6 +1608,14 @@ device_info_devtype(struct device_info_ret *ret,
 	GET_VAL(ret, loc, devtype);
 	if (!ret->err) {
 		const char *quote = output->json ? "\"" : "";
+		const char * const *devstr = (output->mode == CLINFO_HUMAN ?
+			device_type_str : device_type_raw_str);
+		cl_uint i = (cl_uint)actual_devtype_count;
+		/* number of matches so far, for separator placement */
+		cl_uint count = 0;
+		/* leftovers bits */
+		cl_device_type known_mask, extra;
+
 		if (output->json)
 			strbuf_append(loc->pname, &ret->str,
 				"{ \"raw\" : %" PRIu64 ", \"type\" : [ ",
@@ -1614,11 +1623,7 @@ device_info_devtype(struct device_info_ret *ret,
 
 		/* iterate over device type strings, appending their textual form
 		 * to ret->str */
-		cl_uint i = (cl_uint)actual_devtype_count;
-		const char * const *devstr = (output->mode == CLINFO_HUMAN ?
-			device_type_str : device_type_raw_str);
 		set_common_separator(output);
-		cl_uint count = 0;
 		for (; i > 0; --i) {
 			/* assemble CL_DEVICE_TYPE_* from index i */
 			cl_device_type cur = (cl_device_type)(1) << (i-1);
@@ -1630,13 +1635,15 @@ device_info_devtype(struct device_info_ret *ret,
 				++count;
 			}
 		}
+
 		/* check for extra bits */
-		cl_device_type known_mask = ((cl_device_type)(1) << actual_devtype_count) - 1;
-		cl_device_type extra = ret->value.devtype & ~known_mask;
+		known_mask = ((cl_device_type)(1) << actual_devtype_count) - 1;
+		extra = ret->value.devtype & ~known_mask;
 		if (extra) {
 			strbuf_append(loc->pname, &ret->str, "%s%s%#" PRIx64 "%s",
 				(count > 0 ? sep : ""), quote, extra, quote);
 		}
+
 		if (output->json)
 			strbuf_append_str(loc->pname, &ret->str, " ] }");
 	}
@@ -1678,15 +1685,19 @@ device_info_atomic_caps(struct device_info_ret *ret,
 	GET_VAL(ret, loc, bits);
 	if (!ret->err) {
 		const char *quote = output->json ? "\"" : "";
+		const char * const * capstr = (output->mode == CLINFO_HUMAN ?
+			atomic_cap_str : atomic_cap_raw_str);
+		cl_uint i = 0;
+		/* number of matches so far, for separator placement */
+		cl_uint count = 0;
+		/* leftovers bits */
+		cl_bitfield known_mask, extra;
+
 		if (output->json)
 			strbuf_append(loc->pname, &ret->str,
 				"{ \"raw\" : %" PRIu64 ", \"capabilities\" : [ ",
 				ret->value.bits);
 
-		cl_uint i = 0;
-		cl_uint count = 0;
-		const char * const * capstr = (output->mode == CLINFO_HUMAN ?
-			atomic_cap_str : atomic_cap_raw_str);
 		set_common_separator(output);
 		for (i = 0; i < atomic_cap_count; ++i) {
 			if (ret->value.bits & (1 << i)) {
@@ -1696,9 +1707,10 @@ device_info_atomic_caps(struct device_info_ret *ret,
 				++count;
 			}
 		}
+
 		/* check for extra bits */
-		cl_bitfield known_mask = ((cl_bitfield)(1) << atomic_cap_count) - 1;
-		cl_bitfield extra = ret->value.bits & ~known_mask;
+		known_mask = ((cl_bitfield)(1) << atomic_cap_count) - 1;
+		extra = ret->value.bits & ~known_mask;
 		if (extra) {
 			strbuf_append(loc->pname, &ret->str, "%s%s%#" PRIx64 "%s",
 				(count > 0 ? sep : ""), quote, extra, quote);
@@ -1716,15 +1728,19 @@ device_info_device_enqueue_caps(struct device_info_ret *ret,
 	GET_VAL(ret, loc, bits);
 	if (!ret->err) {
 		const char *quote = output->json ? "\"" : "";
+		const char * const * capstr = (output->mode == CLINFO_HUMAN ?
+			device_enqueue_cap_str : device_enqueue_cap_raw_str);
+		cl_uint i = 0;
+		/* number of matches so far, for separator placement */
+		cl_uint count = 0;
+		/* leftovers bits */
+		cl_device_type known_mask, extra;
+
 		if (output->json)
 			strbuf_append(loc->pname, &ret->str,
 				"{ \"raw\" : %" PRIu64 ", \"capabilities\" : [ ",
 				ret->value.bits);
 
-		cl_uint i = 0;
-		cl_uint count = 0;
-		const char * const * capstr = (output->mode == CLINFO_HUMAN ?
-			device_enqueue_cap_str : device_enqueue_cap_raw_str);
 		set_common_separator(output);
 		for (i = 0; i < device_enqueue_cap_count; ++i) {
 			if (ret->value.bits & (1 << i)) {
@@ -1734,13 +1750,15 @@ device_info_device_enqueue_caps(struct device_info_ret *ret,
 				++count;
 			}
 		}
+
 		/* check for extra bits */
-		cl_bitfield known_mask = ((cl_bitfield)(1) << device_enqueue_cap_count) - 1;
-		cl_bitfield extra = ret->value.bits & ~known_mask;
+		known_mask = ((cl_bitfield)(1) << device_enqueue_cap_count) - 1;
+		extra = ret->value.bits & ~known_mask;
 		if (extra) {
 			strbuf_append(loc->pname, &ret->str, "%s%s%#" PRIx64 "%s",
 				(count > 0 ? sep : ""), quote, extra, quote);
 		}
+
 		if (output->json)
 			strbuf_append_str(loc->pname, &ret->str, " ] }");
 	}
@@ -1752,21 +1770,23 @@ device_info_core_ids(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
 	const struct opt_out *output)
 {
+	cl_ulong val;
 	GET_VAL(ret, loc, u64);
-	cl_ulong val = ret->value.u64;
+	val = ret->value.u64;
 
 	if (!ret->err) {
 		const char *quote = output->json ? "\"" : "";
-		if (output->json)
-			strbuf_append(loc->pname, &ret->str,
-				"{ \"raw\" : %" PRIu64 ", \"core_ids\" : [ ",
-				ret->value.u64);
-
 		/* The value is a bitfield where each set bit corresponds to a core ID
 		 * value that can be returned by the device-side function. We print them
 		 * here as ranges, such as 0-4, 8-12 */
 		int range_start = -1;
 		int cur_bit = 0;
+
+		if (output->json)
+			strbuf_append(loc->pname, &ret->str,
+				"{ \"raw\" : %" PRIu64 ", \"core_ids\" : [ ",
+				ret->value.u64);
+
 		set_separator(empty_str);
 #define CORE_ID_END 64
 		do {
@@ -1801,20 +1821,22 @@ device_info_job_slots(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
 	const struct opt_out *output)
 {
+	cl_uint val;
 	GET_VAL(ret, loc, u32);
-	cl_uint val = ret->value.u32;
+	val = ret->value.u32;
 
 	if (!ret->err) {
 		const char *quote = output->json ? "\"" : "";
+		/* The value is a bitfield where each set bit corresponds to an available job slot.
+		 * We print them here as ranges, such as 0-4, 8-12 */
+		int range_start = -1;
+		int cur_bit = 0;
+
 		if (output->json)
 			strbuf_append(loc->pname, &ret->str,
 				"{ \"raw\" : %" PRIu32 ", \"slots\" : [ ",
 				ret->value.u32);
 
-		/* The value is a bitfield where each set bit corresponds to an available job slot.
-		 * We print them here as ranges, such as 0-4, 8-12 */
-		int range_start = -1;
-		int cur_bit = 0;
 		set_separator(empty_str);
 #define JOB_SLOT_END 32
 		do {
@@ -2069,8 +2091,9 @@ device_info_partition_affinities(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
 	const struct opt_out *output)
 {
+	cl_device_affinity_domain val;
 	GET_VAL(ret, loc, affinity_domain);
-	const cl_device_affinity_domain val = ret->value.affinity_domain;
+	val = ret->value.affinity_domain;
 
 	if (output->json)
 		strbuf_append(loc->pname, &ret->str,
@@ -2079,13 +2102,14 @@ device_info_partition_affinities(struct device_info_ret *ret,
 
 	if (!ret->err && val) {
 		const char *quote = output->json ? "\"" : "";
-
-		/* iterate over affinity domain strings appending their textual form
-		 * to ret->str */
-		cl_uint i = 0;
-		cl_uint count = 0;
 		const char * const *affstr = (output->mode == CLINFO_HUMAN ?
 			affinity_domain_str : affinity_domain_raw_str);
+		cl_device_affinity_domain known_mask, extra;
+
+		cl_uint i = 0;
+		cl_uint count = 0;
+		/* iterate over affinity domain strings appending their textual form
+		 * to ret->str */
 		set_common_separator(output);
 		for (i = 0; i < affinity_domain_count; ++i) {
 			cl_device_affinity_domain cur = (cl_device_affinity_domain)(1) << i;
@@ -2097,8 +2121,8 @@ device_info_partition_affinities(struct device_info_ret *ret,
 			}
 		}
 		/* check for extra bits */
-		cl_device_affinity_domain known_mask = ((cl_device_affinity_domain)(1) << affinity_domain_count) - 1;
-		cl_device_affinity_domain extra = val & ~known_mask;
+		known_mask = ((cl_device_affinity_domain)(1) << affinity_domain_count) - 1;
+		extra = val & ~known_mask;
 		if (extra) {
 			strbuf_append(loc->pname, &ret->str, "%s%s%#" PRIx64 "%s",
 				(count > 0 ? sep : ""), quote, extra, quote);
@@ -2275,15 +2299,16 @@ device_info_qprop(struct device_info_ret *ret,
 	GET_VAL(ret, loc, qprop);
 	if (!ret->err) {
 		const char *quote = output->json ? "\"" : "";
+		cl_uint i = 0;
+		cl_uint count = 0;
+		const char * const *qpstr = (output->mode == CLINFO_HUMAN ?
+			queue_prop_str : queue_prop_raw_str);
+
 		if (output->json)
 			strbuf_append(loc->pname, &ret->str,
 				"{ \"raw\" : %" PRIu64 ", \"queue_prop\" : [ ",
 				ret->value.qprop);
 
-		cl_uint i = 0;
-		cl_uint count = 0;
-		const char * const *qpstr = (output->mode == CLINFO_HUMAN ?
-			queue_prop_str : queue_prop_raw_str);
 		set_common_separator(output);
 		for (i = 0; i < queue_prop_count; ++i) {
 			cl_command_queue_properties cur = (cl_command_queue_properties)(1) << i;
@@ -2316,15 +2341,15 @@ device_info_execap(struct device_info_ret *ret,
 	GET_VAL(ret, loc, execap);
 	if (!ret->err) {
 		const char *quote = output->json ? "\"" : "";
+		const char * const *qpstr = (output->mode == CLINFO_HUMAN ?
+			execap_str : execap_raw_str);
+		cl_uint i = 0;
+		cl_uint count = 0;
 		if (output->json)
 			strbuf_append(loc->pname, &ret->str,
 				"{ \"raw\" : %" PRIu64 ", \"type\" : [ ",
 				ret->value.execap);
 
-		cl_uint i = 0;
-		cl_uint count = 0;
-		const char * const *qpstr = (output->mode == CLINFO_HUMAN ?
-			execap_str : execap_raw_str);
 		set_common_separator(output);
 		for (i = 0; i < execap_count; ++i) {
 			cl_device_exec_capabilities cur = (cl_device_exec_capabilities)(1) << i;
@@ -2350,10 +2375,9 @@ device_info_arch(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
 	const struct opt_out *output)
 {
-	DEV_FETCH(cl_uint, bits);
 	struct info_loc loc2 = *loc;
+	DEV_FETCH(cl_uint, bits);
 	RESET_LOC_PARAM(loc2, dev, CL_DEVICE_ENDIAN_LITTLE);
-
 	if (!ret->err) {
 		DEV_FETCH_LOC(cl_bool, val, &loc2);
 		if (!ret->err) {
@@ -2375,23 +2399,24 @@ device_info_svm_cap(struct device_info_ret *ret,
 
 	if (!ret->err) {
 		const char *quote = output->json ? "\"" : "";
+		const char * const *scstr = (output->mode == CLINFO_HUMAN ?
+			svm_cap_str : svm_cap_raw_str);
+		cl_uint i = 0;
+		cl_uint count = 0;
+
+		set_common_separator(output);
+
 		if (output->json)
 			strbuf_append(loc->pname, &ret->str,
 				"{ \"raw\" : %" PRIu64 ", \"type\" : [ ",
 				ret->value.svmcap);
-
-		cl_uint i = 0;
-		const char * const *scstr = (output->mode == CLINFO_HUMAN ?
-			svm_cap_str : svm_cap_raw_str);
-		set_common_separator(output);
-		if (output->mode == CLINFO_HUMAN && checking_core) {
+		else if (output->mode == CLINFO_HUMAN && checking_core) {
 			/* show 'why' it's being shown */
 			strbuf_append(loc->pname, &ret->str, "(%s%s%s)",
 				(is_20 ? core : empty_str),
 				(is_20 && has_amd_svm ? comma_str : empty_str),
 				chk->has_amd_svm);
 		}
-		cl_uint count = 0;
 		for (i = 0; i < svm_cap_count; ++i) {
 			cl_device_svm_capabilities cur = (cl_device_svm_capabilities)(1) << i;
 			cl_bool present = !!(ret->value.svmcap & cur);
@@ -2423,13 +2448,14 @@ device_info_terminate_capability(struct device_info_ret *ret,
 
 	if (!ret->err && ret->value.termcap) {
 		const char *quote = output->json ? "\"" : "";
-		/* iterate over terminate capability strings appending their textual form
-		 * to ret->str */
-		cl_uint i = 0;
-		cl_uint count = 0;
 		const char * const *capstr = (output->mode == CLINFO_HUMAN ?
 			terminate_capability_str : terminate_capability_raw_str);
+		cl_uint i = 0;
+		cl_uint count = 0;
+		cl_device_terminate_capability_khr  known_mask, extra;
 		set_common_separator(output);
+		/* iterate over terminate capability strings appending their textual form
+		 * to ret->str */
 		for (i = 0; i < terminate_capability_count; ++i) {
 			cl_device_terminate_capability_khr cur = (cl_device_terminate_capability_khr)(1) << i;
 			if (ret->value.termcap & cur) {
@@ -2439,8 +2465,8 @@ device_info_terminate_capability(struct device_info_ret *ret,
 			}
 		}
 		/* check for extra bits */
-		cl_device_terminate_capability_khr known_mask = ((cl_device_terminate_capability_khr)(1) << terminate_capability_count) - 1;
-		cl_device_terminate_capability_khr extra = ret->value.termcap & ~known_mask;
+		known_mask = ((cl_device_terminate_capability_khr)(1) << terminate_capability_count) - 1;
+		extra = ret->value.termcap & ~known_mask;
 		if (extra) {
 			strbuf_append(loc->pname, &ret->str, "%s%s%#" PRIx64 "%s",
 				(count > 0 ? sep : ""), quote, extra, quote);
@@ -2882,6 +2908,8 @@ printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uint p,
 	struct device_info_ret ret;
 	struct info_loc loc;
 
+	cl_uint n = 0; /* number of device properties shown, for JSON */
+
 	memset(&chk, 0, sizeof(chk));
 	chk.pinfo_checks = plist->platform_checks + p;
 	chk.dev_version = 10;
@@ -2892,10 +2920,10 @@ printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uint p,
 	loc.plat = plist->platform[p];
 	loc.dev = dev;
 
-	cl_uint n = 0; /* number of device properties shown, for JSON */
 	for (loc.line = 0; loc.line < ARRAY_SIZE(dinfo_traits); ++loc.line) {
 
 		const struct device_info_traits *traits = dinfo_traits + loc.line;
+		cl_bool requested;
 
 		/* checked is true if there was no condition to check for, or if the
 		 * condition was satisfied
@@ -2941,7 +2969,7 @@ printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uint p,
 		traits->show_func(&ret, &loc, &chk, output);
 
 		/* Do not print this property if the user requested one and this does not match */
-		const cl_bool requested = !(output->prop && strstr(loc.sname, output->prop) == NULL);
+		requested = !(output->prop && strstr(loc.sname, output->prop) == NULL);
 		if (traits->param == CL_DEVICE_EXTENSIONS) {
 			/* make a backup of the extensions string, regardless of
 			 * errors and requested, because we need the information
@@ -2959,11 +2987,11 @@ printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uint p,
 			extensions[ext_len+1] = ' ';
 			extensions[ext_len+2] = '\0';
 		} else if (traits->param == CL_DEVICE_EXTENSIONS_WITH_VERSION) {
-			if (!requested)
-				continue;
 			/* This will be displayed at the end, after we display the output of CL_DEVICE_EXTENSIONS */
 			const char *msg = RET_BUF(ret)->buf;
 			const size_t len = RET_BUF(ret)->sz;
+			if (!requested)
+				continue;
 			versioned_extensions_traits = traits;
 			ALLOC(versioned_extensions, len, "versioned extensions");
 			memcpy(versioned_extensions, msg, len);
@@ -3182,8 +3210,8 @@ void printPlatformDevices(const struct platform_list *plist, cl_uint p,
 			ndevs);
 
 	for (d = 0; d < ndevs; ++d) {
-		if (output->selected && output->device != d) continue;
 		const cl_device_id dev = device[d];
+		if (output->selected && output->device != d) continue;
 		if (output->brief) {
 			const cl_bool last_device = (d == ndevs - 1 &&
 				output->mode != CLINFO_RAW &&
@@ -3623,16 +3651,16 @@ void checkNullBehavior(const struct platform_list *plist, const struct opt_out *
 		} else {
 			/* this shouldn't happen, but still ... */
 			ret.err = CL_OUT_OF_HOST_MEMORY;
-			strbuf_append(__func__, &ret.err_str, 0, "<error: overflow in default platform scan>");
+			strbuf_append_str(__func__, &ret.err_str, "<error: overflow in default platform scan>");
 		}
 	}
 	printf(I1_STR "%s\n", "clCreateContext(NULL, ...) [default]", RET_BUF(ret)->buf);
 
 	/* Look for a device from a non-default platform, if there are any */
 	if (p == num_platforms || num_platforms > 1) {
+		cl_uint p2 = 0;
 		reset_strbuf(&ret.str);
 		reset_strbuf(&ret.err_str);
-		cl_uint p2 = 0;
 		while (p2 < num_platforms && (p2 == p || pdata[p2].ndevs == 0)) {
 			p2++;
 		}
@@ -3719,6 +3747,12 @@ struct icdl_data oclIcdProps(const struct platform_list *plist, const struct opt
 
 	struct icdl_data icdl;
 
+	/* clinfo may lag behind the OpenCL standard or loader version,
+	 * and we don't want to give a warning if we can't tell if the loader
+	 * correctly supports a version unknown to us
+	 */
+	cl_uint clinfo_highest_known_version = 0;
+
 	/* Counter that'll be used to walk the icd_loader_tests */
 	int i = 0;
 
@@ -3736,12 +3770,6 @@ struct icdl_data oclIcdProps(const struct platform_list *plist, const struct opt
 	icdl.detected_version = 10;
 	icdl.reported_version = 0;
 
-	/* clinfo may lag behind the OpenCL standard or loader version,
-	 * and we don't want to give a warning if we can't tell if the loader
-	 * correctly supports a version unknown to us
-	 */
-	cl_uint clinfo_highest_known_version = 0;
-
 	/* Step #1: try to auto-detect the supported ICD loader version */
 	do {
 		struct icd_loader_test check = icd_loader_tests[i];
@@ -3755,6 +3783,7 @@ struct icdl_data oclIcdProps(const struct platform_list *plist, const struct opt
 
 	/* Step #2: query properties from extension, if available */
 	if (clGetICDLoaderInfoOCLICD != NULL) {
+		cl_uint n = 0; /* number of ICD loader properties shown, for JSON */
 		struct info_loc loc;
 		struct icdl_info_ret ret;
 		reset_loc(&loc, __func__);
@@ -3774,9 +3803,9 @@ struct icdl_data oclIcdProps(const struct platform_list *plist, const struct opt
 			reset_strbuf(&ret.str);
 		}
 
-		cl_uint n = 0; /* number of ICD loader properties shown, for JSON */
 		for (loc.line = 0; loc.line < ARRAY_SIZE(linfo_traits); ++loc.line) {
 			const struct icdl_info_traits *traits = linfo_traits + loc.line;
+			cl_bool requested;
 			loc.sname = traits->sname;
 			loc.pname = (output->mode == CLINFO_HUMAN ?
 				traits->pname : traits->sname);
@@ -3787,7 +3816,7 @@ struct icdl_data oclIcdProps(const struct platform_list *plist, const struct opt
 			icdl_info_str(&ret, &loc);
 
 			/* Do not print this property if the user requested one and this does not match */
-			const cl_bool requested = !(output->prop && strstr(loc.sname, output->prop) == NULL);
+			requested = !(output->prop && strstr(loc.sname, output->prop) == NULL);
 			if (requested) {
 				if (output->json)
 					json_strbuf(RET_BUF(ret), loc.pname, n++, CL_TRUE);
@@ -3809,6 +3838,12 @@ struct icdl_data oclIcdProps(const struct platform_list *plist, const struct opt
 
 	/* Step #3: show it */
 	if (output->mode == CLINFO_HUMAN) {
+		// for the loader vs platform max version check we use the version we detected
+		// if the reported version is known to us, and the reported version if it's higher
+		// than the standard versions we know about
+		cl_uint max_version_check = icdl.reported_version > clinfo_highest_known_version ?
+			icdl.reported_version : icdl.detected_version;
+
 		if (icdl.reported_version &&
 			icdl.reported_version <= clinfo_highest_known_version &&
 			icdl.reported_version != icdl.detected_version) {
@@ -3820,11 +3855,6 @@ struct icdl_data oclIcdProps(const struct platform_list *plist, const struct opt
 				"only" : "too");
 		}
 
-		// for the loader vs platform max version check we use the version we detected
-		// if the reported version is known to us, and the reported version if it's higher
-		// than the standard versions we know about
-		cl_uint max_version_check = icdl.reported_version > clinfo_highest_known_version ?
-			icdl.reported_version : icdl.detected_version;
 		if (max_version_check < max_plat_version) {
 			printf(	"\tNOTE:\tyour OpenCL library only supports OpenCL %" PRIu32 ".%" PRIu32 ",\n"
 				"\t\tbut some installed platforms support OpenCL %" PRIu32 ".%" PRIu32 ".\n"
@@ -3849,12 +3879,12 @@ void version(void)
 
 void parse_device_spec(const char *str, struct opt_out *output)
 {
+	int p, d, n;
 	if (!str) {
 		fprintf(stderr, "please specify a device in the form P:D where P is the platform number and D the device number\n");
 		exit(1);
 	}
-	int p, d;
-	int n = sscanf(str, "%d:%d", &p, &d);
+	n = sscanf(str, "%d:%d", &p, &d);
 	if (n != 2 || p < 0 || d < 0) {
 		fprintf(stderr, "invalid device specification '%s'\n", str);
 		exit(1);
