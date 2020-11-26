@@ -105,11 +105,13 @@ working `clinfo` you can run. You will most probably need to set
 runtime: you will need at least `${ANDROID_ROOT}/vendor/lib64`, but on
 some machine the OpenCL library actually maps to a different library
 (e.g., on one of my systems, it maps to the GLES library, which is in a
-different subdirectory). Something like:
+different subdirectory).
 
-	LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${ANDROID_ROOT}/vendor/lib64:${ANDROID_ROOT}/vendor/lib64/egl" ./clinfo
-
-might work.
+Due to this requirement, on Android the actual binary is now called
+`clinfo.real`, and the produced `clinfo` is just a shell script that
+will run the actual binary after setting `LD_LIBRARY_PATH`. If this
+is not sufficient on your installation, please open an issue and we'll
+try to improve the shell script to cover your use case as well.
 
 ## Windows support
 
