@@ -2259,37 +2259,24 @@ device_info_qprop(struct device_info_ret *ret,
 {
 	GET_VAL(ret, loc, qprop);
 	if (!ret->err) {
-		const char *quote = output->json ? "\"" : "";
-		cl_uint i = 0;
-		cl_uint count = 0;
 		const char * const *qpstr = (output->mode == CLINFO_HUMAN ?
 			queue_prop_str : queue_prop_raw_str);
 
-		if (output->json)
-			strbuf_append(loc->pname, &ret->str,
-				"{ \"raw\" : %" PRIu64 ", \"queue_prop\" : [ ",
-				ret->value.qprop);
-
-		set_common_separator(output);
-		for (i = 0; i < queue_prop_count; ++i) {
-			cl_command_queue_properties cur = (cl_command_queue_properties)(1) << i;
-			cl_bool present =!!(ret->value.qprop & cur);
-			if (output->mode == CLINFO_HUMAN) {
+		if (output->mode != CLINFO_HUMAN) {
+			device_info_bitfield(ret, loc, chk, output, ret->value.qprop,
+				queue_prop_count, qpstr, "queue_prop");
+		} else { /* output->mode == CLINFO_HUMAN */
+			for (cl_uint i = 0; i < queue_prop_count; ++i) {
+				cl_command_queue_properties cur = (cl_command_queue_properties)(1) << i;
+				cl_bool present =!!(ret->value.qprop & cur);
 				strbuf_append(loc->pname, &ret->str, "\n%s" I2_STR "%s",
 					line_pfx, qpstr[i], bool_str[present]);
-			} else if (present) {
-				strbuf_append(loc->pname, &ret->str, "%s%s%s%s",
-					(count > 0 ? sep : ""), quote, qpstr[i], quote);
-				++count;
 			}
+			/* TODO FIXME extra bits? */
+			if (loc->param.dev == CL_DEVICE_QUEUE_PROPERTIES && dev_has_intel_local_thread(chk))
+				strbuf_append(loc->pname, &ret->str, "\n%s" I2_STR "%s",
+					line_pfx, "Local thread execution (Intel)", bool_str[CL_TRUE]);
 		}
-		/* TODO FIXME extra bits? */
-		if (output->mode == CLINFO_HUMAN && loc->param.dev == CL_DEVICE_QUEUE_PROPERTIES &&
-			dev_has_intel_local_thread(chk))
-			strbuf_append(loc->pname, &ret->str, "\n%s" I2_STR "%s",
-				line_pfx, "Local thread execution (Intel)", bool_str[CL_TRUE]);
-		if (output->json)
-			strbuf_append_str(loc->pname, &ret->str, " ] }");
 	}
 }
 
@@ -2301,32 +2288,20 @@ device_info_execap(struct device_info_ret *ret,
 {
 	GET_VAL(ret, loc, execap);
 	if (!ret->err) {
-		const char *quote = output->json ? "\"" : "";
 		const char * const *qpstr = (output->mode == CLINFO_HUMAN ?
 			execap_str : execap_raw_str);
-		cl_uint i = 0;
-		cl_uint count = 0;
-		if (output->json)
-			strbuf_append(loc->pname, &ret->str,
-				"{ \"raw\" : %" PRIu64 ", \"type\" : [ ",
-				ret->value.execap);
 
-		set_common_separator(output);
-		for (i = 0; i < execap_count; ++i) {
-			cl_device_exec_capabilities cur = (cl_device_exec_capabilities)(1) << i;
-			cl_bool present =!!(ret->value.execap & cur);
-			if (output->mode == CLINFO_HUMAN) {
+		if (output->mode != CLINFO_HUMAN) {
+			device_info_bitfield(ret, loc, chk, output, ret->value.qprop,
+				execap_count, qpstr, "type");
+		} else { /* output->mode == CLINFO_HUMAN */
+			for (cl_uint i = 0; i < execap_count; ++i) {
+				cl_device_exec_capabilities cur = (cl_device_exec_capabilities)(1) << i;
+				cl_bool present =!!(ret->value.execap & cur);
 				strbuf_append(loc->pname, &ret->str, "\n%s" I2_STR "%s",
 					line_pfx, qpstr[i], bool_str[present]);
-			} else if (present) {
-				strbuf_append(loc->pname, &ret->str, "%s%s%s%s",
-					(count > 0 ? sep : ""), quote, qpstr[i], quote);
-				++count;
 			}
 		}
-		/* TODO FIXME extra bits? */
-		if (output->json)
-			strbuf_append_str(loc->pname, &ret->str, " ] }");
 	}
 }
 
@@ -2359,39 +2334,27 @@ device_info_svm_cap(struct device_info_ret *ret,
 	GET_VAL(ret, loc, svmcap);
 
 	if (!ret->err) {
-		const char *quote = output->json ? "\"" : "";
 		const char * const *scstr = (output->mode == CLINFO_HUMAN ?
 			svm_cap_str : svm_cap_raw_str);
-		cl_uint i = 0;
-		cl_uint count = 0;
 
-		set_common_separator(output);
-
-		if (output->json)
-			strbuf_append(loc->pname, &ret->str,
-				"{ \"raw\" : %" PRIu64 ", \"type\" : [ ",
-				ret->value.svmcap);
-		else if (output->mode == CLINFO_HUMAN && checking_core) {
-			/* show 'why' it's being shown */
-			strbuf_append(loc->pname, &ret->str, "(%s%s%s)",
-				(is_20 ? core : empty_str),
-				(is_20 && has_amd_svm ? comma_str : empty_str),
-				chk->has_amd_svm);
-		}
-		for (i = 0; i < svm_cap_count; ++i) {
-			cl_device_svm_capabilities cur = (cl_device_svm_capabilities)(1) << i;
-			cl_bool present = !!(ret->value.svmcap & cur);
-			if (output->mode == CLINFO_HUMAN) {
+		if (output->mode != CLINFO_HUMAN) {
+			device_info_bitfield(ret, loc, chk, output, ret->value.svmcap,
+				svm_cap_count, scstr, "capabilities");
+		} else { /* output->mode == CLINFO_HUMAN */
+			if (checking_core) {
+				/* show 'why' it's being shown */
+				strbuf_append(loc->pname, &ret->str, "(%s%s%s)",
+					(is_20 ? core : empty_str),
+					(is_20 && has_amd_svm ? comma_str : empty_str),
+					chk->has_amd_svm);
+			}
+			for (cl_uint i = 0; i < svm_cap_count; ++i) {
+				cl_device_svm_capabilities cur = (cl_device_svm_capabilities)(1) << i;
+				cl_bool present = !!(ret->value.svmcap & cur);
 				strbuf_append(loc->pname, &ret->str, "\n%s" I2_STR "%s",
 					line_pfx, scstr[i], bool_str[present]);
-			} else if (present) {
-				strbuf_append(loc->pname, &ret->str, "%s%s%s%s",
-					(count > 0 ? sep : ""), quote, scstr[i], quote);
-				++count;
 			}
 		}
-		if (output->json)
-			strbuf_append_str(loc->pname, &ret->str, " ] }");
 	}
 }
 
