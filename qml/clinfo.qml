@@ -61,6 +61,16 @@ ApplicationWindow
         Layout.alignment: Qt.AlignTop | Qt.AlignHCenter
         Layout.fillWidth: true
 
+        Shortcut {
+          sequence: StandardKey.NextChild
+          onActivated: platform_tabs.incrementCurrentIndex()
+        }
+
+        Shortcut {
+          sequence: StandardKey.PreviousChild
+          onActivated: platform_tabs.decrementCurrentIndex()
+        }
+
         Component {
           id: platform_tab
           TabButton { }
