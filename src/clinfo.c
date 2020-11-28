@@ -3795,6 +3795,12 @@ void parse_device_spec(const char *str, struct opt_out *output)
 	output->device = d;
 }
 
+void free_output(struct opt_out *output)
+{
+	free((char*)output->prop);
+	output->prop = NULL;
+}
+
 void parse_prop(const char *input, struct opt_out *output)
 {
 	/* We normalize the property name by upcasing it and replacing the minus sign (-)
@@ -3817,6 +3823,12 @@ void parse_prop(const char *input, struct opt_out *output)
 			fprintf(stderr, "invalid property name substring '%s'\n", input);
 			exit(1);
 		}
+	}
+
+	if (output->prop) {
+		fprintf(stderr, "WARNING: only one property name substring supported, discarding %s in favor of %s\n",
+			output->prop, normalized);
+		free_output(output);
 	}
 	output->prop = normalized;
 }
@@ -3893,9 +3905,11 @@ int main(int argc, char *argv[])
 			parse_prop(argv[a], &output);
 		} else if (!strcmp(argv[a], "-?") || !strcmp(argv[a], "-h")) {
 			usage();
+			free_output(&output);
 			return 0;
 		} else if (!strcmp(argv[a], "--version") || !strcmp(argv[a], "-v")) {
 			version();
+			free_output(&output);
 			return 0;
 		} else {
 			fprintf(stderr, "ignoring unknown command-line parameter %s\n", argv[a]);
@@ -3920,6 +3934,7 @@ int main(int argc, char *argv[])
 			plist.num_platforms);
 	if (!plist.num_platforms) {
 		if (output.json) puts("{ platforms: [] }");
+		free_output(&output);
 		return 0;
 	}
 
@@ -3973,6 +3988,6 @@ int main(int argc, char *argv[])
 
 	free_plist(&plist);
 	free(line_pfx);
-	free((char*)output.prop);
+	free_output(&output);
 	return 0;
 }
