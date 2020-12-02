@@ -71,6 +71,14 @@ ApplicationWindow
           onActivated: platform_tabs.decrementCurrentIndex()
         }
 
+        /* This is needed because PreviousChild doesn't hook up
+         * see also https://bugreports.qt.io/browse/QTBUG-15746
+         */
+        Shortcut {
+          sequence: "Ctrl+Shift+Tab"
+          onActivated: platform_tabs.decrementCurrentIndex()
+        }
+
         Component {
           id: platform_tab
           TabButton { }
