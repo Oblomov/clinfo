@@ -108,6 +108,22 @@ ApplicationWindow
               Qt.createComponent("InfoLabel.qml").createObject(layout, l);
               Qt.createComponent("InfoField.qml").createObject(layout, f);
             }
+
+            function addPropertyPairs(name, values) {
+              var l = { text: name };
+              var ldots = { text: "..." };
+              for (var i = 0; i < values.length; i++) {
+                if (i == 0) {
+                  Qt.createComponent("InfoLabel.qml").createObject(layout, l);
+                } else {
+                  Qt.createComponent("InfoLabel.qml").createObject(layout, ldots);
+                }
+                var f = { text: values[i][0], span: 2};
+                Qt.createComponent("InfoField.qml").createObject(layout, f);
+                f = { text: values[i][1] }
+                Qt.createComponent("InfoField.qml").createObject(layout, f);
+              }
+            }
           }
         }
       }
@@ -141,7 +157,8 @@ ApplicationWindow
     }
 
     const platform_builtin = [ "CL_PLATFORM_NAME", "CL_PLATFORM_VENDOR", "CL_PLATFORM_VERSION",
-      "CL_PLATFORM_PROFILE", "CL_PLATFORM_ICD_SUFFIX_KHR", "CL_PLATFORM_EXTENSIONS" ];
+    "CL_PLATFORM_PROFILE", "CL_PLATFORM_ICD_SUFFIX_KHR", "CL_PLATFORM_EXTENSIONS",
+    "CL_PLATFORM_EXTENSIONS_WITH_VERSION" ];
 
     var plist = object.platforms;
     var dlist = object.devices;
@@ -158,6 +175,14 @@ ApplicationWindow
       page.addProperty("Profile", plat.CL_PLATFORM_PROFILE);
       page.addProperty("ICD suffix", plat.CL_PLATFORM_ICD_SUFFIX_KHR);
       page.addProperty("Extensions", plat.CL_PLATFORM_EXTENSIONS, 2);
+      if (plat.CL_PLATFORM_EXTENSIONS_WITH_VERSION) {
+        var e = plat.CL_PLATFORM_EXTENSIONS_WITH_VERSION;
+        var values = [];
+        for (var key in e) {
+          values.push([key, e[key].version]);
+        }
+        page.addPropertyPairs("Extension version", values);
+      }
       for (var name in plat) {
         if (platform_builtin.includes(name)) { continue; }
         /* Assemble a proper name */
@@ -167,7 +192,7 @@ ApplicationWindow
         // TODO even better, use the clinfo own map
         var value = plat[name];
         if (typeof(value) == 'object') {
-          value = value.raw
+          value = value.version || value.raw
         }
         page.addProperty(present_name, '' + value);
       }
