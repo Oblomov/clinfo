@@ -2889,6 +2889,8 @@ printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uint p,
 			extensions[ext_len+1] = ' ';
 			extensions[ext_len+2] = '\0';
 		} else if (traits->param == CL_DEVICE_EXTENSIONS_WITH_VERSION) {
+			if (ret.err && !checked && output->cond != COND_PROP_SHOW)
+				continue;
 			/* This will be displayed at the end, after we display the output of CL_DEVICE_EXTENSIONS */
 			const char *msg = RET_BUF(ret)->buf;
 			const size_t len = RET_BUF(ret)->sz;
