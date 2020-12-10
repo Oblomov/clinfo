@@ -125,7 +125,7 @@ static inline void strbuf_append_str(const char *what, struct _strbuf *str, cons
 static inline const char* skip_leading_ws(const char *str)
 {
 	const char *ret = str;
-	while (isspace(*ret)) ++ret;
+	while (isspace((unsigned char) *ret)) ++ret;
 	return ret;
 }
 
