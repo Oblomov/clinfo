@@ -89,8 +89,10 @@ repository for that):
 (I prefer doing this from a `src` directory I have created for
 development, but as long as `clinfo` and `OpenCL-Headers` are sibling
 directories, the headers will be found. If not, you will have to
-override `CPPFLAGS` with e.g. `export CPPFLAGS=/path/to/where/headers/are`
-before running `make`.)
+override `CPPFLAGS` with e.g. `export CPPFLAGS=-I/path/to/where/headers/are`
+before running `make`.
+Of course `/path/to/where/headers/are` should be replaced with the actual
+path to which the `OpenCL-Headers` repository was cloned.)
 
 You can then `cd clinfo` and build the application. You can try simply
 running `make` since Android should be autodetected now, buf it
