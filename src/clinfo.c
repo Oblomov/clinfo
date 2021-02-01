@@ -2549,7 +2549,7 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_TYPE, "Device Type", devtype), NULL },
 
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_BOARD_NAME_AMD, "Device Board Name (AMD)", str), dev_has_amd },
-	{ CLINFO_BOTH, DINFO(CL_DEVICE_PCIE_ID_AMD, "Device PCI-e ID (AMD)", hex), dev_has_amd },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_PCIE_ID_AMD, "Device PCI-e ID (AMD)", hex), dev_is_gpu_amd },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_TOPOLOGY_AMD, "Device Topology (AMD)", devtopo_amd), dev_has_amd },
 
 	/* Device Topology (NV) is multipart, so different for HUMAN and RAW */
