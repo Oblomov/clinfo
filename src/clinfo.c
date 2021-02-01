@@ -1225,7 +1225,7 @@ DEFINE_DEVINFO_FETCH(cl_bitfield, u64)
 DEFINE_DEVINFO_FETCH(cl_device_type, devtype)
 DEFINE_DEVINFO_FETCH(cl_device_mem_cache_type, cachetype)
 DEFINE_DEVINFO_FETCH(cl_device_local_mem_type, lmemtype)
-DEFINE_DEVINFO_FETCH(cl_device_topology_amd, devtopo)
+DEFINE_DEVINFO_FETCH(cl_device_topology_amd, devtopo_amd)
 DEFINE_DEVINFO_FETCH(cl_device_affinity_domain, affinity_domain)
 DEFINE_DEVINFO_FETCH(cl_device_fp_config, fpconfig)
 DEFINE_DEVINFO_FETCH(cl_command_queue_properties, qprop)
@@ -1861,17 +1861,30 @@ device_info_job_slots(struct device_info_ret *ret,
 	}
 }
 
-/* stringify a cl_device_topology_amd */
-void devtopo_str(struct device_info_ret *ret, const cl_device_topology_amd *devtopo)
+void devtopo_pci_str(struct device_info_ret *ret, const struct clinfo_device_topology_pci *devtopo)
 {
+	strbuf_append("devtopo", &ret->str, "PCI-E, %04x:%02x:%02x.%u",
+		devtopo->domain,
+		devtopo->bus,
+		devtopo->device, devtopo->function);
+	ret->value.devtopo_pci = *devtopo;
+}
+
+/* stringify a cl_device_topology_amd */
+void devtopo_amd_str(struct device_info_ret *ret, const cl_device_topology_amd *devtopo)
+{
+	struct clinfo_device_topology_pci devtopo_info;
+
 	switch (devtopo->raw.type) {
 	case 0:
 		/* leave empty */
 		break;
 	case CL_DEVICE_TOPOLOGY_TYPE_PCIE_AMD:
-		strbuf_append("devtopo", &ret->str, "PCI-E, %02x:%02x.%u",
-			(cl_uchar)(devtopo->pcie.bus),
-			devtopo->pcie.device, devtopo->pcie.function);
+		devtopo_info.domain = 0;
+		devtopo_info.bus = devtopo->pcie.bus;
+		devtopo_info.device = devtopo->pcie.device;
+		devtopo_info.function = devtopo->pcie.function;
+		devtopo_pci_str(ret, &devtopo_info);
 		break;
 	default:
 		strbuf_append("devtopo", &ret->str, "<unknown (%u): %u %u %u %u %u>",
@@ -1887,36 +1900,39 @@ device_info_devtopo_amd(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
 	const struct opt_out *output)
 {
-	GET_VAL(ret, loc, devtopo);
+	GET_VAL(ret, loc, devtopo_amd);
 	/* TODO how to do this in CLINFO_RAW mode */
 	if (!ret->err) {
-		devtopo_str(ret, &ret->value.devtopo);
+		devtopo_amd_str(ret, &ret->value.devtopo_amd);
 		/* TODO JSONify */
 		ret->needs_escaping = CL_TRUE;
 	}
 }
 
-/* we assemble a cl_device_topology_amd struct from the NVIDIA info */
+/* we assemble a clinfo_device_topology_pci struct from the NVIDIA info */
 void
 device_info_devtopo_nv(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
 	const struct opt_out *output)
 {
 	struct info_loc loc2 = *loc;
-	cl_device_topology_amd devtopo;
+	struct clinfo_device_topology_pci devtopo;
 	DEV_FETCH(cl_uint, val); /* CL_DEVICE_PCI_BUS_ID_NV */
 	if (!ret->err) {
-		devtopo.raw.type = CL_DEVICE_TOPOLOGY_TYPE_PCIE_AMD;
-		devtopo.pcie.bus = val & 0xff;
+		devtopo.bus = val & 0xff;
 		RESET_LOC_PARAM(loc2, dev, CL_DEVICE_PCI_SLOT_ID_NV);
 		_GET_VAL(ret, &loc2, val);
 
 		if (!ret->err) {
-			devtopo.pcie.device = (val >> 3) & 0xff;
-			devtopo.pcie.function = val & 7;
-			devtopo_str(ret, &devtopo);
+			devtopo.device = (val >> 3) & 0xff;
+			devtopo.function = val & 7;
+			RESET_LOC_PARAM(loc2, dev, CL_DEVICE_PCI_DOMAIN_ID_NV);
+			_GET_VAL(ret, &loc2, val);
+			if (!ret->err) {
+				devtopo.domain = val;
+				devtopo_pci_str(ret, &devtopo);
+			}
 		}
-		ret->value.devtopo = devtopo;
 	}
 }
 
@@ -2556,6 +2572,7 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_HUMAN, DINFO(CL_DEVICE_PCI_BUS_ID_NV, "Device Topology (NV)", devtopo_nv), dev_has_nv },
 	{ CLINFO_RAW, DINFO(CL_DEVICE_PCI_BUS_ID_NV, "Device PCI bus (NV)", int), dev_has_nv },
 	{ CLINFO_RAW, DINFO(CL_DEVICE_PCI_SLOT_ID_NV, "Device PCI slot (NV)", int), dev_has_nv },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_PCI_DOMAIN_ID_NV, "Device PCI domain (NV)", int), dev_has_nv },
 
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_PROFILE, "Device Profile", str), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_AVAILABLE, "Device Available", bool), NULL },

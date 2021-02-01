@@ -4,6 +4,16 @@
 #include "ext.h"
 #include "strbuf.h"
 
+/* The cl_device_topology_amd structure is missing domain infromation, but the NV queries expose them,
+ * so we define our own structure that supersets both, and convert to this before printing */
+
+struct clinfo_device_topology_pci {
+	cl_uint domain;
+	cl_uchar bus;
+	cl_uchar device;
+	cl_uchar function;
+};
+
 /* Return type of the functions that gather platform info */
 struct platform_info_ret
 {
@@ -44,13 +54,14 @@ struct device_info_ret {
 		cl_device_type devtype;
 		cl_device_mem_cache_type cachetype;
 		cl_device_local_mem_type lmemtype;
-		cl_device_topology_amd devtopo;
+		cl_device_topology_amd devtopo_amd;
 		cl_device_affinity_domain affinity_domain;
 		cl_device_fp_config fpconfig;
 		cl_command_queue_properties qprop;
 		cl_device_exec_capabilities execap;
 		cl_device_svm_capabilities svmcap;
 		cl_device_terminate_capability_khr termcap;
+		struct clinfo_device_topology_pci devtopo_pci;
 	} value;
 	/* pointer base for array data or other auxiliary information */
 	union {
