@@ -328,6 +328,25 @@ static const char* svm_cap_raw_str[] = {
 
 const size_t svm_cap_count = ARRAY_SIZE(svm_cap_str);
 
+static const char* arm_scheduling_controls_str[] = {
+	"Kernel batching",
+	"Work-group batch size",
+	"Work-group batch size modifier",
+	"Deferred flush",
+	"Register allocation",
+};
+
+static const char* arm_scheduling_controls_raw_str[] = {
+	"CL_DEVICE_SCHEDULING_KERNEL_BATCHING_ARM",
+	"CL_DEVICE_SCHEDULING_WORKGROUP_BATCH_SIZE_ARM",
+	"CL_DEVICE_SCHEDULING_WORKGROUP_BATCH_SIZE_MODIFIER_ARM",
+	"CL_DEVICE_SCHEDULING_DEFERRED_FLUSH_ARM",
+	"CL_DEVICE_SCHEDULING_REGISTER_ALLOCATION_ARM",
+};
+
+const size_t arm_scheduling_controls_count = ARRAY_SIZE(arm_scheduling_controls_str);
+
+
 /* SI suffixes for memory sizes. Note that in OpenCL most of them are
  * passed via a cl_ulong, which at most can mode 16 EiB, but hey,
  * let's be forward-thinking ;-)
@@ -922,6 +941,7 @@ struct device_info_checks {
 	cl_device_local_mem_type lmemtype;
 	cl_bool image_support;
 	cl_bool compiler_available;
+	cl_bool arm_register_alloc_support;
 	char has_half[12];
 	char has_double[24];
 	char has_nv[29];
@@ -930,6 +950,7 @@ struct device_info_checks {
 	char has_arm_svm[29];
 	char has_arm_core_id[15];
 	char has_arm_job_slots[26];
+	char has_arm_scheduling_controls[27];
 	char has_fission[22];
 	char has_atomic_counters[26];
 	char has_image2d_buffer[27];
@@ -966,6 +987,7 @@ DEFINE_EXT_CHECK(amd_svm)
 DEFINE_EXT_CHECK(arm_svm)
 DEFINE_EXT_CHECK(arm_core_id)
 DEFINE_EXT_CHECK(arm_job_slots)
+DEFINE_EXT_CHECK(arm_scheduling_controls)
 DEFINE_EXT_CHECK(fission)
 DEFINE_EXT_CHECK(atomic_counters)
 DEFINE_EXT_CHECK(image2d_buffer)
@@ -1067,6 +1089,12 @@ cl_bool dev_has_arm_core_id_v2(const struct device_info_checks *chk)
 	return dev_has_arm_core_id(chk) && plat_is_12(chk->pinfo_checks);
 }
 
+/* Device supports register allocation queries */
+cl_bool dev_has_arm_register_alloc(const struct device_info_checks *chk)
+{
+	return dev_has_arm_scheduling_controls(chk) && chk->arm_register_alloc_support;
+}
+
 cl_bool dev_has_svm(const struct device_info_checks *chk)
 {
 	return dev_is_20(chk) || dev_has_amd_svm(chk);
@@ -1149,6 +1177,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 	CHECK_EXT(arm_svm, cl_arm_shared_virtual_memory);
 	CHECK_EXT(arm_core_id, cl_arm_core_id);
 	CHECK_EXT(arm_job_slots, cl_arm_job_slot_selection);
+	CHECK_EXT(arm_scheduling_controls, cl_arm_scheduling_controls);
 	CHECK_EXT(fission, cl_ext_device_fission);
 	CHECK_EXT(atomic_counters, cl_ext_atomic_counters_64);
 	if (dev_has_atomic_counters(chk))
@@ -1415,6 +1444,30 @@ device_info_time_offset(struct device_info_ret *ret,
 }
 
 void
+device_info_intptr(struct device_info_ret *ret,
+	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
+	const struct opt_out *output)
+{
+	cl_int *val = NULL;
+	size_t szval = 0, numval = 0;
+	GET_VAL_ARRAY(ret, loc);
+	if (!ret->err) {
+		size_t counter = 0;
+		set_separator(output->mode == CLINFO_HUMAN ? comma_str : output->json ? comma_str : spc_str);
+		if (output->json)
+			strbuf_append_str_len(loc->pname, &ret->str, " [", 2);
+		for (counter = 0; counter < numval; ++counter) {
+			if (counter > 0) strbuf_append_str(loc->pname, &ret->str, sep);
+			strbuf_append(loc->pname, &ret->str, "%" PRId32, val[counter]);
+		}
+		if (output->json)
+			strbuf_append_str_len(loc->pname, &ret->str, " ]", 2);
+		// TODO: ret->value.??? = val;
+	}
+	free(val);
+}
+
+void
 device_info_szptr_sep(struct device_info_ret *ret, const char *human_sep,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
 	const struct opt_out *output)
@@ -1437,6 +1490,7 @@ device_info_szptr_sep(struct device_info_ret *ret, const char *human_sep,
 	}
 	free(val);
 }
+
 
 void
 device_info_szptr_times(struct device_info_ret *ret,
@@ -2394,6 +2448,22 @@ device_info_terminate_capability(struct device_info_ret *ret,
 	}
 }
 
+/* ARM scheduling controls */
+void
+device_info_arm_scheduling_controls(struct device_info_ret *ret,
+	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
+	const struct opt_out *output)
+{
+	GET_VAL(ret, loc, sched_controls);
+
+	if (!ret->err) {
+		device_info_bitfield(ret, loc, chk, output, ret->value.sched_controls,
+			arm_scheduling_controls_count, (output->mode == CLINFO_HUMAN ?
+				arm_scheduling_controls_str : arm_scheduling_controls_raw_str),
+			"scheduling controls");
+	}
+}
+
 void
 device_info_p2p_dev_list(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks *chk,
@@ -2791,6 +2861,9 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_REAL_TIME_COMPUTE_QUEUES_AMD, INDENT "Max real-time compute queues (AMD)", int), dev_has_amd_v4 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_REAL_TIME_COMPUTE_UNITS_AMD, INDENT "Max real-time compute units (AMD)", int), dev_has_amd_v4 },
 
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_SCHEDULING_CONTROLS_CAPABILITIES_ARM, INDENT "Scheduling controls (ARM)", arm_scheduling_controls), dev_has_arm_scheduling_controls },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_SUPPORTED_REGISTER_ALLOCATIONS_ARM, INDENT "Supported reg allocs (ARM)", intptr), dev_has_arm_register_alloc },
+
 	/* TODO: this should tell if it's being done due to the device being 2.1 or due to it having the extension */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_IL_VERSION, INDENT "IL version", str), dev_has_il },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_ILS_WITH_VERSION, INDENT "ILs with version", ext_version), dev_has_ext_ver },
@@ -2972,6 +3045,9 @@ printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uint p,
 			break;
 		case CL_DEVICE_NUM_P2P_DEVICES_AMD:
 			chk.p2p_num_devs = ret.value.u32;
+			break;
+		case CL_DEVICE_SCHEDULING_CONTROLS_CAPABILITIES_ARM:
+			chk.arm_register_alloc_support = !!(ret.value.sched_controls & CL_DEVICE_SCHEDULING_REGISTER_ALLOCATION_ARM);
 			break;
 		default:
 			/* do nothing */

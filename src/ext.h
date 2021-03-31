@@ -353,6 +353,20 @@ typedef cl_ulong  cl_device_partition_property_ext;
 /* cl_arm_job_slot_selection */
 #define CL_DEVICE_JOB_SLOTS_ARM				0x41E0
 
+/* cl_arm_scheduling_controls */
+
+typedef cl_bitfield cl_device_scheduling_controls_capabilities_arm;
+
+#define CL_DEVICE_SCHEDULING_CONTROLS_CAPABILITIES_ARM	0x41E4
+
+#define CL_DEVICE_SCHEDULING_KERNEL_BATCHING_ARM		(1 << 0)
+#define CL_DEVICE_SCHEDULING_WORKGROUP_BATCH_SIZE_ARM		(1 << 1)
+#define CL_DEVICE_SCHEDULING_WORKGROUP_BATCH_SIZE_MODIFIER_ARM	(1 << 2)
+#define CL_DEVICE_SCHEDULING_DEFERRED_FLUSH_ARM			(1 << 3)
+#define CL_DEVICE_SCHEDULING_REGISTER_ALLOCATION_ARM		(1 << 4)
+
+#define CL_DEVICE_SUPPORTED_REGISTER_ALLOCATIONS_ARM	0x41EB
+
 /* clGeICDLoaderInfoOCLICD */
 typedef enum {
 	CL_ICDL_OCL_VERSION=1,

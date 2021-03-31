@@ -55,6 +55,7 @@ struct device_info_ret {
 		cl_device_mem_cache_type cachetype;
 		cl_device_local_mem_type lmemtype;
 		cl_device_topology_amd devtopo_amd;
+		cl_device_scheduling_controls_capabilities_arm sched_controls;
 		cl_device_affinity_domain affinity_domain;
 		cl_device_fp_config fpconfig;
 		cl_command_queue_properties qprop;
