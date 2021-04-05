@@ -3665,7 +3665,7 @@ void checkNullBehavior(const struct platform_list *plist, const struct opt_out *
 			checkNullCtx(&ret, plist, p2, "non-default", output);
 		} else {
 			ret.err = CL_DEVICE_NOT_FOUND;
-			strbuf_append(__func__, &ret.str, "<error: no devices in non-default plaforms>");
+			strbuf_append(__func__, &ret.err_str, "<error: no devices in non-default plaforms>");
 		}
 		printf(I1_STR "%s\n", "clCreateContext(NULL, ...) [other]", RET_BUF(ret)->buf);
 	}
