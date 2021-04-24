@@ -1006,7 +1006,6 @@ DEFINE_EXT_CHECK(arm_job_slots)
 DEFINE_EXT_CHECK(arm_scheduling_controls)
 DEFINE_EXT_CHECK(fission)
 DEFINE_EXT_CHECK(atomic_counters)
-DEFINE_EXT_CHECK(image2d_buffer)
 DEFINE_EXT_CHECK(il_program)
 DEFINE_EXT_CHECK(intel_local_thread)
 DEFINE_EXT_CHECK(intel_AME)
@@ -1151,6 +1150,11 @@ cl_bool dev_has_images_12(const struct device_info_checks *chk)
 cl_bool dev_has_images_20(const struct device_info_checks *chk)
 {
 	return dev_has_images(chk) && dev_is_20(chk);
+}
+
+cl_bool dev_has_image2d_buffer(const struct device_info_checks *chk)
+{
+	return dev_has_images_20(chk) || !!(chk->has_image2d_buffer[0]);
 }
 
 cl_bool dev_has_compiler(const struct device_info_checks *chk)
@@ -2887,7 +2891,7 @@ struct device_info_traits dinfo_traits[] = {
 
 	/* Terminate context */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_TERMINATE_CAPABILITY_KHR_1x, "Terminate capability (1.2 define)", terminate_capability), dev_has_terminate_context },
-	{ CLINFO_BOTH, DINFO(CL_DEVICE_TERMINATE_CAPABILITY_KHR_2x, "Terminate capability (2.x define)", terminate_capability), dev_has_terminate_context },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_TERMINATE_CAPABILITY_KHR, "Terminate capability (2.x and later)", terminate_capability), dev_has_terminate_context },
 
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_CONTROLLED_TERMINATION_CAPABILITIES_ARM, "Controlled termination caps. (ARM)", terminate_arm), dev_has_terminate_arm },
 
