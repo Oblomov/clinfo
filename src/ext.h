@@ -347,6 +347,14 @@ typedef cl_ulong  cl_device_partition_property_ext;
 /* cl_arm_core_id */
 #define CL_DEVICE_COMPUTE_UNITS_BITFIELD_ARM		0x40BF
 
+/* cl_arm_controlled_kernel_termination */
+#define CL_DEVICE_CONTROLLED_TERMINATION_CAPABILITIES_ARM	0x41EE
+
+typedef cl_bitfield cl_device_controlled_termination_capabilities_arm;
+#define CL_DEVICE_CONTROLLED_TERMINATION_SUCCESS_ARM	(1 << 0)
+#define CL_DEVICE_CONTROLLED_TERMINATION_FAILURE_ARM	(1 << 1)
+#define CL_DEVICE_CONTROLLED_TERMINATION_QUERY_ARM	(1 << 2)
+
 /* cl_khr_spir */
 #define CL_DEVICE_SPIR_VERSIONS				0x40E0
 

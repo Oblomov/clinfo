@@ -292,6 +292,20 @@ static const char *terminate_capability_raw_str[] = {
 
 const size_t terminate_capability_count = ARRAY_SIZE(terminate_capability_str);
 
+static const char *terminate_capability_arm_str[] = {
+	"Controlled Success",
+	"Controlled Failurure",
+	"Query"
+};
+
+static const char * terminate_capability_arm_raw_str[] = {
+	"CL_DEVICE_CONTROLLED_TERMINATION_SUCCESS_ARM",
+	"CL_DEVICE_CONTROLLED_TERMINATION_FAILURE_ARM",
+	"CL_DEVICE_CONTROLLED_TERMINATION_QUERY_ARM"
+};
+
+const size_t terminate_capability_arm_count = ARRAY_SIZE(terminate_capability_arm_str);
+
 static const char* fp_conf_str[] = {
 	"Denormals", "Infinity and NANs", "Round to nearest", "Round to zero",
 	"Round to infinity", "IEEE754-2008 fused multiply-add",
@@ -968,6 +982,7 @@ struct device_info_checks {
 	char has_simultaneous_sharing[30];
 	char has_subgroup_named_barrier[30];
 	char has_terminate_context[25];
+	char has_terminate_arm[37];
 	char has_extended_versioning[27];
 	char has_cxx_for_opencl[22];
 	char has_device_uuid[19];
@@ -1006,6 +1021,7 @@ DEFINE_EXT_CHECK(qcom_ext_host_ptr)
 DEFINE_EXT_CHECK(simultaneous_sharing)
 DEFINE_EXT_CHECK(subgroup_named_barrier)
 DEFINE_EXT_CHECK(terminate_context)
+DEFINE_EXT_CHECK(terminate_arm)
 DEFINE_EXT_CHECK(extended_versioning)
 DEFINE_EXT_CHECK(cxx_for_opencl)
 DEFINE_EXT_CHECK(device_uuid)
@@ -2466,6 +2482,23 @@ device_info_terminate_capability(struct device_info_ret *ret,
 	}
 }
 
+/* Device terminate capability */
+void
+device_info_terminate_arm(struct device_info_ret *ret,
+	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
+	const struct opt_out *output)
+{
+	GET_VAL(ret, loc, termcap);
+
+	if (!ret->err) {
+		device_info_bitfield(ret, loc, chk, output, ret->value.termcap,
+			terminate_capability_arm_count, (output->mode == CLINFO_HUMAN ?
+				terminate_capability_arm_str : terminate_capability_arm_raw_str),
+			"terminate");
+	}
+}
+
+
 /* ARM scheduling controls */
 void
 device_info_arm_scheduling_controls(struct device_info_ret *ret,
@@ -2853,6 +2886,8 @@ struct device_info_traits dinfo_traits[] = {
 	/* Terminate context */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_TERMINATE_CAPABILITY_KHR_1x, "Terminate capability (1.2 define)", terminate_capability), dev_has_terminate_context },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_TERMINATE_CAPABILITY_KHR_2x, "Terminate capability (2.x define)", terminate_capability), dev_has_terminate_context },
+
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_CONTROLLED_TERMINATION_CAPABILITIES_ARM, "Controlled termination caps. (ARM)", terminate_arm), dev_has_terminate_arm },
 
 	/* Interop */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_PREFERRED_INTEROP_USER_SYNC, "Prefer user sync for interop", bool), dev_is_12 },
