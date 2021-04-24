@@ -225,6 +225,16 @@ typedef cl_bitfield cl_device_terminate_capability_khr;
 /* cl_khr_subgroup_named_barrier */
 #define CL_DEVICE_MAX_NAMED_BARRIER_COUNT_KHR		0x2035
 
+/* cl_khr_pci_bus_info */
+typedef struct _cl_device_pci_bus_info_khr {
+	cl_uint	pci_domain;
+	cl_uint	pci_bus;
+	cl_uint	pci_device;
+	cl_uint	pci_function;
+} cl_device_pci_bus_info_khr;
+
+#define CL_DEVICE_PCI_BUS_INFO_KHR			0x410F
+
 /* cl_nv_device_attribute_query */
 #define CL_DEVICE_COMPUTE_CAPABILITY_MAJOR_NV		0x4000
 #define CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV		0x4001
