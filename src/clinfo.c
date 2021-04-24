@@ -976,7 +976,7 @@ struct device_info_checks {
 	char has_intel_required_subgroup_size[32];
 	char has_altera_dev_temp[29];
 	char has_p2p[23];
-	char has_pci_bus_info[19];
+	char has_pci_bus_info[20];
 	char has_spir[12];
 	char has_qcom_ext_host_ptr[21];
 	char has_simultaneous_sharing[30];
@@ -1209,10 +1209,12 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 	CHECK_EXT(intel_required_subgroup_size, cl_intel_required_subgroup_size);
 	CHECK_EXT(altera_dev_temp, cl_altera_device_temperature);
 	CHECK_EXT(p2p, cl_amd_copy_buffer_p2p);
+	CHECK_EXT(pci_bus_info, cl_khr_pci_bus_info);
 	CHECK_EXT(qcom_ext_host_ptr, cl_qcom_ext_host_ptr);
 	CHECK_EXT(simultaneous_sharing, cl_intel_simultaneous_sharing);
 	CHECK_EXT(subgroup_named_barrier, cl_khr_subgroup_named_barrier);
 	CHECK_EXT(terminate_context, cl_khr_terminate_context);
+	CHECK_EXT(terminate_arm, cl_arm_controlled_kernel_termination);
 	CHECK_EXT(extended_versioning, cl_khr_extended_versioning);
 	CHECK_EXT(cxx_for_opencl, cl_ext_cxx_for_opencl);
 	CHECK_EXT(device_uuid, cl_khr_device_uuid);
