@@ -111,16 +111,16 @@ clean:
 	$(RM) $(PROG).o $(TARGETS)
 
 $(BINDIR):
-	install -d $(DESTDIR)$@
+	install -d $@
 
 $(MANDIR)/man1:
-	install -d $(DESTDIR)$@
+	install -d $@
 
 $(BINDIR)/$(PROG): $(PROG) $(BINDIR)
-	install -p -m $(BINMODE) $(DESTDIR)$(PROG) $@
+	install -p -m $(BINMODE) $(PROG) $@
 
 $(MANDIR)/$(MAN): $(MAN) $(MANDIR)/man1
-	install -p -m $(MANMODE) $(DESTDIR)$(MAN) $@
+	install -p -m $(MANMODE) $(MAN) $@
 
 install: $(BINDIR)/$(PROG) $(MANDIR)/$(MAN)
 
