@@ -52,6 +52,7 @@ PREFIX ?= /usr/local
 BINDIR ?= $(PREFIX)/bin
 BINMODE ?= 555
 MANDIR ?= $(PREFIX)/man
+MAN1DIR ?= $(MANDIR)/man1
 MANMODE ?= 444
 
 ANDROID_VENDOR_PATH ?= ${ANDROID_ROOT}/vendor/lib64
@@ -112,10 +113,10 @@ clean:
 
 install: all
 	install -d $(DESTDIR)$(BINDIR)
-	install -d $(DESTDIR)$(MANDIR)/man1
+	install -d $(DESTDIR)$(MAN1DIR)
 
 	install -p -m $(BINMODE) $(PROG) $(DESTDIR)$(BINDIR)/$(PROG)
-	install -p -m $(MANMODE) $(MAN) $(DESTDIR)$(MANDIR)/man1
+	install -p -m $(MANMODE) $(MAN) $(DESTDIR)$(MAN1DIR)
 
 sparse: $(PROG).c
 	$(SPARSE) $(CPPFLAGS) $(CFLAGS) $(SPARSEFLAGS) $^
