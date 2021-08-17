@@ -110,20 +110,12 @@ $(OS:Android=)$(PROG):
 clean:
 	$(RM) $(PROG).o $(TARGETS)
 
-$(BINDIR):
-	install -d $@
+install: all
+	install -d $(BINDIR)
+	install -d $(MANDIR)/man1
 
-$(MANDIR)/man1:
-	install -d $@
-
-$(BINDIR)/$(PROG): $(PROG) $(BINDIR)
-	install -p -m $(BINMODE) $(PROG) $@
-
-$(MANDIR)/$(MAN): $(MAN) $(MANDIR)/man1
-	install -p -m $(MANMODE) $(MAN) $@
-
-install: $(BINDIR)/$(PROG) $(MANDIR)/$(MAN)
-
+	install -p -m $(BINMODE) $(PROG) $(BINDIR)/$(PROG)
+	install -p -m $(MANMODE) $(MAN) $(MANDIR)/man1
 
 sparse: $(PROG).c
 	$(SPARSE) $(CPPFLAGS) $(CFLAGS) $(SPARSEFLAGS) $^
