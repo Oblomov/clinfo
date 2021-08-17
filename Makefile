@@ -111,11 +111,11 @@ clean:
 	$(RM) $(PROG).o $(TARGETS)
 
 install: all
-	install -d $(BINDIR)
-	install -d $(MANDIR)/man1
+	install -d $(DESTDIR)$(BINDIR)
+	install -d $(DESTDIR)$(MANDIR)/man1
 
-	install -p -m $(BINMODE) $(PROG) $(BINDIR)/$(PROG)
-	install -p -m $(MANMODE) $(MAN) $(MANDIR)/man1
+	install -p -m $(BINMODE) $(PROG) $(DESTDIR)$(BINDIR)/$(PROG)
+	install -p -m $(MANMODE) $(MAN) $(DESTDIR)$(MANDIR)/man1
 
 sparse: $(PROG).c
 	$(SPARSE) $(CPPFLAGS) $(CFLAGS) $(SPARSEFLAGS) $^
