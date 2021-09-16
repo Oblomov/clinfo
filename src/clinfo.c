@@ -1247,7 +1247,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 		clGetDeviceInfo(loc->dev, loc->param.dev, 0, NULL, &szval), \
 		loc, "get number of %s"); \
 	numval = szval/sizeof(*val); \
-	if (!ret->err) { \
+	if (!ret->err && numval > 0) { \
 		_GET_VAL_VALUES(ret, loc) \
 	}
 
