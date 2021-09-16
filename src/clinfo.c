@@ -2018,14 +2018,25 @@ device_info_devtopo_nv(struct device_info_ret *ret,
 		_GET_VAL(ret, &loc2, val);
 
 		if (!ret->err) {
+			cl_int safe_err;
 			devtopo.pci_device = (val >> 3) & 0xff;
 			devtopo.pci_function = val & 7;
+
+			/* CL_DEVICE_PCI_DOMAIN_ID_NV is not supported in older drivers,
+			 * but we have no way to check other than querying, and recovering
+			 * in the CL_INVALID_VALUE case */
 			RESET_LOC_PARAM(loc2, dev, CL_DEVICE_PCI_DOMAIN_ID_NV);
-			_GET_VAL(ret, &loc2, val);
-			if (!ret->err) {
+			safe_err = clGetDeviceInfo(loc2.dev, CL_DEVICE_PCI_DOMAIN_ID_NV,
+				sizeof(val), &val, NULL);
+			if (safe_err == CL_SUCCESS) {
 				devtopo.pci_domain = val;
-				devtopo_pci_str(ret, &devtopo);
+			} else if (safe_err == CL_INVALID_VALUE) {
+				devtopo.pci_domain = 0;
+			} else {
+				REPORT_ERROR_LOC(ret, safe_err, &loc2, "get CL_DEVICE_PCI_DOMAIN_ID_NV");
 			}
+			if (!ret->err)
+				devtopo_pci_str(ret, &devtopo);
 		}
 	}
 }
