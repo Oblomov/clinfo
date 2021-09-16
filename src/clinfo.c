@@ -4100,15 +4100,12 @@ int main(int argc, char *argv[])
 			(output.mode == CLINFO_HUMAN ?
 			 "Number of platforms" : "#PLATFORMS"),
 			plist.num_platforms);
-	if (!plist.num_platforms) {
-		if (output.json) puts("{ platforms: [] }");
-		free_output(&output);
-		return 0;
-	}
 
-	alloc_plist(&plist);
-	err = clGetPlatformIDs(plist.num_platforms, plist.platform, NULL);
-	CHECK_ERROR(err, "platform IDs");
+	if (plist.num_platforms) {
+		alloc_plist(&plist);
+		err = clGetPlatformIDs(plist.num_platforms, plist.platform, NULL);
+		CHECK_ERROR(err, "platform IDs");
+	}
 
 	ALLOC(line_pfx, 1, "line prefix");
 
@@ -4134,17 +4131,19 @@ int main(int argc, char *argv[])
 	}
 
 	/* Close JSON platforms list, open JSON devices list */
-	if (output.json)
-		fputs(" ], \"devices\" : [", stdout);
+	if (plist.num_platforms) {
+		if (output.json)
+			fputs(" ], \"devices\" : [", stdout);
 
-	showDevices(&plist, &output);
+		showDevices(&plist, &output);
+	}
 
 	/* Close JSON devices list */
 	if (output.json)
 		fputs(" ]", stdout);
 
 	if (output.prop || (output.detailed && !output.selected)) {
-		if (output.mode != CLINFO_RAW)
+		if (output.mode != CLINFO_RAW && plist.num_platforms)
 			checkNullBehavior(&plist, &output);
 		oclIcdProps(&plist, &output);
 	}
