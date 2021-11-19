@@ -2699,7 +2699,7 @@ struct device_info_traits dinfo_traits[] = {
 
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_CXX_FOR_OPENCL_NUMERIC_VERSION_EXT, "Device C++ for OpenCL Numeric Version", version), dev_has_cxx_for_opencl },
 
-	{ CLINFO_BOTH, DINFO(CL_DEVICE_LATEST_CONFORMANCE_VERSION_PASSED, "Latest comfornace test passed", str), dev_is_30 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_LATEST_CONFORMANCE_VERSION_PASSED, "Latest conformance test passed", str), dev_is_30 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_TYPE, "Device Type", devtype), NULL },
 
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_BOARD_NAME_AMD, "Device Board Name (AMD)", str), dev_has_amd },
