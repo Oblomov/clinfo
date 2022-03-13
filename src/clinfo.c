@@ -79,7 +79,7 @@ struct platform_list {
 	/* Largest number of devices on any platform */
 	cl_uint max_devs;
 	/* Length of the longest platform sname */
-	cl_int max_sname_len;
+	size_t max_sname_len;
 	/* Array of platform IDs */
 	cl_platform_id *platform;
 	/* Array of device IDs (across all platforms) */
@@ -812,7 +812,7 @@ struct platform_info_traits pinfo_traits[] = {
 void
 gatherPlatformInfo(struct platform_list *plist, cl_uint p, const struct opt_out *output)
 {
-	cl_int len = 0;
+	size_t len = 0;
 	cl_uint n = 0; /* number of platform properties shown, for JSON */
 
 	struct platform_data *pdata = plist->pdata + p;
@@ -918,7 +918,7 @@ gatherPlatformInfo(struct platform_list *plist, cl_uint p, const struct opt_out 
 		snprintf(pdata->sname, SNAME_MAX, "P%" PRIu32 "", p);
 	}
 
-	len = (cl_int)strlen(pdata->sname);
+	len = strlen(pdata->sname);
 	if (len > plist->max_sname_len)
 		plist->max_sname_len = len;
 
@@ -1632,8 +1632,8 @@ device_info_img_sz_2d(struct device_info_ret *ret,
 			strbuf_append("image size 2D", &ret->str, "%" PRIuS "x%" PRIuS, width, height);
 		}
 	}
-	ret->value.u32v.s[0] = width;
-	ret->value.u32v.s[1] = height;
+	ret->value.u64v.s[0] = width;
+	ret->value.u64v.s[1] = height;
 }
 
 void
@@ -1651,8 +1651,8 @@ device_info_img_sz_intel_planar_yuv(struct device_info_ret *ret,
 			 strbuf_append("image size planar YUV", &ret->str, "%" PRIuS "x%" PRIuS, width, height);
 		}
 	}
-	ret->value.u32v.s[0] = width;
-	ret->value.u32v.s[1] = height;
+	ret->value.u64v.s[0] = width;
+	ret->value.u64v.s[1] = height;
 }
 
 
@@ -1677,9 +1677,9 @@ device_info_img_sz_3d(struct device_info_ret *ret,
 			}
 		}
 	}
-	ret->value.u32v.s[0] = width;
-	ret->value.u32v.s[1] = height;
-	ret->value.u32v.s[2] = depth;
+	ret->value.u64v.s[0] = width;
+	ret->value.u64v.s[1] = height;
+	ret->value.u64v.s[2] = depth;
 }
 
 void
@@ -1708,7 +1708,7 @@ device_info_bitfield(struct device_info_ret *ret,
 
 	if (bits) {
 		for (i = 0; i < bit_str_count; ++i) {
-			if (bits & (1 << i)) {
+			if (bits & (1UL << i)) {
 				strbuf_append(loc->pname, &ret->str, "%s%s%s%s",
 					(count > 0 ? sep : ""),
 					quote, bit_str[i], quote);
