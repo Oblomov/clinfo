@@ -118,17 +118,21 @@ void plist_devs_reserve(struct platform_list *plist, cl_uint amount)
 }
 
 
-void
-alloc_plist(struct platform_list *plist)
+cl_uint
+alloc_plist(struct platform_list *plist, const struct opt_out *output)
 {
-	ALLOC(plist->platform, plist->num_platforms, "platform IDs");
-	ALLOC(plist->dev_offset, plist->num_platforms, "platform device list offset");
+	cl_uint num_platforms = plist->num_platforms;
+	if (output->null_platform)
+		num_platforms += 1;
+	ALLOC(plist->platform, num_platforms, "platform IDs");
+	ALLOC(plist->dev_offset, num_platforms, "platform device list offset");
 	/* The actual sizing for this will change as we gather platform info,
 	 * but assume at least one device per platform
 	 */
-	plist_devs_reserve(plist, plist->num_platforms);
-	ALLOC(plist->pdata, plist->num_platforms, "platform data");
-	ALLOC(plist->platform_checks, plist->num_platforms, "platform checks data");
+	plist_devs_reserve(plist, num_platforms);
+	ALLOC(plist->pdata, num_platforms, "platform data");
+	ALLOC(plist->platform_checks, num_platforms, "platform checks data");
+	return num_platforms;
 }
 void
 free_plist(struct platform_list *plist)
@@ -3326,7 +3330,7 @@ void printPlatformDevices(const struct platform_list *plist, cl_uint p,
 
 void showDevices(const struct platform_list *plist, const struct opt_out *output)
 {
-	const cl_uint num_platforms = plist->num_platforms;
+	const cl_uint num_platforms = plist->num_platforms + (output->null_platform ? 1 : 0);
 	const cl_uint maxdevs = plist->max_devs;
 	const struct platform_data *pdata = plist->pdata;
 
@@ -4012,6 +4016,7 @@ void usage(void)
 	puts("\t--human\t\thuman-friendly output (default)");
 	puts("\t--raw\t\traw output");
 	puts("\t--offline\talso show offline devices");
+	puts("\t--null-platform\talso show the NULL platform devices");
 	puts("\t--list, -l\tonly list the platforms and devices by name");
 	puts("\t--prop prop-name\tonly list properties matching the given name");
 	puts("\t--device p:d,");
@@ -4040,6 +4045,7 @@ int main(int argc, char *argv[])
 	output.cond = COND_PROP_CHECK;
 	output.brief = CL_FALSE;
 	output.offline = CL_FALSE;
+	output.null_platform = CL_FALSE;
 	output.json = CL_FALSE;
 	output.check_size = CL_FALSE;
 
@@ -4059,6 +4065,8 @@ int main(int argc, char *argv[])
 			output.mode = CLINFO_HUMAN;
 		else if (!strcmp(argv[a], "--offline"))
 			output.offline = CL_TRUE;
+		else if (!strcmp(argv[a], "--null-platform"))
+			output.null_platform = CL_TRUE;
 		else if (!strcmp(argv[a], "--json"))
 			output.json = CL_TRUE;
 		else if (!strcmp(argv[a], "-l") || !strcmp(argv[a], "--list"))
@@ -4101,8 +4109,9 @@ int main(int argc, char *argv[])
 			 "Number of platforms" : "#PLATFORMS"),
 			plist.num_platforms);
 
+	cl_uint alloced_platforms = 0;
 	if (plist.num_platforms) {
-		alloc_plist(&plist);
+		alloced_platforms = alloc_plist(&plist, &output);
 		err = clGetPlatformIDs(plist.num_platforms, plist.platform, NULL);
 		CHECK_ERROR(err, "platform IDs");
 	}
@@ -4113,7 +4122,7 @@ int main(int argc, char *argv[])
 	if (output.json)
 		fputs("{ \"platforms\" : [", stdout);
 
-	for (p = 0; p < plist.num_platforms; ++p) {
+	for (p = 0; p < alloced_platforms; ++p) {
 		// skip non-selected platforms altogether
 		if (output.selected && output.platform != p) continue;
 
@@ -4131,7 +4140,7 @@ int main(int argc, char *argv[])
 	}
 
 	/* Close JSON platforms list, open JSON devices list */
-	if (plist.num_platforms) {
+	if (alloced_platforms) {
 		if (output.json)
 			fputs(" ], \"devices\" : [", stdout);
 

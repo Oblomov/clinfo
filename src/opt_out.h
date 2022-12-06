@@ -39,6 +39,7 @@ struct opt_out {
 	cl_bool brief;
 	cl_bool detailed; // !brief
 	cl_bool offline;
+	cl_bool null_platform;
 
 /* JSON output for RAW */
 	cl_bool json;

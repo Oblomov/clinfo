@@ -50,6 +50,13 @@ as the representation of some of the values is not finalized;
 .B --offline
 shows also offline devices for platforms that expose this feature;
 .TP
+.B --null-platform
+tries to handle the NULL platform as a normal platform,
+retrieving and showing its properties and devices;
+this is in addition to the NULL platform behavior tests done at the end,
+and can be useful on systems where there are no ICD platforms,
+but there is a platform hard-coded in the OpenCL library itself;
+.TP
 .BR -l ", " --list
 list platforms and devices by name, with no (other) properties;
 .TP
