@@ -388,6 +388,74 @@ static const char* queue_prop_raw_str[] = {
 
 const size_t queue_prop_count = ARRAY_SIZE(queue_prop_str);
 
+static const char* intel_queue_cap_str[] = {
+	"create single-queue events",
+	"create cross-queue events",
+	"single-queue wait list",
+	"cross-queue wait list",
+	"unknown (bit 4)",
+	"unknown (bit 5)",
+	"unknown (bit 6)",
+	"unknown (bit 7)",
+	"transfer buffer",
+	"transfer buffer rect",
+	"map buffer",
+	"fill buffer",
+	"transfer image",
+	"map image",
+	"fill image",
+	"transfer buffer to image",
+	"transfer image to buffer",
+	"unknown (bit 17)",
+	"unknown (bit 18)",
+	"unknown (bit 19)",
+	"unknown (bit 20)",
+	"unknown (bit 21)",
+	"unknown (bit 22)",
+	"unknown (bit 23)",
+	"marker enqueue",
+	"barrier enqueue",
+	"kernel enqueue",
+	"unknown (bit 27)",
+	"unknown (bit 28)",
+	"no sync operations",
+};
+
+static const char* intel_queue_cap_raw_str[] = {
+	"CL_QUEUE_CAPABILITY_CREATE_SINGLE_QUEUE_EVENTS_INTEL",
+	"CL_QUEUE_CAPABILITY_CREATE_CROSS_QUEUE_EVENTS_INTEL",
+	"CL_QUEUE_CAPABILITY_SINGLE_QUEUE_EVENT_WAIT_LIST_INTEL",
+	"CL_QUEUE_CAPABILITY_CROSS_QUEUE_EVENT_WAIT_LIST_INTEL",
+	"CL_QUEUE_CAPABILITY_UNKNOWN_4",
+	"CL_QUEUE_CAPABILITY_UNKNOWN_5",
+	"CL_QUEUE_CAPABILITY_UNKNOWN_6",
+	"CL_QUEUE_CAPABILITY_UNKNOWN_7",
+	"CL_QUEUE_CAPABILITY_TRANSFER_BUFFER_INTEL",
+	"CL_QUEUE_CAPABILITY_TRANSFER_BUFFER_RECT_INTEL",
+	"CL_QUEUE_CAPABILITY_MAP_BUFFER_INTEL",
+	"CL_QUEUE_CAPABILITY_FILL_BUFFER_INTEL",
+	"CL_QUEUE_CAPABILITY_TRANSFER_IMAGE_INTEL",
+	"CL_QUEUE_CAPABILITY_MAP_IMAGE_INTEL",
+	"CL_QUEUE_CAPABILITY_FILL_IMAGE_INTEL",
+	"CL_QUEUE_CAPABILITY_TRANSFER_BUFFER_IMAGE_INTEL",
+	"CL_QUEUE_CAPABILITY_TRANSFER_IMAGE_BUFFER_INTEL",
+	"CL_QUEUE_CAPABILITY_UNKNOWN_17",
+	"CL_QUEUE_CAPABILITY_UNKNOWN_18",
+	"CL_QUEUE_CAPABILITY_UNKNOWN_19",
+	"CL_QUEUE_CAPABILITY_UNKNOWN_20",
+	"CL_QUEUE_CAPABILITY_UNKNOWN_21",
+	"CL_QUEUE_CAPABILITY_UNKNOWN_22",
+	"CL_QUEUE_CAPABILITY_UNKNOWN_23",
+	"CL_QUEUE_CAPABILITY_MARKER_INTEL",
+	"CL_QUEUE_CAPABILITY_BARRIER_INTEL",
+	"CL_QUEUE_CAPABILITY_KERNEL_INTEL",
+	"CL_QUEUE_CAPABILITY_UNKNOWN_27",
+	"CL_QUEUE_CAPABILITY_UNKNOWN_28",
+	"CL_QUEUE_NO_SYNC_OPERATIONS_INTEL",
+};
+
+const size_t intel_queue_cap_count = ARRAY_SIZE(intel_queue_cap_str);
+
 static const char* execap_str[] = { "Run OpenCL kernels", "Run native kernels" };
 static const char* execap_raw_str[] = {
 	"CL_EXEC_KERNEL",
@@ -973,6 +1041,7 @@ struct device_info_checks {
 	char has_atomic_counters[26];
 	char has_image2d_buffer[27];
 	char has_il_program[18];
+	char has_intel_queue_families[32];
 	char has_intel_local_thread[30];
 	char has_intel_AME[36];
 	char has_intel_AVC_ME[43];
@@ -1011,6 +1080,7 @@ DEFINE_EXT_CHECK(arm_scheduling_controls)
 DEFINE_EXT_CHECK(fission)
 DEFINE_EXT_CHECK(atomic_counters)
 DEFINE_EXT_CHECK(il_program)
+DEFINE_EXT_CHECK(intel_queue_families)
 DEFINE_EXT_CHECK(intel_local_thread)
 DEFINE_EXT_CHECK(intel_AME)
 DEFINE_EXT_CHECK(intel_AVC_ME)
@@ -1210,6 +1280,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 		CHECK_EXT(atomic_counters, cl_ext_atomic_counters_32);
 	CHECK_EXT(image2d_buffer, cl_khr_image2d_from_buffer);
 	CHECK_EXT(il_program, cl_khr_il_program);
+	CHECK_EXT(intel_queue_families, cl_intel_command_queue_families);
 	CHECK_EXT(intel_local_thread, cl_intel_exec_by_local_thread);
 	CHECK_EXT(intel_AME, cl_intel_advanced_motion_estimation);
 	CHECK_EXT(intel_AVC_ME, cl_intel_device_side_avc_motion_estimation);
@@ -1686,15 +1757,12 @@ device_info_img_sz_3d(struct device_info_ret *ret,
 	ret->value.u64v.s[2] = depth;
 }
 
-void
-device_info_bitfield(struct device_info_ret *ret,
-	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
-	const struct opt_out *output,
-	const cl_bitfield bits,
-	const size_t bit_str_count, /* number of entries in bit_str */
-	const char * const * bit_str, /* array of strings describing the bits */
-	const char * bits_name) /* JSON name for this bitfield */
+void strbuf_bitfield(const char *what, struct _strbuf *str,
+	cl_bitfield bits, const char *bits_name,
+	const char * const *bit_str, size_t bit_str_count,
+	const struct opt_out *output)
 {
+
 	const char *quote = output->json ? "\"" : "";
 	/* number of matches so far, for separator placement */
 	cl_uint count = 0;
@@ -1706,14 +1774,14 @@ device_info_bitfield(struct device_info_ret *ret,
 	set_common_separator(output);
 
 	if (output->json)
-		strbuf_append(loc->pname, &ret->str,
+		strbuf_append(what, str,
 			"{ \"raw\" : %" PRIu64 ", \"%s\" : [ ",
 			bits, bits_name);
 
 	if (bits) {
 		for (i = 0; i < bit_str_count; ++i) {
 			if (bits & (1UL << i)) {
-				strbuf_append(loc->pname, &ret->str, "%s%s%s%s",
+				strbuf_append(what, str, "%s%s%s%s",
 					(count > 0 ? sep : ""),
 					quote, bit_str[i], quote);
 				++count;
@@ -1724,13 +1792,26 @@ device_info_bitfield(struct device_info_ret *ret,
 		known_mask = ((cl_bitfield)(1) << bit_str_count) - 1;
 		extra = bits & ~known_mask;
 		if (extra) {
-			strbuf_append(loc->pname, &ret->str, "%s%s%#" PRIx64 "%s",
+			strbuf_append(what, str, "%s%s%#" PRIx64 "%s",
 				(count > 0 ? sep : ""), quote, extra, quote);
 		}
 	}
 
 	if (output->json)
-		strbuf_append_str(loc->pname, &ret->str, " ] }");
+		strbuf_append_str(what, str, " ] }");
+}
+
+
+void
+device_info_bitfield(struct device_info_ret *ret,
+	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
+	const struct opt_out *output,
+	const cl_bitfield bits,
+	const size_t bit_str_count, /* number of entries in bit_str */
+	const char * const * bit_str, /* array of strings describing the bits */
+	const char * bits_name) /* JSON name for this bitfield */
+{
+	strbuf_bitfield(loc->pname, &ret->str, bits, bits_name, bit_str, bit_str_count, output);
 }
 
 
@@ -2409,7 +2490,69 @@ device_info_qprop(struct device_info_ret *ret,
 	}
 }
 
-/* Execution capbilities */
+/* Device queue family properties */
+void
+strbuf_intel_queue_family(const char *what, struct _strbuf *str, const cl_queue_family_properties_intel *fams, size_t num_fams,
+	const struct opt_out *output)
+{
+	realloc_strbuf(str, num_fams*(CL_QUEUE_FAMILY_MAX_NAME_SIZE_INTEL + 512), "queue families");
+	if (output->json) {
+		strbuf_append_str(what, str, "{");
+	}
+	for (size_t i = 0; i < num_fams; ++i) {
+		const cl_queue_family_properties_intel  *fam = fams + i;
+		set_separator(output->mode == CLINFO_HUMAN ? full_padding : output->json ? comma_str : spc_str);
+		if (i > 0) strbuf_append_str(what, str, sep);
+		if (output->json || output->mode == CLINFO_HUMAN) {
+			strbuf_append(what, str,
+				output->json ?
+				"\"%s\" : { \"count\" : %u" :
+				"%-65s(%u)",
+				fam->name, fam->count);
+		} else {
+			strbuf_append(what, str, "%s:%u:", fam->name, fam->count);
+		}
+
+		if (output->json)
+			strbuf_append(what, str, ", \"proprerties\" : ");
+		else if (output->mode == CLINFO_HUMAN)
+			strbuf_append(what, str, "\n%115s", "Queue properties" INDENT);
+		strbuf_bitfield(what, str, fam->properties, "properties",
+			output->mode == CLINFO_RAW ? queue_prop_raw_str : queue_prop_str,
+			queue_prop_count, output);
+
+		if (output->json)
+			strbuf_append(what, str, ", \"capabilities\" : ");
+		else if (output->mode == CLINFO_HUMAN)
+			strbuf_append(what, str, "\n%115s", "Capabilities" INDENT);
+		else strbuf_append(what, str, ":");
+		strbuf_bitfield(what, str, fam->properties, "capabilities",
+			output->mode == CLINFO_RAW ? intel_queue_cap_raw_str : intel_queue_cap_str,
+			intel_queue_cap_count, output);
+		if (output->json)
+			strbuf_append(what, str, "}");
+	}
+	if (output->json)
+		strbuf_append_str(what, str, " }");
+}
+
+void
+device_info_qfamily_prop(struct device_info_ret *ret,
+	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
+	const struct opt_out *output)
+{
+	cl_queue_family_properties_intel *val = NULL;
+	size_t szval = 0, numval = 0;
+	GET_VAL_ARRAY(ret, loc);
+	if (!ret->err) {
+		strbuf_intel_queue_family(loc->pname, &ret->str, val, numval, output);
+		// TODO: ret->value.??? = val;
+	}
+	free(val);
+}
+
+
+/* Execution capabilities */
 void
 device_info_execap(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
@@ -2903,6 +3046,7 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_QUEUE_ON_DEVICE_MAX_SIZE, INDENT "Max size", mem), dev_is_20 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_ON_DEVICE_QUEUES, "Max queues on device", int), dev_is_20 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_ON_DEVICE_EVENTS, "Max events on device", int), dev_is_20 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_QUEUE_FAMILY_PROPERTIES_INTEL, "Device queue families", qfamily_prop), dev_has_intel_queue_families },
 
 	/* Terminate context */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_TERMINATE_CAPABILITY_KHR_1x, "Terminate capability (1.2 define)", terminate_capability), dev_has_terminate_context },

@@ -388,6 +388,19 @@ typedef cl_bitfield cl_device_controlled_termination_capabilities_arm;
 /* cl_intel_required_subgroup_size */
 #define CL_DEVICE_SUB_GROUP_SIZES_INTEL			0x4108
 
+/* cl_intel_command_queue_families */
+#define CL_DEVICE_QUEUE_FAMILY_PROPERTIES_INTEL		0x418B
+
+typedef cl_bitfield         cl_command_queue_capabilities_intel;
+
+#define CL_QUEUE_FAMILY_MAX_NAME_SIZE_INTEL                 64
+typedef struct _cl_queue_family_properties_intel {
+    cl_command_queue_properties properties;
+    cl_command_queue_capabilities_intel capabilities;
+    cl_uint count;
+    char name[CL_QUEUE_FAMILY_MAX_NAME_SIZE_INTEL];
+} cl_queue_family_properties_intel;
+
 /* cl_arm_job_slot_selection */
 #define CL_DEVICE_JOB_SLOTS_ARM				0x41E0
 
