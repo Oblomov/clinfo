@@ -418,6 +418,16 @@ typedef cl_bitfield cl_device_scheduling_controls_capabilities_arm;
 
 #define CL_DEVICE_SUPPORTED_REGISTER_ALLOCATIONS_ARM	0x41EB
 
+/* cl_intel_device_attribute_query */
+
+#define CL_DEVICE_IP_VERSION_INTEL			0x4250
+#define CL_DEVICE_ID_INTEL				0x4251
+#define CL_DEVICE_NUM_SLICES_INTEL			0x4252
+#define CL_DEVICE_NUM_SUB_SLICES_PER_SLICE_INTEL	0x4253
+#define CL_DEVICE_NUM_EUS_PER_SUB_SLICE_INTEL		0x4254
+#define CL_DEVICE_NUM_THREADS_PER_EU_INTEL		0x4255
+#define CL_DEVICE_FEATURE_CAPABILITIES_INTEL		0x4256
+
 /* clGeICDLoaderInfoOCLICD */
 typedef enum {
 	CL_ICDL_OCL_VERSION=1,

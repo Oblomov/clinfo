@@ -464,6 +464,11 @@ static const char* execap_raw_str[] = {
 
 const size_t execap_count = ARRAY_SIZE(execap_str);
 
+static const char* intel_features_str[] = { "DP4A", "DPAS" };
+static const char* intel_features_raw_str[] = { "CL_DEVICE_FEATURE_FLAG_DP4A_INTEL", "CL_DEVICE_FEATURE_FLAG_DPAS_INTEL" };
+
+const size_t intel_features_count = ARRAY_SIZE(intel_features_str);
+
 static const char* sources[] = {
 	"#define GWO(type) global type* restrict\n",
 	"#define GRO(type) global const type* restrict\n",
@@ -1032,6 +1037,7 @@ struct device_info_checks {
 	char has_double[24];
 	char has_nv[29];
 	char has_amd[30];
+	char has_intel[32];
 	char has_amd_svm[11];
 	char has_arm_svm[29];
 	char has_arm_core_id[15];
@@ -1080,6 +1086,7 @@ DEFINE_EXT_CHECK(arm_scheduling_controls)
 DEFINE_EXT_CHECK(fission)
 DEFINE_EXT_CHECK(atomic_counters)
 DEFINE_EXT_CHECK(il_program)
+DEFINE_EXT_CHECK(intel)
 DEFINE_EXT_CHECK(intel_queue_families)
 DEFINE_EXT_CHECK(intel_local_thread)
 DEFINE_EXT_CHECK(intel_AME)
@@ -1166,6 +1173,12 @@ cl_bool dev_has_amd_v4(const struct device_info_checks *chk)
 	 * TODO FIXME tune criteria
 	 */
 	return dev_is_gpu(chk) && dev_has_amd(chk) && plat_is_20(chk->pinfo_checks);
+}
+
+/* Device supports cl_intel_device_attribute_query and is a GPU */
+cl_bool dev_is_gpu_intel(const struct device_info_checks *chk)
+{
+	return dev_is_gpu(chk) && dev_has_intel(chk);
 }
 
 /* Device supports cl_arm_core_id v2 */
@@ -1269,6 +1282,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 		CHECK_EXT(double, cl_APPLE_fp64_basic_ops);
 	CHECK_EXT(nv, cl_nv_device_attribute_query);
 	CHECK_EXT(amd, cl_amd_device_attribute_query);
+	CHECK_EXT(intel, cl_intel_device_attribute_query);
 	CHECK_EXT(amd_svm, cl_amd_svm);
 	CHECK_EXT(arm_svm, cl_arm_shared_virtual_memory);
 	CHECK_EXT(arm_core_id, cl_arm_core_id);
@@ -2166,6 +2180,19 @@ device_info_gfxip_amd(struct device_info_ret *ret,
 	ret->value.u32v.s[1] = minor;
 }
 
+/* Intel feature capabilities */
+void
+device_info_intel_features(struct device_info_ret *ret,
+	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
+	const struct opt_out *output)
+{
+	GET_VAL(ret, loc, bits);
+	device_info_bitfield(ret, loc, chk, output, ret->value.bits, intel_features_count,
+		(output->mode == CLINFO_HUMAN ? intel_features_str : intel_features_raw_str), 
+		"features_intel");
+}
+
+
 
 /* Device Partition, CLINFO_HUMAN header */
 void
@@ -2889,6 +2916,15 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_HUMAN, DINFO(CL_DEVICE_GFXIP_MAJOR_AMD, "Graphics IP (AMD)", gfxip_amd), dev_is_gpu_amd },
 	{ CLINFO_RAW, DINFO(CL_DEVICE_GFXIP_MAJOR_AMD, INDENT "Graphics IP MAJOR (AMD)", int), dev_is_gpu_amd },
 	{ CLINFO_RAW, DINFO(CL_DEVICE_GFXIP_MINOR_AMD, INDENT "Graphics IP MINOR (AMD)", int), dev_is_gpu_amd },
+
+	/* Device IP version (Intel) */
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_IP_VERSION_INTEL, "Device IP (Intel)", version), dev_is_gpu_intel },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_ID_INTEL, "Device ID (Intel)", int), dev_is_gpu_intel },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_NUM_SLICES_INTEL, "Slices (Intel)", int), dev_is_gpu_intel },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_NUM_SUB_SLICES_PER_SLICE_INTEL, "Sub-slices per slice (Intel)", int), dev_is_gpu_intel },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_NUM_EUS_PER_SUB_SLICE_INTEL, "EUs per sub-slice (Intel)", int), dev_is_gpu_intel },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_NUM_THREADS_PER_EU_INTEL, "Threads per EU (Intel)", int), dev_is_gpu_intel },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_FEATURE_CAPABILITIES_INTEL, "Feature capabilities (Intel)", intel_features), dev_is_gpu_intel },
 
 	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_CORE_TEMPERATURE_ALTERA, "Core Temperature (Altera)", " C", int), dev_has_altera_dev_temp },
 
