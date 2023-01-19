@@ -231,8 +231,11 @@ typedef struct _cl_name_version {
 /* cl_khr_command_buffer */
 #define CL_DEVICE_COMMAND_BUFFER_CAPABILITIES_KHR	0x12A9
 #define CL_DEVICE_COMMAND_BUFFER_REQUIRED_QUEUE_PROPERTIES_KHR	0x12AA
-
 typedef cl_bitfield         cl_device_command_buffer_capabilities_khr;
+
+/* cl_khr_command_buffer_mutable_dispatch */
+#define CL_DEVICE_MUTABLE_DISPATCH_CAPABILITIES_KHR	0x12B0
+typedef cl_bitfield         cl_mutable_dispatch_fields_khr;
 
 /* cl_khr_terminate_context */
 #define CL_DEVICE_TERMINATE_CAPABILITY_KHR_1x		0x200F

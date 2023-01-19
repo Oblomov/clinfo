@@ -267,6 +267,24 @@ static const char *command_buffer_raw_str[] = {
 
 const size_t command_buffer_count = ARRAY_SIZE(command_buffer_str);
 
+static const char *mutable_dispatch_str[] = {
+	"Global Offset",
+	"Local Offset",
+	"Local Size",
+	"Arguments",
+	"Exec Info",
+};
+
+static const char *mutable_dispatch_raw_str[] = {
+	"CL_MUTABLE_DISPATCH_GLOBAL_OFFSET_KHR",
+	"CL_MUTABLE_DISPATCH_GLOBAL_SIZE_KHR",
+	"CL_MUTABLE_DISPATCH_LOCAL_SIZE_KHR",
+	"CL_MUTABLE_DISPATCH_ARGUMENTS_KHR",
+	"CL_MUTABLE_DISPATCH_EXEC_INFO_KHR",
+};
+
+const size_t mutable_dispatch_count = ARRAY_SIZE(mutable_dispatch_str);
+
 static const char numa[] = "NUMA";
 static const char l1cache[] = "L1 cache";
 static const char l2cache[] = "L2 cache";
@@ -1289,6 +1307,7 @@ struct device_info_checks {
 	char has_simultaneous_sharing[30];
 	char has_subgroup_named_barrier[30];
 	char has_command_buffer[25];
+	char has_mutable_dispatch[27];
 	char has_terminate_context[25];
 	char has_terminate_arm[37];
 	char has_extended_versioning[27];
@@ -1334,6 +1353,7 @@ DEFINE_EXT_CHECK(qcom_ext_host_ptr)
 DEFINE_EXT_CHECK(simultaneous_sharing)
 DEFINE_EXT_CHECK(subgroup_named_barrier)
 DEFINE_EXT_CHECK(command_buffer)
+DEFINE_EXT_CHECK(mutable_dispatch)
 DEFINE_EXT_CHECK(terminate_context)
 DEFINE_EXT_CHECK(terminate_arm)
 DEFINE_EXT_CHECK(extended_versioning)
@@ -1551,6 +1571,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 	CHECK_EXT(simultaneous_sharing, cl_intel_simultaneous_sharing);
 	CHECK_EXT(subgroup_named_barrier, cl_khr_subgroup_named_barrier);
 	CHECK_EXT(command_buffer, cl_khr_command_buffer);
+	CHECK_EXT(mutable_dispatch, cl_khr_mutable_dispatch);
 	CHECK_EXT(terminate_context, cl_khr_terminate_context);
 	CHECK_EXT(terminate_arm, cl_arm_controlled_kernel_termination);
 	CHECK_EXT(extended_versioning, cl_khr_extended_versioning);
@@ -2818,6 +2839,20 @@ device_info_command_buffer_caps(struct device_info_ret *ret,
 }
 
 void
+device_info_mutable_dispatch_caps(struct device_info_ret *ret,
+	const struct info_loc *loc, const struct device_info_checks *chk,
+	const struct opt_out *output)
+{
+	GET_VAL(ret, loc, cmdbufcap);
+	if (!ret->err) {
+		device_info_bitfield(ret, loc, chk, output, ret->value.cmdbufcap,
+			mutable_dispatch_count,
+			(output->mode == CLINFO_RAW ? mutable_dispatch_raw_str : mutable_dispatch_str),
+			"capabilities");
+	}
+}
+
+void
 device_info_intel_usm_cap(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks *chk,
 	const struct opt_out *output)
@@ -3416,6 +3451,7 @@ struct device_info_traits dinfo_traits[] = {
 	/* Command buffers */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_COMMAND_BUFFER_CAPABILITIES_KHR, "Command buffer capabilities", command_buffer_caps), dev_has_command_buffer },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_COMMAND_BUFFER_REQUIRED_QUEUE_PROPERTIES_KHR, INDENT "Required queue properties for command buffer", qprop), dev_has_command_buffer },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_MUTABLE_DISPATCH_CAPABILITIES_KHR, "Mutable dispatch capabilities", mutable_dispatch_caps), dev_has_mutable_dispatch },
 
 	/* Terminate context */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_TERMINATE_CAPABILITY_KHR_1x, "Terminate capability (1.2 define)", terminate_capability), dev_has_terminate_context },
