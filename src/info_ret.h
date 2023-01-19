@@ -50,6 +50,7 @@ struct device_info_ret {
 		cl_device_affinity_domain affinity_domain;
 		cl_device_fp_config fpconfig;
 		cl_command_queue_properties qprop;
+		cl_device_command_buffer_capabilities_khr cmdbufcap;
 		cl_device_exec_capabilities execap;
 		cl_device_svm_capabilities svmcap;
 		cl_device_terminate_capability_khr termcap;

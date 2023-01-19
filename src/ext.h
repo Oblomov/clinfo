@@ -228,6 +228,17 @@ typedef struct _cl_name_version {
 /* cl_khr_il_program */
 #define CL_DEVICE_IL_VERSION_KHR			0x105B
 
+/* cl_khr_command_buffer */
+#define CL_DEVICE_COMMAND_BUFFER_CAPABILITIES_KHR	0x12A9
+#define CL_DEVICE_COMMAND_BUFFER_REQUIRED_QUEUE_PROPERTIES_KHR	0x12AA
+
+typedef cl_bitfield         cl_device_command_buffer_capabilities_khr;
+
+#define CL_COMMAND_BUFFER_CAPABILITY_KERNEL_PRINTF_KHR		(1 << 0)
+#define CL_COMMAND_BUFFER_CAPABILITY_DEVICE_SIDE_ENQUEUE_KHR	(1 << 1)
+#define CL_COMMAND_BUFFER_CAPABILITY_SIMULTANEOUS_USE_KHR	(1 << 2)
+#define CL_COMMAND_BUFFER_CAPABILITY_OUT_OF_ORDER_KHR		(1 << 3)
+
 /* cl_khr_terminate_context */
 #define CL_DEVICE_TERMINATE_CAPABILITY_KHR_1x		0x200F
 #define CL_DEVICE_TERMINATE_CAPABILITY_KHR		0x2031

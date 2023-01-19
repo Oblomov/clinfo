@@ -251,6 +251,18 @@ static const char *device_enqueue_cap_raw_str[] = {
 };
 const size_t device_enqueue_cap_count = ARRAY_SIZE(atomic_cap_str);
 
+static const char *command_buffer_str[] = {
+	"kernel printf", "device side enqueue", "simultaneous use", "out of order",
+};
+
+static const char *command_buffer_raw_str[] = {
+	"CL_COMMAND_BUFFER_CAPABILITY_KERNEL_PRINTF_KHR",
+	"CL_COMMAND_BUFFER_CAPABILITY_DEVICE_SIDE_ENQUEUE_KHR",
+	"CL_COMMAND_BUFFER_CAPABILITY_SIMULTANEOUS_USE_KHR",
+	"CL_COMMAND_BUFFER_CAPABILITY_OUT_OF_ORDER_KHR",
+};
+
+const size_t command_buffer_count = ARRAY_SIZE(command_buffer_str);
 
 static const char numa[] = "NUMA";
 static const char l1cache[] = "L1 cache";
@@ -1065,6 +1077,7 @@ struct device_info_checks {
 	char has_qcom_ext_host_ptr[21];
 	char has_simultaneous_sharing[30];
 	char has_subgroup_named_barrier[30];
+	char has_command_buffer[25];
 	char has_terminate_context[25];
 	char has_terminate_arm[37];
 	char has_extended_versioning[27];
@@ -1105,6 +1118,7 @@ DEFINE_EXT_CHECK(spir)
 DEFINE_EXT_CHECK(qcom_ext_host_ptr)
 DEFINE_EXT_CHECK(simultaneous_sharing)
 DEFINE_EXT_CHECK(subgroup_named_barrier)
+DEFINE_EXT_CHECK(command_buffer)
 DEFINE_EXT_CHECK(terminate_context)
 DEFINE_EXT_CHECK(terminate_arm)
 DEFINE_EXT_CHECK(extended_versioning)
@@ -1317,6 +1331,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 	CHECK_EXT(qcom_ext_host_ptr, cl_qcom_ext_host_ptr);
 	CHECK_EXT(simultaneous_sharing, cl_intel_simultaneous_sharing);
 	CHECK_EXT(subgroup_named_barrier, cl_khr_subgroup_named_barrier);
+	CHECK_EXT(command_buffer, cl_khr_command_buffer);
 	CHECK_EXT(terminate_context, cl_khr_terminate_context);
 	CHECK_EXT(terminate_arm, cl_arm_controlled_kernel_termination);
 	CHECK_EXT(extended_versioning, cl_khr_extended_versioning);
@@ -2528,6 +2543,20 @@ device_info_qprop(struct device_info_ret *ret,
 	}
 }
 
+void
+device_info_command_buffer_caps(struct device_info_ret *ret,
+	const struct info_loc *loc, const struct device_info_checks *chk,
+	const struct opt_out *output)
+{
+	GET_VAL(ret, loc, cmdbufcap);
+	if (!ret->err) {
+		device_info_bitfield(ret, loc, chk, output, ret->value.cmdbufcap,
+			command_buffer_count,
+			(output->mode == CLINFO_RAW ? command_buffer_raw_str : command_buffer_str),
+			"capabilities");
+	}
+}
+
 /* Device queue family properties */
 void
 strbuf_intel_queue_family(const char *what, struct _strbuf *str, const cl_queue_family_properties_intel *fams, size_t num_fams,
@@ -2602,7 +2631,7 @@ device_info_execap(struct device_info_ret *ret,
 			execap_str : execap_raw_str);
 
 		if (output->mode != CLINFO_HUMAN) {
-			device_info_bitfield(ret, loc, chk, output, ret->value.qprop,
+			device_info_bitfield(ret, loc, chk, output, ret->value.execap,
 				execap_count, qpstr, "type");
 		} else { /* output->mode == CLINFO_HUMAN */
 			for (cl_uint i = 0; i < execap_count; ++i) {
@@ -3094,6 +3123,10 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_ON_DEVICE_QUEUES, "Max queues on device", int), dev_is_20 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_ON_DEVICE_EVENTS, "Max events on device", int), dev_is_20 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_QUEUE_FAMILY_PROPERTIES_INTEL, "Device queue families", qfamily_prop), dev_has_intel_queue_families },
+
+	/* Command buffers */
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_COMMAND_BUFFER_CAPABILITIES_KHR, "Command buffer capabilities", command_buffer_caps), dev_has_command_buffer },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_COMMAND_BUFFER_REQUIRED_QUEUE_PROPERTIES_KHR, INDENT "Required queue properties for command buffer", qprop), dev_has_command_buffer },
 
 	/* Terminate context */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_TERMINATE_CAPABILITY_KHR_1x, "Terminate capability (1.2 define)", terminate_capability), dev_has_terminate_context },
