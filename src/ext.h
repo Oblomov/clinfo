@@ -247,6 +247,12 @@ typedef cl_bitfield cl_device_terminate_capability_khr;
 /* cl_khr_subgroup_named_barrier */
 #define CL_DEVICE_MAX_NAMED_BARRIER_COUNT_KHR		0x2035
 
+/* cl_khr_external_memory */
+#define CL_PLATFORM_EXTERNAL_MEMORY_IMPORT_HANDLE_TYPES_KHR	0x2044
+#define CL_DEVICE_EXTERNAL_MEMORY_IMPORT_HANDLE_TYPES_KHR	0x204F
+typedef cl_uint cl_external_memory_handle_type_khr;
+
+
 /* cl_khr_pci_bus_info */
 typedef struct _cl_device_pci_bus_info_khr {
 	cl_uint	pci_domain;

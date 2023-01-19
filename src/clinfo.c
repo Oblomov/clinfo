@@ -60,6 +60,7 @@ struct platform_info_checks {
 	cl_bool has_khr_icd;
 	cl_bool has_amd_object_metadata;
 	cl_bool has_extended_versioning;
+	cl_bool has_external_memory;
 };
 
 struct platform_list {
@@ -395,6 +396,31 @@ static const char* arm_scheduling_controls_raw_str[] = {
 };
 
 const size_t arm_scheduling_controls_count = ARRAY_SIZE(arm_scheduling_controls_str);
+
+static const char* ext_mem_handle_str[] = {
+	"Opaque FD",
+	"Opaqe Win32",
+	"Opaque Win32 KMT",
+	"D3D11 Texture",
+	"D3D11 Texture KMT",
+	"D3D12 Heap",
+	"D3D12 Resource",
+	"DMA buffer"
+};
+
+static const char* ext_mem_handle_raw_str[] = {
+	"CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_FD_KHR",
+	"CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_WIN32_KHR",
+	"CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_WIN32_KMT_KHR",
+	"CL_EXTERNAL_MEMORY_HANDLE_D3D11_TEXTURE_KHR",
+	"CL_EXTERNAL_MEMORY_HANDLE_D3D11_TEXTURE_KMT_KHR",
+	"CL_EXTERNAL_MEMORY_HANDLE_D3D12_HEAP_KHR",
+	"CL_EXTERNAL_MEMORY_HANDLE_D3D12_RESOURCE_KHR",
+	"CL_EXTERNAL_MEMORY_HANDLE_DMA_BUF_KHR",
+};
+
+const size_t ext_mem_handle_count = ARRAY_SIZE(ext_mem_handle_str);
+const size_t ext_mem_handle_offset = 0x2060;
 
 
 /* SI suffixes for memory sizes. Note that in OpenCL most of them are
@@ -733,6 +759,30 @@ void strbuf_name_version(const char *what, struct _strbuf *str, const cl_name_ve
 		strbuf_append_str(what, str, " }");
 }
 
+void strbuf_ext_mem(const char *what, struct _strbuf *str, const cl_external_memory_handle_type_khr *ext, size_t num_exts,
+	const struct opt_out *output)
+{
+	const char *quote = output->json ? "\"" : "";
+	const char * const * name_str = output->mode == CLINFO_HUMAN ? ext_mem_handle_str : ext_mem_handle_raw_str;
+	set_common_separator(output);
+	if (output->json)
+		strbuf_append_str_len(what, str, "[ ", 2);
+
+	for (size_t cursor = 0; cursor < num_exts; ++cursor) {
+		/* add separator for values past the first */
+		if (cursor > 0) strbuf_append_str(what, str, sep);
+
+		cl_external_memory_handle_type_khr val = ext[cursor];
+		cl_bool known = (val >= ext_mem_handle_offset && val < ext_mem_handle_offset + ext_mem_handle_count);
+		if (known) 
+			strbuf_append(what, str, "%s%s%s", quote, name_str[val - ext_mem_handle_offset], quote);
+		else
+			strbuf_append(what, str, "%s%#" PRIx32 "%s", quote, val, quote);
+	}
+	if (output->json)
+		strbuf_append_str_len(what, str, " ]", 2);
+}
+
 /* print strbuf, prefixed by pname, skipping leading whitespace if skip is nonzero,
  * affixing cur_sfx */
 static inline
@@ -844,8 +894,31 @@ platform_info_ext_version(struct platform_info_ret *ret,
 			loc, "get %s");
 	}
 	if (!ret->err) {
-		size_t num_exts = nusz / sizeof(cl_name_version);
+		size_t num_exts = nusz / sizeof(*ext);
 		strbuf_name_version(loc->pname, &ret->str, ext, num_exts, output);
+	}
+	free(ext);
+}
+
+void
+platform_info_ext_mem(struct platform_info_ret *ret,
+	const struct info_loc *loc, const struct platform_info_checks* UNUSED(chk),
+	const struct opt_out *output)
+{
+	cl_external_memory_handle_type_khr *ext = NULL;
+	size_t nusz = 0;
+	ret->err = REPORT_ERROR_LOC(ret,
+		clGetPlatformInfo(loc->plat, loc->param.plat, 0, NULL, &nusz),
+		loc, "get %s size");
+	if (!ret->err) {
+		REALLOC(ext, nusz, loc->sname);
+		ret->err = REPORT_ERROR_LOC(ret,
+			clGetPlatformInfo(loc->plat, loc->param.plat, nusz, ext, NULL),
+			loc, "get %s");
+	}
+	if (!ret->err) {
+		size_t num_exts = nusz / sizeof(*ext);
+		strbuf_ext_mem(loc->pname, &ret->str, ext, num_exts, output);
 	}
 	free(ext);
 }
@@ -898,6 +971,10 @@ cl_bool plat_has_ext_ver(const struct platform_info_checks *chk)
 	return plat_is_30(chk) || chk->has_extended_versioning;
 }
 
+cl_bool plat_has_ext_mem(const struct platform_info_checks *chk)
+{
+	return chk->has_external_memory;
+}
 
 #define PINFO_COND(symbol, name, sfx, typ, funcptr) { symbol, #symbol, "Platform " name, sfx, &platform_info_##typ, &funcptr }
 #define PINFO(symbol, name, sfx, typ) { symbol, #symbol, "Platform " name, sfx, &platform_info_##typ, NULL }
@@ -911,7 +988,8 @@ struct platform_info_traits pinfo_traits[] = {
 	PINFO_COND(CL_PLATFORM_NUMERIC_VERSION, "Numeric Version", NULL, version, plat_has_ext_ver),
 	PINFO_COND(CL_PLATFORM_ICD_SUFFIX_KHR, "Extensions function suffix", NULL, str, khr_icd_p),
 	PINFO_COND(CL_PLATFORM_MAX_KEYS_AMD, "Max metadata object keys (AMD)", NULL, sz, plat_has_amd_object_metadata),
-	PINFO_COND(CL_PLATFORM_HOST_TIMER_RESOLUTION, "Host timer resolution", "ns", ulong, plat_is_21)
+	PINFO_COND(CL_PLATFORM_HOST_TIMER_RESOLUTION, "Host timer resolution", "ns", ulong, plat_is_21),
+	PINFO_COND(CL_PLATFORM_EXTERNAL_MEMORY_IMPORT_HANDLE_TYPES_KHR, "External memory handle types", NULL, ext_mem, plat_has_ext_mem),
 };
 
 /* Collect (and optionally show) information on a specific platform,
@@ -1000,6 +1078,7 @@ gatherPlatformInfo(struct platform_list *plist, cl_uint p, const struct opt_out 
 		case CL_PLATFORM_EXTENSIONS:
 			pinfo_checks->has_khr_icd = !!strstr(ret.str.buf, "cl_khr_icd");
 			pinfo_checks->has_amd_object_metadata = !!strstr(ret.str.buf, "cl_amd_object_metadata");
+			pinfo_checks->has_external_memory = !!strstr(ret.str.buf, "cl_khr_external_memory");
 			pdata->has_amd_offline = !!strstr(ret.str.buf, "cl_amd_offline_devices");
 			break;
 		case CL_PLATFORM_ICD_SUFFIX_KHR:
@@ -1074,6 +1153,7 @@ struct device_info_checks {
 	char has_amd_svm[11];
 	char has_arm_svm[29];
 	char has_intel_usm[31];
+	char has_external_memory[23];
 	char has_arm_core_id[15];
 	char has_arm_job_slots[26];
 	char has_arm_scheduling_controls[27];
@@ -1116,6 +1196,7 @@ DEFINE_EXT_CHECK(amd)
 DEFINE_EXT_CHECK(amd_svm)
 DEFINE_EXT_CHECK(arm_svm)
 DEFINE_EXT_CHECK(intel_usm)
+DEFINE_EXT_CHECK(external_memory)
 DEFINE_EXT_CHECK(arm_core_id)
 DEFINE_EXT_CHECK(arm_job_slots)
 DEFINE_EXT_CHECK(arm_scheduling_controls)
@@ -1329,6 +1410,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 	CHECK_EXT(amd_svm, cl_amd_svm);
 	CHECK_EXT(arm_svm, cl_arm_shared_virtual_memory);
 	CHECK_EXT(intel_usm, cl_intel_unified_shared_memory);
+	CHECK_EXT(external_memory, cl_khr_external_memory);
 	CHECK_EXT(arm_core_id, cl_arm_core_id);
 	CHECK_EXT(arm_job_slots, cl_arm_job_slot_selection);
 	CHECK_EXT(arm_scheduling_controls, cl_arm_scheduling_controls);
@@ -1503,6 +1585,20 @@ device_info_ext_version(struct device_info_ret *ret,
 	GET_VAL_ARRAY(ret, loc);
 	if (!ret->err) {
 		strbuf_name_version(loc->pname, &ret->str, val, numval, output);
+	}
+	free(val);
+}
+
+void
+device_info_ext_mem(struct device_info_ret *ret,
+	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
+	const struct opt_out *output)
+{
+	cl_external_memory_handle_type_khr *val = NULL;
+	size_t szval = 0, numval = 0;
+	GET_VAL_ARRAY(ret, loc);
+	if (!ret->err) {
+		strbuf_ext_mem(loc->pname, &ret->str, val, numval, output);
 	}
 	free(val);
 }
@@ -1821,7 +1917,6 @@ void strbuf_bitfield(const char *what, struct _strbuf *str,
 	const char * const *bit_str, size_t bit_str_count,
 	const struct opt_out *output)
 {
-
 	const char *quote = output->json ? "\"" : "";
 	/* number of matches so far, for separator placement */
 	cl_uint count = 0;
@@ -3054,6 +3149,9 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_HUMAN, DINFO(CL_DEVICE_ADDRESS_BITS, "Address bits", arch), NULL },
 	{ CLINFO_RAW, DINFO(CL_DEVICE_ADDRESS_BITS, "Address bits", int), NULL },
 	{ CLINFO_RAW, DINFO(CL_DEVICE_ENDIAN_LITTLE, "Little Endian", bool), NULL },
+
+	/* External memory */
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_EXTERNAL_MEMORY_IMPORT_HANDLE_TYPES_KHR, "External memory handle types", ext_mem), dev_has_external_memory },
 
 	/* Global memory */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_MEM_SIZE, "Global memory size", mem), NULL },
