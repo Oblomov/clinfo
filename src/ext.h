@@ -247,6 +247,18 @@ typedef cl_bitfield cl_device_terminate_capability_khr;
 /* cl_khr_subgroup_named_barrier */
 #define CL_DEVICE_MAX_NAMED_BARRIER_COUNT_KHR		0x2035
 
+/* cl_khr_semaphore */
+#define CL_PLATFORM_SEMAPHORE_TYPES_KHR			0x2036
+#define CL_DEVICE_SEMAPHORE_TYPES_KHR			0x204C
+typedef cl_uint cl_semaphore_type_khr;
+
+/* cl_khr_external_semaphore */
+#define CL_PLATFORM_SEMAPHORE_IMPORT_HANDLE_TYPES_KHR	0x2037
+#define CL_PLATFORM_SEMAPHORE_EXPORT_HANDLE_TYPES_KHR	0x2038
+#define CL_DEVICE_SEMAPHORE_IMPORT_HANDLE_TYPES_KHR	0x204D
+#define CL_DEVICE_SEMAPHORE_EXPORT_HANDLE_TYPES_KHR	0x204E
+typedef cl_uint cl_external_semaphore_handle_type_khr;
+
 /* cl_khr_external_memory */
 #define CL_PLATFORM_EXTERNAL_MEMORY_IMPORT_HANDLE_TYPES_KHR	0x2044
 #define CL_DEVICE_EXTERNAL_MEMORY_IMPORT_HANDLE_TYPES_KHR	0x204F

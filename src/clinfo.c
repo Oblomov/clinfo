@@ -61,6 +61,8 @@ struct platform_info_checks {
 	cl_bool has_amd_object_metadata;
 	cl_bool has_extended_versioning;
 	cl_bool has_external_memory;
+	cl_bool has_semaphore;
+	cl_bool has_external_semaphore;
 };
 
 struct platform_list {
@@ -422,6 +424,31 @@ static const char* ext_mem_handle_raw_str[] = {
 const size_t ext_mem_handle_count = ARRAY_SIZE(ext_mem_handle_str);
 const size_t ext_mem_handle_offset = 0x2060;
 
+static const char* semaphore_type_str[] = {
+	"Binary"
+};
+static const char* semaphore_type_raw_str[] = {
+	"CL_SEMAPHORE_TYPE_BINARY_KHR"
+};
+const size_t semaphore_type_count = ARRAY_SIZE(semaphore_type_str);
+const size_t semaphore_type_offset = 1;
+
+static const char* semaphore_handle_str[] = {
+	"Opaque FD",
+	"Opaque Win32",
+	"Opaque Win32 KMT",
+	"Sync FD",
+	"D3D12 Fence"
+};
+static const char* semaphore_handle_raw_str[] = {
+	"CL_SEMAPHORE_HANDLE_OPAQUE_FD_KHR",
+	"CL_SEMAPHORE_HANDLE_OPAQUE_WIN32_KHR",
+	"CL_SEMAPHORE_HANDLE_OPAQUE_WIN32_KMT_KHR",
+	"CL_SEMAPHORE_HANDLE_SYNC_FD_KHR",
+	"CL_SEMAPHORE_HANDLE_D3D12_FENCE_KHR",
+};
+const size_t semaphore_handle_count = ARRAY_SIZE(semaphore_handle_str);
+const size_t semaphore_handle_offset = 0x2055;
 
 /* SI suffixes for memory sizes. Note that in OpenCL most of them are
  * passed via a cl_ulong, which at most can mode 16 EiB, but hey,
@@ -759,11 +786,12 @@ void strbuf_name_version(const char *what, struct _strbuf *str, const cl_name_ve
 		strbuf_append_str(what, str, " }");
 }
 
-void strbuf_ext_mem(const char *what, struct _strbuf *str, const cl_external_memory_handle_type_khr *ext, size_t num_exts,
-	const struct opt_out *output)
+
+void strbuf_named_uint(const char *what, struct _strbuf *str, const cl_uint *ext, size_t num_exts, const struct opt_out *output,
+	const char* const* human_str, const char* const* raw_str, const size_t count, const size_t offset)
 {
 	const char *quote = output->json ? "\"" : "";
-	const char * const * name_str = output->mode == CLINFO_HUMAN ? ext_mem_handle_str : ext_mem_handle_raw_str;
+	const char * const * name_str = output->mode == CLINFO_HUMAN ? human_str : raw_str;
 	set_common_separator(output);
 	if (output->json)
 		strbuf_append_str_len(what, str, "[ ", 2);
@@ -772,16 +800,38 @@ void strbuf_ext_mem(const char *what, struct _strbuf *str, const cl_external_mem
 		/* add separator for values past the first */
 		if (cursor > 0) strbuf_append_str(what, str, sep);
 
-		cl_external_memory_handle_type_khr val = ext[cursor];
-		cl_bool known = (val >= ext_mem_handle_offset && val < ext_mem_handle_offset + ext_mem_handle_count);
+		cl_uint val = ext[cursor];
+		cl_bool known = (val >= offset && val < offset + count);
 		if (known) 
-			strbuf_append(what, str, "%s%s%s", quote, name_str[val - ext_mem_handle_offset], quote);
+			strbuf_append(what, str, "%s%s%s", quote, name_str[val - offset], quote);
 		else
 			strbuf_append(what, str, "%s%#" PRIx32 "%s", quote, val, quote);
 	}
 	if (output->json)
 		strbuf_append_str_len(what, str, " ]", 2);
 }
+
+void strbuf_ext_mem(const char *what, struct _strbuf *str, const cl_external_memory_handle_type_khr *ext, size_t num_exts,
+	const struct opt_out *output)
+{
+	strbuf_named_uint(what, str, ext, num_exts, output,
+		ext_mem_handle_str, ext_mem_handle_raw_str, ext_mem_handle_count, ext_mem_handle_offset);
+}
+
+void strbuf_semaphore_type(const char *what, struct _strbuf *str, const cl_semaphore_type_khr *ext, size_t num_exts,
+	const struct opt_out *output)
+{
+	strbuf_named_uint(what, str, ext, num_exts, output,
+		semaphore_type_str, semaphore_type_raw_str, semaphore_type_count, semaphore_type_offset);
+}
+
+void strbuf_ext_semaphore_handle(const char *what, struct _strbuf *str, const cl_external_semaphore_handle_type_khr *ext, size_t num_exts,
+	const struct opt_out *output)
+{
+	strbuf_named_uint(what, str, ext, num_exts, output,
+		semaphore_handle_str, semaphore_handle_raw_str, semaphore_handle_count, semaphore_handle_offset);
+}
+
 
 /* print strbuf, prefixed by pname, skipping leading whitespace if skip is nonzero,
  * affixing cur_sfx */
@@ -923,6 +973,52 @@ platform_info_ext_mem(struct platform_info_ret *ret,
 	free(ext);
 }
 
+void
+platform_info_semaphore_types(struct platform_info_ret *ret,
+	const struct info_loc *loc, const struct platform_info_checks* UNUSED(chk),
+	const struct opt_out *output)
+{
+	cl_semaphore_type_khr *ext = NULL;
+	size_t nusz = 0;
+	ret->err = REPORT_ERROR_LOC(ret,
+		clGetPlatformInfo(loc->plat, loc->param.plat, 0, NULL, &nusz),
+		loc, "get %s size");
+	if (!ret->err) {
+		REALLOC(ext, nusz, loc->sname);
+		ret->err = REPORT_ERROR_LOC(ret,
+			clGetPlatformInfo(loc->plat, loc->param.plat, nusz, ext, NULL),
+			loc, "get %s");
+	}
+	if (!ret->err) {
+		size_t num_exts = nusz / sizeof(*ext);
+		strbuf_semaphore_type(loc->pname, &ret->str, ext, num_exts, output);
+	}
+	free(ext);
+}
+
+void
+platform_info_ext_semaphore_handles(struct platform_info_ret *ret,
+	const struct info_loc *loc, const struct platform_info_checks* UNUSED(chk),
+	const struct opt_out *output)
+{
+	cl_external_semaphore_handle_type_khr *ext = NULL;
+	size_t nusz = 0;
+	ret->err = REPORT_ERROR_LOC(ret,
+		clGetPlatformInfo(loc->plat, loc->param.plat, 0, NULL, &nusz),
+		loc, "get %s size");
+	if (!ret->err) {
+		REALLOC(ext, nusz, loc->sname);
+		ret->err = REPORT_ERROR_LOC(ret,
+			clGetPlatformInfo(loc->plat, loc->param.plat, nusz, ext, NULL),
+			loc, "get %s");
+	}
+	if (!ret->err) {
+		size_t num_exts = nusz / sizeof(*ext);
+		strbuf_ext_semaphore_handle(loc->pname, &ret->str, ext, num_exts, output);
+	}
+	free(ext);
+}
+
 struct platform_info_traits {
 	cl_platform_info param; // CL_PLATFORM_*
 	const char *sname; // "CL_PLATFORM_*"
@@ -976,6 +1072,16 @@ cl_bool plat_has_ext_mem(const struct platform_info_checks *chk)
 	return chk->has_external_memory;
 }
 
+cl_bool plat_has_semaphore(const struct platform_info_checks *chk)
+{
+	return chk->has_semaphore;
+}
+
+cl_bool plat_has_external_semaphore(const struct platform_info_checks *chk)
+{
+	return chk->has_external_semaphore;
+}
+
 #define PINFO_COND(symbol, name, sfx, typ, funcptr) { symbol, #symbol, "Platform " name, sfx, &platform_info_##typ, &funcptr }
 #define PINFO(symbol, name, sfx, typ) { symbol, #symbol, "Platform " name, sfx, &platform_info_##typ, NULL }
 struct platform_info_traits pinfo_traits[] = {
@@ -990,6 +1096,10 @@ struct platform_info_traits pinfo_traits[] = {
 	PINFO_COND(CL_PLATFORM_MAX_KEYS_AMD, "Max metadata object keys (AMD)", NULL, sz, plat_has_amd_object_metadata),
 	PINFO_COND(CL_PLATFORM_HOST_TIMER_RESOLUTION, "Host timer resolution", "ns", ulong, plat_is_21),
 	PINFO_COND(CL_PLATFORM_EXTERNAL_MEMORY_IMPORT_HANDLE_TYPES_KHR, "External memory handle types", NULL, ext_mem, plat_has_ext_mem),
+	PINFO_COND(CL_PLATFORM_SEMAPHORE_TYPES_KHR, "Semaphore types", NULL, semaphore_types, plat_has_semaphore),
+	PINFO_COND(CL_PLATFORM_SEMAPHORE_IMPORT_HANDLE_TYPES_KHR, "External semaphore import types", NULL, ext_semaphore_handles, plat_has_external_semaphore),
+	PINFO_COND(CL_PLATFORM_SEMAPHORE_EXPORT_HANDLE_TYPES_KHR, "External semaphore export types", NULL, ext_semaphore_handles, plat_has_external_semaphore),
+
 };
 
 /* Collect (and optionally show) information on a specific platform,
@@ -1079,6 +1189,8 @@ gatherPlatformInfo(struct platform_list *plist, cl_uint p, const struct opt_out 
 			pinfo_checks->has_khr_icd = !!strstr(ret.str.buf, "cl_khr_icd");
 			pinfo_checks->has_amd_object_metadata = !!strstr(ret.str.buf, "cl_amd_object_metadata");
 			pinfo_checks->has_external_memory = !!strstr(ret.str.buf, "cl_khr_external_memory");
+			pinfo_checks->has_semaphore = !!strstr(ret.str.buf, "cl_khr_semaphore");
+			pinfo_checks->has_external_semaphore = !!strstr(ret.str.buf, "cl_khr_external_semaphore");
 			pdata->has_amd_offline = !!strstr(ret.str.buf, "cl_amd_offline_devices");
 			break;
 		case CL_PLATFORM_ICD_SUFFIX_KHR:
@@ -1154,6 +1266,8 @@ struct device_info_checks {
 	char has_arm_svm[29];
 	char has_intel_usm[31];
 	char has_external_memory[23];
+	char has_semaphore[17];
+	char has_external_semaphore[26];
 	char has_arm_core_id[15];
 	char has_arm_job_slots[26];
 	char has_arm_scheduling_controls[27];
@@ -1197,6 +1311,8 @@ DEFINE_EXT_CHECK(amd_svm)
 DEFINE_EXT_CHECK(arm_svm)
 DEFINE_EXT_CHECK(intel_usm)
 DEFINE_EXT_CHECK(external_memory)
+DEFINE_EXT_CHECK(semaphore)
+DEFINE_EXT_CHECK(external_semaphore)
 DEFINE_EXT_CHECK(arm_core_id)
 DEFINE_EXT_CHECK(arm_job_slots)
 DEFINE_EXT_CHECK(arm_scheduling_controls)
@@ -1411,6 +1527,8 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 	CHECK_EXT(arm_svm, cl_arm_shared_virtual_memory);
 	CHECK_EXT(intel_usm, cl_intel_unified_shared_memory);
 	CHECK_EXT(external_memory, cl_khr_external_memory);
+	CHECK_EXT(semaphore, cl_khr_semaphore);
+	CHECK_EXT(external_semaphore, cl_khr_external_semaphore);
 	CHECK_EXT(arm_core_id, cl_arm_core_id);
 	CHECK_EXT(arm_job_slots, cl_arm_job_slot_selection);
 	CHECK_EXT(arm_scheduling_controls, cl_arm_scheduling_controls);
@@ -1599,6 +1717,34 @@ device_info_ext_mem(struct device_info_ret *ret,
 	GET_VAL_ARRAY(ret, loc);
 	if (!ret->err) {
 		strbuf_ext_mem(loc->pname, &ret->str, val, numval, output);
+	}
+	free(val);
+}
+
+void
+device_info_semaphore_types(struct device_info_ret *ret,
+	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
+	const struct opt_out *output)
+{
+	cl_semaphore_type_khr *val = NULL;
+	size_t szval = 0, numval = 0;
+	GET_VAL_ARRAY(ret, loc);
+	if (!ret->err) {
+		strbuf_semaphore_type(loc->pname, &ret->str, val, numval, output);
+	}
+	free(val);
+}
+
+void
+device_info_ext_semaphore_handles(struct device_info_ret *ret,
+	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
+	const struct opt_out *output)
+{
+	cl_external_semaphore_handle_type_khr *val = NULL;
+	size_t szval = 0, numval = 0;
+	GET_VAL_ARRAY(ret, loc);
+	if (!ret->err) {
+		strbuf_ext_semaphore_handle(loc->pname, &ret->str, val, numval, output);
 	}
 	free(val);
 }
@@ -3152,6 +3298,11 @@ struct device_info_traits dinfo_traits[] = {
 
 	/* External memory */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_EXTERNAL_MEMORY_IMPORT_HANDLE_TYPES_KHR, "External memory handle types", ext_mem), dev_has_external_memory },
+
+	/* Semaphores */
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_SEMAPHORE_TYPES_KHR, "Semaphore types", semaphore_types), dev_has_semaphore },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_SEMAPHORE_IMPORT_HANDLE_TYPES_KHR, "External semaphore import types", ext_semaphore_handles), dev_has_external_semaphore },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_SEMAPHORE_EXPORT_HANDLE_TYPES_KHR, "External semaphore export types", ext_semaphore_handles), dev_has_external_semaphore },
 
 	/* Global memory */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_MEM_SIZE, "Global memory size", mem), NULL },
