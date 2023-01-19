@@ -358,6 +358,22 @@ static const char* svm_cap_raw_str[] = {
 
 const size_t svm_cap_count = ARRAY_SIZE(svm_cap_str);
 
+static const char * intel_usm_cap_str[] = {
+	"USM access",
+	"USM atomic access",
+	"USM concurrent access",
+	"USM concurrent atomic access"
+};
+
+static const char * intel_usm_cap_raw_str[] = {
+	"CL_UNIFIED_SHARED_MEMORY_ACCESS_INTEL",
+	"CL_UNIFIED_SHARED_MEMORY_ATOMIC_ACCESS_INTEL",
+	"CL_UNIFIED_SHARED_MEMORY_CONCURRENT_ACCESS_INTEL",
+	"CL_UNIFIED_SHARED_MEMORY_CONCURRENT_ATOMIC_ACCESS_INTEL",
+};
+
+const size_t intel_usm_cap_count = ARRAY_SIZE(intel_usm_cap_str);
+
 static const char* arm_scheduling_controls_str[] = {
 	"Kernel batching",
 	"Work-group batch size",
@@ -1057,6 +1073,7 @@ struct device_info_checks {
 	char has_intel[32];
 	char has_amd_svm[11];
 	char has_arm_svm[29];
+	char has_intel_usm[31];
 	char has_arm_core_id[15];
 	char has_arm_job_slots[26];
 	char has_arm_scheduling_controls[27];
@@ -1098,6 +1115,7 @@ DEFINE_EXT_CHECK(nv)
 DEFINE_EXT_CHECK(amd)
 DEFINE_EXT_CHECK(amd_svm)
 DEFINE_EXT_CHECK(arm_svm)
+DEFINE_EXT_CHECK(intel_usm)
 DEFINE_EXT_CHECK(arm_core_id)
 DEFINE_EXT_CHECK(arm_job_slots)
 DEFINE_EXT_CHECK(arm_scheduling_controls)
@@ -1310,6 +1328,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 	CHECK_EXT(intel, cl_intel_device_attribute_query);
 	CHECK_EXT(amd_svm, cl_amd_svm);
 	CHECK_EXT(arm_svm, cl_arm_shared_virtual_memory);
+	CHECK_EXT(intel_usm, cl_intel_unified_shared_memory);
 	CHECK_EXT(arm_core_id, cl_arm_core_id);
 	CHECK_EXT(arm_job_slots, cl_arm_job_slot_selection);
 	CHECK_EXT(arm_scheduling_controls, cl_arm_scheduling_controls);
@@ -2557,6 +2576,20 @@ device_info_command_buffer_caps(struct device_info_ret *ret,
 	}
 }
 
+void
+device_info_intel_usm_cap(struct device_info_ret *ret,
+	const struct info_loc *loc, const struct device_info_checks *chk,
+	const struct opt_out *output)
+{
+	GET_VAL(ret, loc, svmcap);
+	if (!ret->err) {
+		device_info_bitfield(ret, loc, chk, output, ret->value.svmcap,
+			intel_usm_cap_count,
+			(output->mode == CLINFO_RAW ? intel_usm_cap_raw_str : intel_usm_cap_str),
+			"capabilities");
+	}
+}
+
 /* Device queue family properties */
 void
 strbuf_intel_queue_family(const char *what, struct _strbuf *str, const cl_queue_family_properties_intel *fams, size_t num_fams,
@@ -3035,6 +3068,13 @@ struct device_info_traits dinfo_traits[] = {
 
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SVM_CAPABILITIES, "Shared Virtual Memory (SVM) capabilities", svm_cap), dev_has_svm },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SVM_CAPABILITIES_ARM, "Shared Virtual Memory (SVM) capabilities (ARM)", svm_cap), dev_has_arm_svm },
+
+	{ CLINFO_HUMAN, DINFO_SFX(CL_FALSE, "Unified Shared Memory (USM)", "(cl_intel_unified_shared_memory)", str), dev_has_intel_usm },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_HOST_MEM_CAPABILITIES_INTEL, "Host USM capabilities (Intel)", intel_usm_cap), dev_has_intel_usm },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_DEVICE_MEM_CAPABILITIES_INTEL, "Device USM capabilities (Intel)", intel_usm_cap), dev_has_intel_usm },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_SINGLE_DEVICE_SHARED_MEM_CAPABILITIES_INTEL, "Single-Device USM caps (Intel)", intel_usm_cap), dev_has_intel_usm },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_CROSS_DEVICE_SHARED_MEM_CAPABILITIES_INTEL, "Cross-Device USM caps (Intel)", intel_usm_cap), dev_has_intel_usm },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_SHARED_SYSTEM_MEM_CAPABILITIES_INTEL, "Shared System USM caps (Intel)", intel_usm_cap), dev_has_intel_usm },
 
 	/* Alignment */
 	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_MIN_DATA_TYPE_ALIGN_SIZE, "Minimum alignment for any data type", bytes_str, int), NULL },
