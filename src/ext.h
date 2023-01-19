@@ -234,11 +234,6 @@ typedef struct _cl_name_version {
 
 typedef cl_bitfield         cl_device_command_buffer_capabilities_khr;
 
-#define CL_COMMAND_BUFFER_CAPABILITY_KERNEL_PRINTF_KHR		(1 << 0)
-#define CL_COMMAND_BUFFER_CAPABILITY_DEVICE_SIDE_ENQUEUE_KHR	(1 << 1)
-#define CL_COMMAND_BUFFER_CAPABILITY_SIMULTANEOUS_USE_KHR	(1 << 2)
-#define CL_COMMAND_BUFFER_CAPABILITY_OUT_OF_ORDER_KHR		(1 << 3)
-
 /* cl_khr_terminate_context */
 #define CL_DEVICE_TERMINATE_CAPABILITY_KHR_1x		0x200F
 #define CL_DEVICE_TERMINATE_CAPABILITY_KHR		0x2031
