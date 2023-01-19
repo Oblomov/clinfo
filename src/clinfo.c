@@ -352,6 +352,8 @@ static const char* arm_scheduling_controls_str[] = {
 	"Work-group batch size modifier",
 	"Deferred flush",
 	"Register allocation",
+	"Warp throttling",
+	"Compute unit batch queue size",
 };
 
 static const char* arm_scheduling_controls_raw_str[] = {
@@ -360,6 +362,8 @@ static const char* arm_scheduling_controls_raw_str[] = {
 	"CL_DEVICE_SCHEDULING_WORKGROUP_BATCH_SIZE_MODIFIER_ARM",
 	"CL_DEVICE_SCHEDULING_DEFERRED_FLUSH_ARM",
 	"CL_DEVICE_SCHEDULING_REGISTER_ALLOCATION_ARM",
+	"CL_DEVICE_SCHEDULING_WARP_THROTTLING_ARM",
+	"CL_DEVICE_SCHEDULING_COMPUTE_UNIT_BATCH_QUEUE_SIZE_ARM",
 };
 
 const size_t arm_scheduling_controls_count = ARRAY_SIZE(arm_scheduling_controls_str);
@@ -1033,6 +1037,7 @@ struct device_info_checks {
 	cl_bool image_support;
 	cl_bool compiler_available;
 	cl_bool arm_register_alloc_support;
+	cl_bool arm_warp_count_support;
 	char has_half[12];
 	char has_double[24];
 	char has_nv[29];
@@ -1197,6 +1202,12 @@ cl_bool dev_has_arm_core_id_v2(const struct device_info_checks *chk)
 cl_bool dev_has_arm_register_alloc(const struct device_info_checks *chk)
 {
 	return dev_has_arm_scheduling_controls(chk) && chk->arm_register_alloc_support;
+}
+
+/* Device supports warp  */
+cl_bool dev_has_arm_warp_count_support(const struct device_info_checks *chk)
+{
+	return dev_has_arm_scheduling_controls(chk) && chk->arm_warp_count_support;
 }
 
 cl_bool dev_has_svm(const struct device_info_checks *chk)
@@ -3120,6 +3131,7 @@ struct device_info_traits dinfo_traits[] = {
 
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SCHEDULING_CONTROLS_CAPABILITIES_ARM, INDENT "Scheduling controls (ARM)", arm_scheduling_controls), dev_has_arm_scheduling_controls },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SUPPORTED_REGISTER_ALLOCATIONS_ARM, INDENT "Supported reg allocs (ARM)", intptr), dev_has_arm_register_alloc },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_WARP_COUNT_ARM, INDENT "Max warps/CU (ARM)", int), dev_has_arm_warp_count_support },
 
 	/* TODO: this should tell if it's being done due to the device being 2.1 or due to it having the extension */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_IL_VERSION, INDENT "IL version", str), dev_has_il },
@@ -3305,6 +3317,8 @@ printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uint p,
 			break;
 		case CL_DEVICE_SCHEDULING_CONTROLS_CAPABILITIES_ARM:
 			chk.arm_register_alloc_support = !!(ret.value.sched_controls & CL_DEVICE_SCHEDULING_REGISTER_ALLOCATION_ARM);
+			// TODO warp count support should check for extension version >= 0.4
+			chk.arm_warp_count_support = !!(ret.value.sched_controls);
 			break;
 		default:
 			/* do nothing */
