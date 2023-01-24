@@ -3245,8 +3245,8 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_LINKER_AVAILABLE, "Linker Available", bool), dev_is_12 },
 
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_COMPUTE_UNITS, "Max compute units", int), NULL },
-	{ CLINFO_HUMAN, DINFO(CL_DEVICE_COMPUTE_UNITS_BITFIELD_ARM, "Available core IDs", core_ids), dev_has_arm_core_id_v2 },
-	{ CLINFO_RAW, DINFO(CL_DEVICE_COMPUTE_UNITS_BITFIELD_ARM, "Available core IDs", long), dev_has_arm_core_id_v2 },
+	{ CLINFO_HUMAN, DINFO(CL_DEVICE_COMPUTE_UNITS_BITFIELD_ARM, "Available core IDs (ARM)", core_ids), dev_has_arm_core_id_v2 },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_COMPUTE_UNITS_BITFIELD_ARM, "Available core IDs (ARM)", long), dev_has_arm_core_id_v2 },
 	{ CLINFO_HUMAN, DINFO(CL_DEVICE_JOB_SLOTS_ARM, "Available job slots (ARM)", job_slots), dev_has_arm_job_slots },
 	{ CLINFO_RAW, DINFO(CL_DEVICE_JOB_SLOTS_ARM, "Available job slots (ARM)", int), dev_has_arm_job_slots },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SIMD_PER_COMPUTE_UNIT_AMD, "SIMD per compute unit (AMD)", int), dev_is_gpu_amd },
