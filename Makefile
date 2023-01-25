@@ -64,9 +64,12 @@ LDFLAGS += $(LDFLAGS_$(OS))
 # Common library includes
 LDLIBS__common = -lOpenCL -ldl
 
+# macOS PoCL support
+ifeq (,$(findstring 1,$(POCL)))
 # OS-specific library includes
 LDLIBS_Darwin = -framework OpenCL
 LDLIBS_Darwin_exclude = -lOpenCL
+endif
 
 LDLIBS += $(LDLIBS_${OS}) $(LDLIBS__common:$(LDLIBS_${OS}_exclude)=)
 

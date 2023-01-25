@@ -61,6 +61,12 @@ No special build system is used (autotools, CMake, meson, ninja, etc),
 as I feel adding more dependencies for such a simple program would be
 excessive. Simply running `make` at the project root should work.
 
+## macOS support (with PoCL)
+
+You can simply run `make` or `make POCL=0` if you want to build clinfo 
+with the default OpenCL Framework provided by Apple. If you want to use PoCL 
+instead, run `make POCL=1`.
+
 ## Android support
 
 ### Local build via Termux
