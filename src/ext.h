@@ -457,6 +457,11 @@ typedef cl_bitfield cl_device_scheduling_controls_capabilities_arm;
 
 /* cl_intel_device_attribute_query */
 
+typedef cl_bitfield cl_device_feature_capabilities_intel;
+
+#define CL_DEVICE_FEATURE_FLAG_DP4A_INTEL	(1 << 0)
+#define CL_DEVICE_FEATURE_FLAG_DPAS_INTEL	(1 << 1)
+
 #define CL_DEVICE_IP_VERSION_INTEL			0x4250
 #define CL_DEVICE_ID_INTEL				0x4251
 #define CL_DEVICE_NUM_SLICES_INTEL			0x4252
