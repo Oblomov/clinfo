@@ -1198,6 +1198,8 @@ gatherPlatformInfo(struct platform_list *plist, cl_uint p, const struct opt_out 
 			 * and memcpy is possibly more optimized */
 			memcpy(pdata->pname, ret.str.buf, len);
 			pdata->pname[len] = '\0';
+			/* We print the platform name here in the JSON + brief case */
+			if (output->json && output->brief) json_stringify(pdata->pname);
 			break;
 		case CL_PLATFORM_VERSION:
 			/* compute numeric value for OpenCL version */
@@ -3633,7 +3635,9 @@ printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uint p,
 					strbuf_append_str(loc.pname, &ret.str, not_specified(output));
 				}
 			}
-			if (output->brief)
+			if (output->brief && output->json)
+				json_stringify(RET_BUF(ret)->buf);
+			else if (output->brief)
 				printf("%s%s\n", line_pfx, RET_BUF(ret)->buf);
 			else if (output->json)
 				json_strbuf(RET_BUF(ret), loc.pname, n++, ret.err || ret.needs_escaping);
@@ -3845,7 +3849,8 @@ void printPlatformDevices(const struct platform_list *plist, cl_uint p,
 				(!output->offline ||
 				 !pdata->has_amd_offline ||
 				 these_are_offline));
-			if (output->mode == CLINFO_RAW)
+			if (output->json) { /* nothing to do */ }
+			else if (output->mode == CLINFO_RAW)
 				sprintf(line_pfx, "%" PRIu32 "%c%" PRIu32 ": ",
 					p,
 					these_are_offline ? '*' : '.',
@@ -3864,14 +3869,16 @@ void printPlatformDevices(const struct platform_list *plist, cl_uint p,
 		}
 
 		if (output->json)
-			printf("%s{", d > 0 ? comma_str : spc_str);
+			printf("%s%s",	(d > 0 ? comma_str : spc_str),
+				(output->brief ? "" : "{"));
 
 		printDeviceInfo(dev, plist, p, param_whitelist, output);
 
-		if (output->json)
-			printf(" }");
-		else if (output->detailed && d < pdata[p].ndevs - 1)
+		if (output->json) {
+			if (!output->brief) printf(" }");
+		} else if (output->detailed && d < pdata[p].ndevs - 1)
 			puts("");
+
 
 		fflush(stdout);
 		fflush(stderr);
@@ -4681,12 +4688,13 @@ int main(int argc, char *argv[])
 
 		/* Open a JSON object for this platform */
 		if (output.json)
-			printf("%s{", p > 0 ? comma_str : spc_str);
+			printf("%s%s", (p > 0 ? comma_str : spc_str),
+				(output.brief ? "" : "{"));
 
 		gatherPlatformInfo(&plist, p, &output);
 
 		/* Close JSON object for this platform */
-		if (output.json)
+		if (output.json && !output.brief)
 			fputs(" }", stdout);
 		else if (output.detailed)
 			puts("");
