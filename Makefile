@@ -4,7 +4,7 @@
 # We can run a shell command on both by storing the value of the command
 # in a variable var and then using $(shell $(var))$(var:sh).
 
-# To detect the operating system it's generally sufficient to run `uname - s`,
+# To detect the operating system it's generally sufficient to run `uname -s`,
 # but this way Android is detected as Linux. Android can be detected by `uname -o`,
 # but not all `uname` implementation even have the `-o` flag.
 # So we first detect the kernel, and then if it's Linux we use the -o detection
@@ -121,5 +121,14 @@ install: all
 sparse: $(PROG).c
 	$(SPARSE) $(CPPFLAGS) $(CFLAGS) $(SPARSEFLAGS) $^
 
+show:
+	@printf 'OS=%s\n' "${OS}"
+	@printf 'CFLAGS=%s\n' "${CFLAGS}"
+	@printf 'CPPFLAGS=%s\n' "${CPPFLAGS}"
+	@printf 'LDFLAGS=%s\n' "${LDFLAGS}"
+	@printf 'LDLIBS=%s\n' "${LDLIBS}"
+	@printf 'TARGETS=%s\n' "${TARGETS}"
 
-.PHONY: clean sparse install
+
+
+.PHONY: clean sparse install show
