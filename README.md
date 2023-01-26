@@ -115,6 +115,23 @@ will run the actual binary after setting `LD_LIBRARY_PATH`. If this
 is not sufficient on your installation, please open an issue and we'll
 try to improve the shell script to cover your use case as well.
 
+## MacOS support
+
+clinfo should build without issues out of the box on most macOS installations
+(starting from OS X v10.6).
+In contrast to most other operating systems,
+the macOS system OpenCL library only supports Apple's own OpenCL platform.
+
+To use other platforms such as [PoCL](https://portablecl.org),
+it is necessary to install an alternative OpenCL library that works as an ICD loader,
+such as [Homebrew](https://brew.sh)'s [ocl-icd](https://formulae.brew.sh/formula/ocl-icd).
+
+To build `clinfo` using the Homebrew OpenCL library instead of the macOS system library,
+you can use
+
+    make OS=Homebrew
+
+
 ## Windows support
 
 The application can usually be built in Windows too (support for which
