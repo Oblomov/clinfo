@@ -4572,19 +4572,18 @@ void usage(void)
 	puts("Usage: clinfo [options ...]\n");
 	puts("Options:");
 	puts("\t--all-props, -a\t\ttry all properties, only show valid ones");
-	puts("\t--always-all-props, -At\tshow all properties, even if invalid");
-	puts("\t--human\t\thuman-friendly output (default)");
-	puts("\t--raw\t\traw output");
-	puts("\t--offline\talso show offline devices");
-	puts("\t--null-platform\talso show the NULL platform devices");
-	puts("\t--list, -l\tonly list the platforms and devices by name");
+	puts("\t--always-all-props, -A\tshow all properties, even if invalid");
+	puts("\t--human\t\t\thuman-friendly output (default)");
+	puts("\t--raw\t\t\traw output");
+	puts("\t--json\t\t\toutput raw data in JSON format (experimental)");
+	puts("\t--offline\t\talso show offline devices");
+	puts("\t--null-platform\t\talso show the NULL platform devices");
+	puts("\t--list, -l\t\tonly list the platforms and devices by name");
 	puts("\t--prop prop-name\tonly list properties matching the given name");
-	puts("\t--device p:d,");
-	puts("\t-d p:d\t\tonly show information about device number d from platform number p");
-	puts("\t-h, -?\t\tshow usage");
-	puts("\t--version, -v\tshow version\n");
-	puts("Defaults to raw mode if invoked with");
-	puts("a name that contains the string \"raw\"");
+	puts("\t--device p:d, -d p:d\tonly show information about device number d from platform number p");
+	puts("\t--help, -h, -?\t\tshow usage");
+	puts("\t--version, -v\t\tshow version\n");
+	puts("Defaults to raw mode if invoked with a name that contains the string \"raw\"");
 }
 
 int main(int argc, char *argv[])
@@ -4639,7 +4638,7 @@ int main(int argc, char *argv[])
 		} else if (!strcmp(argv[a], "--prop")) {
 			++a;
 			parse_prop(argv[a], &output);
-		} else if (!strcmp(argv[a], "-?") || !strcmp(argv[a], "-h")) {
+		} else if (!strcmp(argv[a], "-?") || !strcmp(argv[a], "-h") || !strcmp(argv[a], "--help")) {
 			usage();
 			free_output(&output);
 			return 0;

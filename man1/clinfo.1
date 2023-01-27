@@ -60,7 +60,7 @@ but there is a platform hard-coded in the OpenCL library itself;
 .BR -l ", " --list
 list platforms and devices by name, with no (other) properties;
 .TP
-.BI -d platform_index : device_index
+.BI -d " platform_index" : device_index
 .TQ
 .BI --device " platform_index" : device_index
 only show properties for the specified device in the specified platform;
@@ -73,7 +73,7 @@ the name is normalized as upper-case and with minus sign (-)
 replaced by underscore signs (_); when this flag is specified,
 raw mode is forced;
 .TP
-.BR -h ", " -?
+.BR --help ", " -? ", " -h
 show usage;
 .TP
 .BR --version ", " -v
@@ -279,10 +279,10 @@ loader itself.
 .SH LIMITATIONS
 
 .P
-OpenCL provides no explicit mean to detect the supported version
-of any extension exposed by a device, which makes it impossible to
-determine a priori if it will be possible to successfully query
-a device about a specific property.
+OpenCL did not provide an explicit mean to detect the supported version
+of any extension exposed by a device until version 3.0. This makes it impossible
+in many circumstances to determine a priori if it will be possible to successfully query
+a device about a specific property even if it declares support for a given extension.
 Additionally, the actual size and meaning of some properties are not
 officially declared anywhere.
 
