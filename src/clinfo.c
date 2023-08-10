@@ -2101,7 +2101,7 @@ void strbuf_bitfield(const char *what, struct _strbuf *str,
 	{
 		for (i = 0; i < bit_str_count; ++i)
 		{
-			if (bits & (1UL << i))
+			if (bits & (1ULL << i))
 			{
 				strbuf_append(what, str, "%s%s%s%s",
 							  (count > 0 ? sep : ""),
@@ -2471,8 +2471,8 @@ void device_info_cc_nv(struct device_info_ret *ret,
 			strbuf_append("NV CC", &ret->str, "%" PRIu32 ".%" PRIu32 "", major, minor);
 		}
 	}
-	ret->value.u32v.s[0] = major;
-	ret->value.u32v.s[1] = minor;
+	ret->value.u64v.s[0] = major;
+	ret->value.u64v.s[1] = minor;
 }
 
 /* AMD GFXIP */
@@ -2492,8 +2492,8 @@ void device_info_gfxip_amd(struct device_info_ret *ret,
 			strbuf_append("AMD GFXIP", &ret->str, "%" PRIu32 ".%" PRIu32 "", major, minor);
 		}
 	}
-	ret->value.u32v.s[0] = major;
-	ret->value.u32v.s[1] = minor;
+	ret->value.u64v.s[0] = major;
+	ret->value.u64v.s[1] = minor;
 }
 
 /* Intel feature capabilities */
@@ -2755,8 +2755,8 @@ void device_info_vecwidth(struct device_info_ret *ret,
 				strbuf_append(loc->pname, &ret->str, " (%s)", *ext ? ext : na);
 		}
 	}
-	ret->value.u32v.s[0] = preferred;
-	ret->value.u32v.s[1] = native;
+	ret->value.u64v.s[0] = preferred;
+	ret->value.u64v.s[1] = native;
 }
 
 /* Floating-point configurations */
@@ -3352,12 +3352,12 @@ struct device_info_traits dinfo_traits[] = {
 	{CLINFO_BOTH, DINFO_SFX(CL_DEVICE_CORE_TEMPERATURE_ALTERA, "Core Temperature (Altera)", " C", int), dev_has_altera_dev_temp},
 
 	/* Device partition support: summary is only presented in HUMAN case */
-	{CLINFO_HUMAN, DINFO(CL_DEVICE_PARTITION_MAX_SUB_DEVICES, "Device Partition", partition_header), dev_has_partition},
-	{CLINFO_BOTH, DINFO(CL_DEVICE_PARTITION_MAX_SUB_DEVICES, INDENT "Max number of sub-devices", int), dev_is_12},
-	{CLINFO_BOTH, DINFO(CL_DEVICE_PARTITION_PROPERTIES, INDENT "Supported partition types", partition_types), dev_is_12},
-	{CLINFO_BOTH, DINFO(CL_DEVICE_PARTITION_AFFINITY_DOMAIN, INDENT "Supported affinity domains", partition_affinities), dev_is_12},
-	{CLINFO_BOTH, DINFO(CL_DEVICE_PARTITION_TYPES_EXT, INDENT "Supported partition types (ext)", partition_types_ext), dev_has_fission},
-	{CLINFO_BOTH, DINFO(CL_DEVICE_AFFINITY_DOMAINS_EXT, INDENT "Supported affinity domains (ext)", partition_affinities_ext), dev_has_fission},
+	// {CLINFO_HUMAN, DINFO(CL_DEVICE_PARTITION_MAX_SUB_DEVICES, "Device Partition", partition_header), dev_has_partition},
+	// {CLINFO_BOTH, DINFO(CL_DEVICE_PARTITION_MAX_SUB_DEVICES, INDENT "Max number of sub-devices", int), dev_is_12},
+	// {CLINFO_BOTH, DINFO(CL_DEVICE_PARTITION_PROPERTIES, INDENT "Supported partition types", partition_types), dev_is_12},
+	// {CLINFO_BOTH, DINFO(CL_DEVICE_PARTITION_AFFINITY_DOMAIN, INDENT "Supported affinity domains", partition_affinities), dev_is_12},
+	// {CLINFO_BOTH, DINFO(CL_DEVICE_PARTITION_TYPES_EXT, INDENT "Supported partition types (ext)", partition_types_ext), dev_has_fission},
+	// {CLINFO_BOTH, DINFO(CL_DEVICE_AFFINITY_DOMAINS_EXT, INDENT "Supported affinity domains (ext)", partition_affinities_ext), dev_has_fission},
 
 	{CLINFO_BOTH, DINFO(CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, "Max work item dimensions", int), NULL},
 	{CLINFO_BOTH, DINFO(CL_DEVICE_MAX_WORK_ITEM_SIZES, "Max work item sizes", szptr_times), NULL},
@@ -3368,7 +3368,7 @@ struct device_info_traits dinfo_traits[] = {
 	{CLINFO_BOTH, DINFO(CL_DEVICE_MAX_WORK_GROUP_SIZE_AMD, "Max work group size (AMD)", sz), dev_has_amd_v4},
 
 	{CLINFO_BOTH, DINFO(CL_DEVICE_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, "Preferred work group size multiple (device)", sz), dev_is_30},
-	{CLINFO_BOTH, DINFO(CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, "Preferred work group size multiple (kernel)", wg), dev_has_compiler_11},
+	// {CLINFO_BOTH, DINFO(CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, "Preferred work group size multiple (kernel)", wg), dev_has_compiler_11},
 	{CLINFO_BOTH, DINFO(CL_DEVICE_WARP_SIZE_NV, "Warp size (NV)", int), dev_has_nv},
 	{CLINFO_BOTH, DINFO(CL_DEVICE_WAVEFRONT_WIDTH_AMD, "Wavefront width (AMD)", int), dev_is_gpu_amd},
 	{CLINFO_BOTH, DINFO(CL_DEVICE_MAX_NUM_SUB_GROUPS, "Max sub-groups per work group", int), dev_is_21},
@@ -3410,12 +3410,12 @@ struct device_info_traits dinfo_traits[] = {
 	{CLINFO_RAW, DINFO(CL_DEVICE_ENDIAN_LITTLE, "Little Endian", bool), NULL},
 
 	/* External memory */
-	{CLINFO_BOTH, DINFO(CL_DEVICE_EXTERNAL_MEMORY_IMPORT_HANDLE_TYPES_KHR, "External memory handle types", ext_mem), dev_has_external_memory},
+	// {CLINFO_BOTH, DINFO(CL_DEVICE_EXTERNAL_MEMORY_IMPORT_HANDLE_TYPES_KHR, "External memory handle types", ext_mem), dev_has_external_memory},
 
 	/* Semaphores */
-	{CLINFO_BOTH, DINFO(CL_DEVICE_SEMAPHORE_TYPES_KHR, "Semaphore types", semaphore_types), dev_has_semaphore},
-	{CLINFO_BOTH, DINFO(CL_DEVICE_SEMAPHORE_IMPORT_HANDLE_TYPES_KHR, "External semaphore import types", ext_semaphore_handles), dev_has_external_semaphore},
-	{CLINFO_BOTH, DINFO(CL_DEVICE_SEMAPHORE_EXPORT_HANDLE_TYPES_KHR, "External semaphore export types", ext_semaphore_handles), dev_has_external_semaphore},
+	// {CLINFO_BOTH, DINFO(CL_DEVICE_SEMAPHORE_TYPES_KHR, "Semaphore types", semaphore_types), dev_has_semaphore},
+	// {CLINFO_BOTH, DINFO(CL_DEVICE_SEMAPHORE_IMPORT_HANDLE_TYPES_KHR, "External semaphore import types", ext_semaphore_handles), dev_has_external_semaphore},
+	// {CLINFO_BOTH, DINFO(CL_DEVICE_SEMAPHORE_EXPORT_HANDLE_TYPES_KHR, "External semaphore export types", ext_semaphore_handles), dev_has_external_semaphore},
 
 	/* Global memory */
 	{CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_MEM_SIZE, "Global memory size", mem), NULL},
@@ -3618,7 +3618,6 @@ void printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uin
 
 	for (loc.line = 0; loc.line < ARRAY_SIZE(dinfo_traits); ++loc.line)
 	{
-
 		const struct device_info_traits *traits = dinfo_traits + loc.line;
 		cl_bool requested;
 
@@ -3664,6 +3663,9 @@ void printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uin
 			continue;
 		}
 
+		// this is breaking on a handful of traits
+		// for now I disabled them since we don't use them anyway
+		// but there is probably something else going on
 		traits->show_func(&ret, &loc, &chk, output);
 
 		/* Do not print this property if the user requested one and this does not match */
@@ -3719,14 +3721,23 @@ void printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uin
 					strbuf_append_str(loc.pname, &ret.str, not_specified(output));
 				}
 			}
+
 			if (output->brief && output->json)
+			{
 				json_stringify(RET_BUF(ret)->buf);
+			}
 			else if (output->brief)
+			{
 				printf("%s%s\n", line_pfx, RET_BUF(ret)->buf);
+			}
 			else if (output->json)
+			{
 				json_strbuf(RET_BUF(ret), loc.pname, n++, ret.err || ret.needs_escaping);
+			}
 			else
+			{
 				show_strbuf(RET_BUF(ret), loc.pname, 0, ret.err);
+			}
 		}
 
 		if (ret.err)
