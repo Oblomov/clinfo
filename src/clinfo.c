@@ -403,6 +403,7 @@ static const char* arm_scheduling_controls_str[] = {
 	"Register allocation",
 	"Warp throttling",
 	"Compute unit batch queue size",
+	"Compute unit limit",
 };
 
 static const char* arm_scheduling_controls_raw_str[] = {
@@ -413,6 +414,7 @@ static const char* arm_scheduling_controls_raw_str[] = {
 	"CL_DEVICE_SCHEDULING_REGISTER_ALLOCATION_ARM",
 	"CL_DEVICE_SCHEDULING_WARP_THROTTLING_ARM",
 	"CL_DEVICE_SCHEDULING_COMPUTE_UNIT_BATCH_QUEUE_SIZE_ARM",
+	"CL_DEVICE_SCHEDULING_COMPUTE_UNIT_LIMIT_ARM",
 };
 
 const size_t arm_scheduling_controls_count = ARRAY_SIZE(arm_scheduling_controls_str);
