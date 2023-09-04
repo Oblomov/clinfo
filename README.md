@@ -1,3 +1,9 @@
+# Warning
+
+**This is modified and not designed to be a 1-to-1 clone of [Oblomov/clinfo](https://github.com/Oblomov/clinfo)**
+
+Please see [Oblomov/clinfo](https://github.com/Oblomov/clinfo)
+
 # What is this?
 
 clinfo is a simple command-line application that enumerates all possible
@@ -22,14 +28,14 @@ Refer to the man page for further information.
 
 ## Use cases
 
-* verify that your OpenCL environment is set up correctly;
+- verify that your OpenCL environment is set up correctly;
   if `clinfo` cannot find any platform or devices (or fails to load
   the OpenCL dispatcher library), chances are high no other OpenCL
   application will run;
-* verify that your OpenCL _development_ environment is set up
+- verify that your OpenCL _development_ environment is set up
   correctly: if `clinfo` fails to build, chances are high no
   other OpenCL application will build;
-* explore/report the actual properties of the available device(s).
+- explore/report the actual properties of the available device(s).
 
 ## Segmentation faults
 
@@ -46,7 +52,6 @@ If you know of device properties that are exposed in OpenCL (either as core
 properties or as extensions), but are not shown by `clinfo`, please [open
 an issue](https://github.com/Oblomov/clinfo/issues) providing as much
 information as you can. Patches and pull requests accepted too.
-
 
 # Building
 
@@ -76,15 +81,14 @@ as well as via F-Droid.
 
 Inside Termux, you will first need to install some common tools:
 
-	pkg install git make clang -y
-
+    pkg install git make clang -y
 
 You will also need to clone the `clinfo` repository, and fetch the
 OpenCL headers (we'll use the official `KhronosGroup/OpenCL-Headers`
 repository for that):
 
-	git clone https://github.com/Oblomov/clinfo
-	git clone https://github.com/KhronosGroup/OpenCL-Headers
+    git clone https://github.com/Oblomov/clinfo
+    git clone https://github.com/KhronosGroup/OpenCL-Headers
 
 (I prefer doing this from a `src` directory I have created for
 development, but as long as `clinfo` and `OpenCL-Headers` are sibling
@@ -98,7 +102,7 @@ You can then `cd clinfo` and build the application. You can try simply
 running `make` since Android should be autodetected now, buf it
 this fails you can also force the detectio with
 
-	make OS=Android
+    make OS=Android
 
 If linking fails due to a missing `libOpenCL.so`, then your Android
 machine probably doesn't support OpenCL. Otherwise, you should have a
@@ -130,7 +134,6 @@ To build `clinfo` using the Homebrew OpenCL library instead of the macOS system 
 you can use
 
     make OS=Homebrew
-
 
 ## Windows support
 

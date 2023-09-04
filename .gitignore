@@ -1,3 +1,9 @@
 clinfo
 .*.swp
 *.o
+include/
+lib/
+*.exe
+OpenCL.lib
+*.pdb
+*.obj
