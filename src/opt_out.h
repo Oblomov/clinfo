@@ -2,6 +2,8 @@
 #ifndef OPT_OUT_H
 #define OPT_OUT_H
 
+#include <string.h>
+
 #include "ext.h"
 
 enum output_modes {
@@ -22,13 +24,17 @@ struct opt_out {
 	enum output_modes mode;
 	enum cond_prop_modes cond;
 
-/* Specify that we should only print information about a specific device */
-	cl_uint platform;
-	cl_uint device;
-	cl_bool selected;
+/* Specify that we should only print information about specific devices */
+/* TODO proper memory management */
+#define MAX_SELECTED_DEVICES 256
+	cl_uint2 selected_devices[MAX_SELECTED_DEVICES];
+	size_t num_selected_devices;
 
 /* Specify that we should only print information about a specific property */
-	const char *prop;
+/* TODO proper memory management */
+#define MAX_SELECTED_PROPS 256
+	const char *selected_props[MAX_SELECTED_PROPS];
+	size_t num_selected_props;
 
 /* Specify if we should only be listing the platform and devices;
  * can be done in both human and raw mode, and only the platform
@@ -51,4 +57,41 @@ struct opt_out {
 	cl_bool check_size;
 };
 
+static inline cl_bool is_selected_platform(const struct opt_out *output, cl_uint p) {
+	if (output->num_selected_devices == 0) return CL_TRUE;
+
+	for (cl_uint i = 0; i < output->num_selected_devices; ++i) {
+		if (p == output->selected_devices[i].s[0]) return CL_TRUE;
+	}
+	return CL_FALSE;
+}
+
+static inline cl_bool is_selected_device(const struct opt_out *output, cl_uint p, cl_uint d) {
+	if (output->num_selected_devices == 0) return CL_TRUE;
+
+	for (cl_uint i = 0; i < output->num_selected_devices; ++i) {
+		const cl_uint2 cmp = output->selected_devices[i];
+		if (p == cmp.s[0] && d == cmp.s[1]) return CL_TRUE;
+	}
+	return CL_FALSE;
+}
+
+static inline cl_bool is_selected_prop(const struct opt_out *output, const char *prop) {
+	if (output->num_selected_props == 0) return CL_TRUE;
+
+	for (cl_uint i = 0; i < output->num_selected_props; ++i) {
+		if (strstr(prop, output->selected_props[i])) return CL_TRUE;
+	}
+	return CL_FALSE;
+}
+static inline cl_bool is_requested_prop(const struct opt_out *output, const char *prop) {
+	// NOTE the difference compared to the above: here we are checking if a specific property
+	// was *requested*, so if none was explicitly requested we return false here.
+	if (output->num_selected_props == 0) return CL_FALSE;
+
+	for (cl_uint i = 0; i < output->num_selected_props; ++i) {
+		if (strstr(prop, output->selected_props[i])) return CL_TRUE;
+	}
+	return CL_FALSE;
+}
 #endif

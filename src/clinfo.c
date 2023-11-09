@@ -822,7 +822,7 @@ void strbuf_named_uint(const char *what, struct _strbuf *str, const cl_uint *ext
 
 		cl_uint val = ext[cursor];
 		cl_bool known = (val >= offset && val < offset + count);
-		if (known) 
+		if (known)
 			strbuf_append(what, str, "%s%s%s", quote, name_str[val - offset], quote);
 		else
 			strbuf_append(what, str, "%s%#" PRIx32 "%s", quote, val, quote);
@@ -1177,7 +1177,7 @@ gatherPlatformInfo(struct platform_list *plist, cl_uint p, const struct opt_out 
 		/* The property gets printed if we are not just listing,
 		 * or if the user requested a property and this one matches.
 		 * Otherwise, we're just gathering information */
-		requested = (output->prop && strstr(loc.sname, output->prop) != NULL);
+		requested = is_requested_prop(output, loc.sname);
 		if (output->detailed || requested) {
 			if (output->json) {
 				json_strbuf(RET_BUF(ret), loc.pname, n++, ret.err || ret.needs_escaping);
@@ -3593,7 +3593,7 @@ printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uint p,
 		traits->show_func(&ret, &loc, &chk, output);
 
 		/* Do not print this property if the user requested one and this does not match */
-		requested = !(output->prop && strstr(loc.sname, output->prop) == NULL);
+		requested = is_selected_prop(output, loc.sname);
 		if (traits->param == CL_DEVICE_EXTENSIONS) {
 			/* make a backup of the extensions string, regardless of
 			 * errors and requested, because we need the information
@@ -3844,7 +3844,7 @@ void printPlatformDevices(const struct platform_list *plist, cl_uint p,
 
 	for (d = 0; d < ndevs; ++d) {
 		const cl_device_id dev = device[d];
-		if (output->selected && output->device != d) continue;
+		if (!is_selected_device(output, p, d)) continue;
 		if (output->brief) {
 			const cl_bool last_device = (d == ndevs - 1 &&
 				output->mode != CLINFO_RAW &&
@@ -3923,13 +3923,13 @@ void showDevices(const struct platform_list *plist, const struct opt_out *output
 
 	for (p = 0; p < num_platforms; ++p) {
 		/* skip non-selected platforms altogether */
-		if (output->selected && output->platform != p) continue;
+		if (!is_selected_platform(output, p)) continue;
 
 		/* Open the JSON devices list for this platform */
 		if (output->json)
 			printf("%s{", p > 0 ? comma_str : spc_str);
 		/* skip platform header if only printing specfic properties, */
-		else if (!output->prop)
+		else if (!output->num_selected_props)
 			printPlatformName(plist, p, &str, output);
 
 		printPlatformDevices(plist, p,
@@ -4452,7 +4452,7 @@ struct icdl_data oclIcdProps(const struct platform_list *plist, const struct opt
 			icdl_info_str(&ret, &loc);
 
 			/* Do not print this property if the user requested one and this does not match */
-			requested = !(output->prop && strstr(loc.sname, output->prop) == NULL);
+			requested = is_selected_prop(output, loc.sname);
 			if (requested) {
 				if (output->json)
 					json_strbuf(RET_BUF(ret), loc.pname, n++, CL_TRUE);
@@ -4513,6 +4513,17 @@ void version(void)
 	puts("clinfo version 3.0.23.01.25");
 }
 
+void add_selected_device(struct opt_out *output, cl_uint p, cl_uint d)
+{
+	if (output->num_selected_devices == MAX_SELECTED_DEVICES) {
+		fprintf(stderr, "too many device specifications (max: %u)\n", MAX_SELECTED_DEVICES);
+		exit(1);
+	}
+	cl_uint2 *dst = output->selected_devices + output->num_selected_devices++;
+	dst->s[0] = p;
+	dst->s[1] = d;
+}
+
 void parse_device_spec(const char *str, struct opt_out *output)
 {
 	int p, d, n;
@@ -4525,14 +4536,23 @@ void parse_device_spec(const char *str, struct opt_out *output)
 		fprintf(stderr, "invalid device specification '%s'\n", str);
 		exit(1);
 	}
-	output->platform = p;
-	output->device = d;
+	add_selected_device(output, p, d);
 }
 
-void free_output(struct opt_out *output)
+void free_output(struct opt_out * UNUSED(output))
 {
-	free((char*)output->prop);
-	output->prop = NULL;
+	/* nothing to do until we implement proper memory management
+	 * for selected_devices and selected_props
+	 */
+}
+
+void add_selected_prop(struct opt_out *output, const char* prop)
+{
+	if (output->num_selected_props == MAX_SELECTED_PROPS) {
+		fprintf(stderr, "too many properties specifications (max: %u)\n", MAX_SELECTED_PROPS);
+		exit(1);
+	}
+	output->selected_props[output->num_selected_props++] = prop;
 }
 
 void parse_prop(const char *input, struct opt_out *output)
@@ -4559,12 +4579,7 @@ void parse_prop(const char *input, struct opt_out *output)
 		}
 	}
 
-	if (output->prop) {
-		fprintf(stderr, "WARNING: only one property name substring supported, discarding %s in favor of %s\n",
-			output->prop, normalized);
-		free_output(output);
-	}
-	output->prop = normalized;
+	add_selected_prop(output, normalized);
 }
 
 void usage(void)
@@ -4599,9 +4614,8 @@ int main(int argc, char *argv[])
 	struct platform_list plist;
 	init_plist(&plist);
 
-	output.platform = CL_UINT_MAX;
-	output.device = CL_UINT_MAX;
-	output.prop = NULL;
+	output.num_selected_devices = 0;
+	output.num_selected_props = 0;
 	output.mode = CLINFO_HUMAN;
 	output.cond = COND_PROP_CHECK;
 	output.brief = CL_FALSE;
@@ -4655,10 +4669,9 @@ int main(int argc, char *argv[])
 	/* If a property was specified, we only print in RAW mode.
 	 * Likewise, JSON format assumes RAW
 	 */
-	if (output.prop || output.json)
+	if (output.num_selected_props || output.json)
 		output.mode = CLINFO_RAW;
-	output.selected = (output.device != CL_UINT_MAX);
-	output.detailed = !output.brief && !output.selected && !output.prop;
+	output.detailed = !output.brief && !output.num_selected_devices && !output.num_selected_props;
 
 	err = clGetPlatformIDs(0, NULL, &plist.num_platforms);
 	if (err != CL_PLATFORM_NOT_FOUND_KHR)
@@ -4685,7 +4698,16 @@ int main(int argc, char *argv[])
 
 	for (p = 0; p < alloced_platforms; ++p) {
 		// skip non-selected platforms altogether
-		if (output.selected && output.platform != p) continue;
+		if (!(is_selected_platform(&output, p))) {
+			/* Update the dev_offset, otherwise the wrong devices will be picked
+			 * when using a specification such as -d 0:0 -d 2:0
+			 */
+			if (p) {
+				plist.dev_offset[p] = plist.dev_offset[p-1] + plist.pdata[p-1].ndevs;
+				plist.pdata[p].ndevs = 0;
+			}
+			continue;
+		}
 
 		/* Open a JSON object for this platform */
 		if (output.json)
@@ -4713,7 +4735,7 @@ int main(int argc, char *argv[])
 	if (output.json)
 		fputs(" ]", stdout);
 
-	if (output.prop || (output.detailed && !output.selected)) {
+	if (output.num_selected_props || (output.detailed && !output.num_selected_devices)) {
 		if (output.mode != CLINFO_RAW && plist.num_platforms)
 			checkNullBehavior(&plist, &output);
 		oclIcdProps(&plist, &output);
