@@ -64,14 +64,16 @@ list platforms and devices by name, with no (other) properties;
 .TQ
 .BI --device " platform_index" : device_index
 only show properties for the specified device in the specified platform;
+multiple device specifications may be given on the command-line;
 .TP
 .BI --prop " property-name"
 only show properties whose symbolic name matches
 (contains as a substring) the given
 .IR property-name ;
 the name is normalized as upper-case and with minus sign (-)
-replaced by underscore signs (_); when this flag is specified,
-raw mode is forced;
+replaced by underscore signs (_);
+multiple property specifications may be given on the command-line;
+when this flag is specified, raw mode is forced;
 .TP
 .BR --help ", " -? ", " -h
 show usage;
