@@ -3809,7 +3809,7 @@ void printPlatformName(const struct platform_list *plist, cl_uint p, struct _str
 	const char *brief_prefix = (output->mode == CLINFO_HUMAN ? "Platform #" : "");
 	const char *title = (output->mode == CLINFO_HUMAN  ? pinfo_traits[0].pname :
 		pinfo_traits[0].sname);
-	const int prefix_width = -line_pfx_len*(!output->brief);
+	const int prefix_width = (-line_pfx_len+1)*(!output->brief);
 	if (output->brief) {
 		strbuf_append(__func__, str, "%s%" PRIu32 ": ", brief_prefix, p);
 	} else if (output->mode == CLINFO_RAW) {
@@ -3866,7 +3866,7 @@ void printPlatformDevices(const struct platform_list *plist, cl_uint p,
 		} else if (line_pfx_len > 0) {
 			cl_int sd = (these_are_offline ? -1 : 1)*(cl_int)d;
 			strbuf_append(__func__, str, "[%s/%" PRId32 "]", pdata->sname, sd);
-			sprintf(line_pfx, "%*s", -line_pfx_len, str->buf);
+			sprintf(line_pfx, "%*s", -line_pfx_len + 1, str->buf);
 			reset_strbuf(str);
 		}
 
@@ -4435,7 +4435,7 @@ struct icdl_data oclIcdProps(const struct platform_list *plist, const struct opt
 			line_pfx_len = (int)(strlen(oclicdl_pfx) + 5);
 			REALLOC(line_pfx, line_pfx_len, "line prefix OCL ICD");
 			strbuf_append(loc.pname, &ret.str, "[%s/*]", oclicdl_pfx);
-			sprintf(line_pfx, "%*s", -line_pfx_len, ret.str.buf);
+			sprintf(line_pfx, "%*s", -line_pfx_len + 1, ret.str.buf);
 			reset_strbuf(&ret.str);
 		}
 
