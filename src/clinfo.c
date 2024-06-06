@@ -2105,7 +2105,7 @@ void strbuf_bitfield(const char *what, struct _strbuf *str,
 
 	if (bits) {
 		for (i = 0; i < bit_str_count; ++i) {
-			if (bits & (1UL << i)) {
+			if (bits & ((cl_bitfield)(1) << i)) {
 				strbuf_append(what, str, "%s%s%s%s",
 					(count > 0 ? sep : ""),
 					quote, bit_str[i], quote);
