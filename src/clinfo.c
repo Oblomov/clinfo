@@ -4447,6 +4447,8 @@ struct icdl_data oclIcdProps(const struct platform_list *plist, const struct opt
 				traits->pname : traits->sname);
 			loc.param.icdl = traits->param;
 
+			cur_sfx = empty_str;
+
 			reset_strbuf(&ret.str);
 			reset_strbuf(&ret.err_str);
 			icdl_info_str(&ret, &loc);
