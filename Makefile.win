@@ -1,19 +1,41 @@
+
+!IFNDEF PLATFORM
+PLATFORM=$(VSCMD_ARG_TGT_ARCH)
+!ENDIF
+
 # TODO FIXME find a better way to detect the directory to use
 # for OpenCL development files
+!IF ("$(OPENCLDIR)" == "") && EXIST("$(VCPKG_ROOT)\installed\$(PLATFORM)-windows\include\CL\cl.h")
+OPENCLDIR = $(VCPKG_ROOT)\installed\$(PLATFORM)-windows
+LIBS = OpenCL.lib
+LIBPATH32 = /LIBPATH:"$(OPENCLDIR)\lib"
+LIBPATH64 = /LIBPATH:"$(OPENCLDIR)\lib"
+!ENDIF
 !IF "$(OPENCLDIR)" == ""
 OPENCLDIR = $(INTELOCLSDKROOT)
+LIBS = OpenCL.lib
+LIBPATH32 = /LIBPATH:"$(OPENCLDIR)\lib\x86"
+LIBPATH64 = /LIBPATH:"$(OPENCLDIR)\lib\x64"
 !ENDIF
 !IF "$(OPENCLDIR)" == ""
 OPENCLDIR = $(AMDAPPSDKROOT)
+LIBS = libopenCL.a
+LIBPATH32 = /LIBPATH:"$(OPENCLDIR)\lib\x86"
+LIBPATH64 = /LIBPATH:"$(OPENCLDIR)\lib\x86_64"
 !ENDIF
 !IF "$(OPENCLDIR)" == ""
 OPENCLDIR = $(MAKEDIR)
+LIBS = libopenCL.a
+LIBPATH32 = /LIBPATH:"$(OPENCLDIR)\lib" /LIBPATH:"$(OPENCLDIR)\lib\x86"
+LIBPATH64 = /LIBPATH:"$(OPENCLDIR)\lib\x64" /LIBPATH:"$(OPENCLDIR)\lib\x86_64" /LIBPATH:"$(OPENCLDIR)\lib\x86_amd64"
 !ENDIF
 !IF "$(OPENCLDIR)" == ""
 OPENCLDIR = .
+LIBS = libopenCL.a
+LIBPATH32 = /LIBPATH:"$(OPENCLDIR)\lib" /LIBPATH:"$(OPENCLDIR)\lib\x86"
+LIBPATH64 = /LIBPATH:"$(OPENCLDIR)\lib\x64" /LIBPATH:"$(OPENCLDIR)\lib\x86_64" /LIBPATH:"$(OPENCLDIR)\lib\x86_amd64"
 !ENDIF
 !MESSAGE OpenCL dir: $(OPENCLDIR)
-
 
 HDR =	src/error.h \
 	src/ext.h \
@@ -27,7 +49,6 @@ HDR =	src/error.h \
 	src/strbuf.h
 
 CFLAGS = /GL /Ox /W4 /Zi /I"$(OPENCLDIR)\include" /nologo
-LIBS = libOpenCL.a
 
 # TODO there's most likely a better way to do the multiarch
 # switching
@@ -45,9 +66,6 @@ ARCH=32
 !ENDIF
 
 !MESSAGE Building for $(ARCH)-bit (processor architecture: $(PROCESSOR_ARCHITECTURE), platform: $(PLATFORM))
-
-LIBPATH32 = /LIBPATH:"$(OPENCLDIR)\lib" /LIBPATH:"$(OPENCLDIR)\lib\x86"
-LIBPATH64 = /LIBPATH:"$(OPENCLDIR)\lib\x64" /LIBPATH:"$(OPENCLDIR)\lib\x86_64" /LIBPATH:"$(OPENCLDIR)\lib\x86_amd64"
 
 # And since we can't do $(LIBPATH$(ARCH)) with nmake ...
 !IF "$(ARCH)" == "64"
