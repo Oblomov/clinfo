@@ -105,7 +105,8 @@ $(PROG).o: $(PROG).c $(HDR)
 # clinfo with the appropriate LD_LIBRARY_PATH.
 $(OS:Android=)$(PROG):
 	@echo '#!/bin/sh' > $@
-	@echo 'LD_LIBRARY_PATH="${ANDROID_VENDOR_PATH}:${ANDROID_VENDOR_PATH}/egl:$$LD_LIBRARY_PATH" ./$(EXENAME) "$$@"' >> $@
+	@echo 'wrapperdir="$$(dirname "$$(readlink -n -f "$$(command -v "$$0")")")"' >> $@
+	@echo 'LD_LIBRARY_PATH="${ANDROID_VENDOR_PATH}:${ANDROID_VENDOR_PATH}/egl:$$LD_LIBRARY_PATH" $${wrapperdir}/$(EXENAME) "$$@"' >> $@
 	chmod +x $@
 
 clean:
