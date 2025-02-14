@@ -282,7 +282,7 @@ typedef cl_uint cl_external_semaphore_handle_type_khr;
 /* cl_khr_external_memory */
 #define CL_PLATFORM_EXTERNAL_MEMORY_IMPORT_HANDLE_TYPES_KHR	0x2044
 #define CL_DEVICE_EXTERNAL_MEMORY_IMPORT_HANDLE_TYPES_KHR	0x204F
-// introduced in 1.0.1
+// introduced in 0.9.3, according to https://registry.khronos.org/OpenCL/sdk/3.0/docs/man/html/cl_khr_external_memory.html
 #define CL_DEVICE_EXTERNAL_MEMORY_IMPORT_ASSUME_LINEAR_IMAGES_HANDLE_TYPES_KHR 0x2052
 typedef cl_uint cl_external_memory_handle_type_khr;
 

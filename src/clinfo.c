@@ -3338,6 +3338,8 @@ struct device_info_traits dinfo_traits[] = {
 
 	/* External memory */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_EXTERNAL_MEMORY_IMPORT_HANDLE_TYPES_KHR, "External memory handle types", ext_mem), dev_has_external_memory },
+	// TODO should only be queried if extension version >= 0.9.3
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_EXTERNAL_MEMORY_IMPORT_ASSUME_LINEAR_IMAGES_HANDLE_TYPES_KHR, "External memory assume linear img handle types", ext_mem), dev_has_external_memory },
 
 	/* Semaphores */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SEMAPHORE_TYPES_KHR, "Semaphore types", semaphore_types), dev_has_semaphore },
