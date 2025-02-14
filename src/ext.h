@@ -205,6 +205,13 @@ typedef struct _cl_name_version {
 #define CL_PLATFORM_ICD_SUFFIX_KHR			0x0920
 #define CL_PLATFORM_NOT_FOUND_KHR			-1001
 
+/* cl_khr_kernel_clock */
+#define CL_DEVICE_KERNEL_CLOCK_CAPABILITIES_KHR             0x1076
+typedef cl_bitfield         cl_device_kernel_clock_capabilities_khr;
+#define CL_DEVICE_KERNEL_CLOCK_SCOPE_DEVICE_KHR             (1 << 0)
+#define CL_DEVICE_KERNEL_CLOCK_SCOPE_WORK_GROUP_KHR         (1 << 1)
+#define CL_DEVICE_KERNEL_CLOCK_SCOPE_SUB_GROUP_KHR          (1 << 2)
+
 /* cl_amd_object_metadata */
 #define CL_PLATFORM_MAX_KEYS_AMD			0x403C
 
@@ -232,6 +239,16 @@ typedef struct _cl_name_version {
 #define CL_DEVICE_COMMAND_BUFFER_CAPABILITIES_KHR	0x12A9
 #define CL_DEVICE_COMMAND_BUFFER_REQUIRED_QUEUE_PROPERTIES_KHR	0x12AA
 typedef cl_bitfield         cl_device_command_buffer_capabilities_khr;
+
+/* cl_khr_command_buffer_multi_device */
+#define CL_PLATFORM_COMMAND_BUFFER_CAPABILITIES_KHR         0x0908
+typedef cl_bitfield         cl_platform_command_buffer_capabilities_khr;
+#define CL_COMMAND_BUFFER_PLATFORM_UNIVERSAL_SYNC_KHR       (1 << 0)
+#define CL_COMMAND_BUFFER_PLATFORM_REMAP_QUEUES_KHR         (1 << 1)
+#define CL_COMMAND_BUFFER_PLATFORM_AUTOMATIC_REMAP_KHR      (1 << 2)
+
+#define CL_DEVICE_COMMAND_BUFFER_NUM_SYNC_DEVICES_KHR       0x12AB
+#define CL_DEVICE_COMMAND_BUFFER_SYNC_DEVICES_KHR           0x12AC
 
 /* cl_khr_command_buffer_mutable_dispatch */
 #define CL_DEVICE_MUTABLE_DISPATCH_CAPABILITIES_KHR	0x12B0
@@ -265,6 +282,8 @@ typedef cl_uint cl_external_semaphore_handle_type_khr;
 /* cl_khr_external_memory */
 #define CL_PLATFORM_EXTERNAL_MEMORY_IMPORT_HANDLE_TYPES_KHR	0x2044
 #define CL_DEVICE_EXTERNAL_MEMORY_IMPORT_HANDLE_TYPES_KHR	0x204F
+// introduced in 1.0.1
+#define CL_DEVICE_EXTERNAL_MEMORY_IMPORT_ASSUME_LINEAR_IMAGES_HANDLE_TYPES_KHR 0x2052
 typedef cl_uint cl_external_memory_handle_type_khr;
 
 
@@ -293,6 +312,21 @@ typedef struct _cl_device_pci_bus_info_khr {
 
 /* cl_ext_atomic_counters_{32,64} */
 #define CL_DEVICE_MAX_ATOMIC_COUNTERS_EXT		0x4032
+
+/* cl_ext_float_atomics */
+typedef cl_bitfield         cl_device_fp_atomic_capabilities_ext;
+/* cl_device_fp_atomic_capabilities_ext */
+#define CL_DEVICE_GLOBAL_FP_ATOMIC_LOAD_STORE_EXT           (1 << 0)
+#define CL_DEVICE_GLOBAL_FP_ATOMIC_ADD_EXT                  (1 << 1)
+#define CL_DEVICE_GLOBAL_FP_ATOMIC_MIN_MAX_EXT              (1 << 2)
+#define CL_DEVICE_LOCAL_FP_ATOMIC_LOAD_STORE_EXT            (1 << 16)
+#define CL_DEVICE_LOCAL_FP_ATOMIC_ADD_EXT                   (1 << 17)
+#define CL_DEVICE_LOCAL_FP_ATOMIC_MIN_MAX_EXT               (1 << 18)
+
+/* cl_device_info */
+#define CL_DEVICE_SINGLE_FP_ATOMIC_CAPABILITIES_EXT         0x4231
+#define CL_DEVICE_DOUBLE_FP_ATOMIC_CAPABILITIES_EXT         0x4232
+#define CL_DEVICE_HALF_FP_ATOMIC_CAPABILITIES_EXT           0x4233
 
 /* cl_amd_device_attribute_query */
 #define CL_DEVICE_PROFILING_TIMER_OFFSET_AMD		0x4036
