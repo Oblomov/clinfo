@@ -363,6 +363,54 @@ static const char* fp_conf_raw_str[] = {
 
 const size_t fp_conf_count = ARRAY_SIZE(fp_conf_str);
 
+static const char* fp_atomic_caps_str[] = {
+	"Global Load/Store",
+	"Global Add",
+	"Global Min/Max",
+	"Unknown bit 3"
+	"Unknown bit 4"
+	"Unknown bit 5"
+	"Unknown bit 6"
+	"Unknown bit 7"
+	"Unknown bit 8"
+	"Unknown bit 9"
+	"Unknown bit 10"
+	"Unknown bit 11"
+	"Unknown bit 12"
+	"Unknown bit 13"
+	"Unknown bit 14"
+	"Unknown bit 15"
+	"Local Load/Store",
+	"Local Add",
+	"Local Min/Max"
+};
+
+static const char* fp_atomic_caps_raw_str[] = {
+	"CL_GLOBAL_FP_ATOMIC_LOAD_STORE_EXT",
+	"CL_GLOBAL_FP_ATOMIC_ADD_EXT",
+	"CL_GLOBAL_FP_ATOMIC_MIN_MAX_EXT"
+	"CL_UNKNOWN_FP_ATOMIC_BIT_3"
+	"CL_UNKNOWN_FP_ATOMIC_BIT_4"
+	"CL_UNKNOWN_FP_ATOMIC_BIT_5"
+	"CL_UNKNOWN_FP_ATOMIC_BIT_6"
+	"CL_UNKNOWN_FP_ATOMIC_BIT_7"
+	"CL_UNKNOWN_FP_ATOMIC_BIT_8"
+	"CL_UNKNOWN_FP_ATOMIC_BIT_9"
+	"CL_UNKNOWN_FP_ATOMIC_BIT_10"
+	"CL_UNKNOWN_FP_ATOMIC_BIT_11"
+	"CL_UNKNOWN_FP_ATOMIC_BIT_12"
+	"CL_UNKNOWN_FP_ATOMIC_BIT_13"
+	"CL_UNKNOWN_FP_ATOMIC_BIT_14"
+	"CL_UNKNOWN_FP_ATOMIC_BIT_15"
+	"CL_LOCAL_FP_ATOMIC_LOAD_STORE_EXT",
+	"CL_LOCAL_FP_ATOMIC_ADD_EXT",
+	"CL_LOCAL_FP_ATOMIC_MIN_MAX_EXT",
+};
+
+/* There are three global and three local flags. This will be handled in device_info_fp_atomic_caps */
+const size_t fp_atomic_caps_count = 3;
+
+
 static const char* svm_cap_str[] = {
 	"Coarse-grained buffer sharing",
 	"Fine-grained buffer sharing",
@@ -1317,6 +1365,7 @@ struct device_info_checks {
 	char has_extended_versioning[27];
 	char has_cxx_for_opencl[22];
 	char has_device_uuid[19];
+	char has_float_atomics[21];
 	cl_uint dev_version;
 	cl_uint p2p_num_devs;
 };
@@ -1363,6 +1412,7 @@ DEFINE_EXT_CHECK(terminate_arm)
 DEFINE_EXT_CHECK(extended_versioning)
 DEFINE_EXT_CHECK(cxx_for_opencl)
 DEFINE_EXT_CHECK(device_uuid)
+DEFINE_EXT_CHECK(float_atomics)
 
 /* In the version checks we negate the opposite conditions
  * instead of double-negating the actual condition
@@ -1523,6 +1573,16 @@ cl_bool dev_has_p2p_devs(const struct device_info_checks *chk)
 	return dev_has_p2p(chk) && chk->p2p_num_devs > 0;
 }
 
+cl_bool dev_has_half_atomics(const struct device_info_checks *chk)
+{
+	return dev_has_float_atomics(chk) && dev_has_half(chk);
+}
+
+cl_bool dev_has_double_atomics(const struct device_info_checks *chk)
+{
+	return dev_has_float_atomics(chk) && dev_has_double(chk);
+}
+
 
 void identify_device_extensions(const char *extensions, struct device_info_checks *chk)
 {
@@ -1581,6 +1641,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 	CHECK_EXT(extended_versioning, cl_khr_extended_versioning);
 	CHECK_EXT(cxx_for_opencl, cl_ext_cxx_for_opencl);
 	CHECK_EXT(device_uuid, cl_khr_device_uuid);
+	CHECK_EXT(float_atomics, cl_ext_float_atomics);
 }
 
 
@@ -1641,6 +1702,7 @@ DEFINE_DEVINFO_FETCH(cl_device_topology_amd, devtopo_amd)
 DEFINE_DEVINFO_FETCH(cl_device_pci_bus_info_khr, devtopo_khr)
 DEFINE_DEVINFO_FETCH(cl_device_affinity_domain, affinity_domain)
 DEFINE_DEVINFO_FETCH(cl_device_fp_config, fpconfig)
+DEFINE_DEVINFO_FETCH(cl_device_fp_atomic_capabilities_ext, fp_atomic_caps)
 DEFINE_DEVINFO_FETCH(cl_command_queue_properties, qprop)
 DEFINE_DEVINFO_FETCH(cl_device_exec_capabilities, execap)
 DEFINE_DEVINFO_FETCH(cl_device_svm_capabilities, svmcap)
@@ -2799,6 +2861,49 @@ device_info_fpconf(struct device_info_ret *ret,
 		strbuf_append_str(loc->pname, &ret->str, " ] }");
 }
 
+/* Floating-point atomic capabilities ext */
+void
+device_info_fp_atomic_caps(struct device_info_ret *ret,
+	const struct info_loc *loc, const struct device_info_checks * UNUSED(chk),
+	const struct opt_out *output)
+{
+	GET_VAL(ret, loc, fp_atomic_caps);
+
+	if (output->json)
+		strbuf_append(loc->pname, &ret->str,
+			"{ \"raw\" : %" PRIu64 ", \"config\" : [ ",
+			ret->value.fp_atomic_caps);
+
+	if (!ret->err) {
+		cl_uint i = 0;
+		cl_uint offset = 0;
+		cl_uint count = 0;
+		const char * const *fpstr = (output->mode == CLINFO_HUMAN ?
+			fp_atomic_caps_str : fp_atomic_caps_raw_str);
+		set_common_separator(output);
+		const char *quote = output->json ? "\"" : "";
+		const size_t num_flags = fp_atomic_caps_count;
+
+		for (offset = 0; offset < 32; offset += 16) {
+			for (i = 0; i < num_flags; ++i) {
+				cl_device_fp_atomic_capabilities_ext cur = (cl_device_fp_atomic_capabilities_ext)(1) << i;
+				cl_bool present = !!(ret->value.fpconfig & cur);
+				if (output->mode == CLINFO_HUMAN) {
+					strbuf_append(loc->pname, &ret->str, "\n%s" I2_STR "%s",
+						line_pfx, fpstr[i], bool_str[present]);
+				} else if (present) {
+					strbuf_append(loc->pname, &ret->str, "%s%s%s%s",
+						(count > 0 ? sep : ""), quote, fpstr[i], quote);
+					++count;
+				}
+			}
+		}
+	}
+	if (output->json)
+		strbuf_append_str(loc->pname, &ret->str, " ] }");
+}
+
+
 /* Queue properties */
 void
 device_info_qprop(struct device_info_ret *ret,
@@ -3384,6 +3489,15 @@ struct device_info_traits dinfo_traits[] = {
 	/* 3.0+ Atomic memory and fence capabilities */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_ATOMIC_MEMORY_CAPABILITIES, "Atomic memory capabilities", atomic_caps), dev_is_30 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_ATOMIC_FENCE_CAPABILITIES, "Atomic fence capabilities", atomic_caps), dev_is_30 },
+
+	/* Floating point atomic capabilities */
+#define DINFO_FP_ATOMIC(Type, type, cond) \
+	{ CLINFO_HUMAN, DINFO(CL_DEVICE_##Type##_FP_ATOMIC_CAPABILITIES_EXT, #type "-precision Floating-point atomic capabilities", fp_atomic_caps), cond }, \
+	{ CLINFO_RAW, DINFO(CL_DEVICE_##Type##_FP_ATOMIC_CAPABILITIES_EXT, #type "-precision Floating-point atomic capabilities", fp_atomic_caps), cond }
+
+	DINFO_FP_ATOMIC(HALF, Half, dev_has_half_atomics),
+	DINFO_FP_ATOMIC(SINGLE, Single, dev_has_float_atomics),
+	DINFO_FP_ATOMIC(DOUBLE, Double, dev_has_double_atomics),
 
 	/* Global variables. TODO some 1.2 devices respond to this too */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_GLOBAL_VARIABLE_SIZE, "Max size for global variable", mem), dev_is_20 },
