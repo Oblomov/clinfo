@@ -4628,7 +4628,7 @@ struct icdl_data oclIcdProps(const struct platform_list *plist, const struct opt
 
 void version(void)
 {
-	puts("clinfo version 3.0.23.01.25");
+	puts("clinfo version 3.0.25.02.14");
 }
 
 void add_selected_device(struct opt_out *output, cl_uint p, cl_uint d)
