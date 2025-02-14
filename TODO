@@ -1,0 +1,7 @@
+cl_khr_integer_dot_product https://registry.khronos.org/OpenCL/specs/3.0-unified/html/OpenCL_Ext.html#cl_khr_integer_dot_product
+
+cl_khr_kernel_clock https://registry.khronos.org/OpenCL/specs/3.0-unified/html/OpenCL_API.html#cl_khr_kernel_clock
+(extension is provisional; defines have already been imported in ext.h)
+
+cl_khr_command_buffer_multi_device https://registry.khronos.org/OpenCL/sdk/3.0/docs/man/html/cl_khr_command_buffer_multi_device.html
+(extension is provisional; defines have already been imported in ext.h)
