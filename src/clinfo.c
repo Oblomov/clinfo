@@ -367,19 +367,19 @@ static const char* fp_atomic_caps_str[] = {
 	"Global Load/Store",
 	"Global Add",
 	"Global Min/Max",
-	"Unknown bit 3"
-	"Unknown bit 4"
-	"Unknown bit 5"
-	"Unknown bit 6"
-	"Unknown bit 7"
-	"Unknown bit 8"
-	"Unknown bit 9"
-	"Unknown bit 10"
-	"Unknown bit 11"
-	"Unknown bit 12"
-	"Unknown bit 13"
-	"Unknown bit 14"
-	"Unknown bit 15"
+	"Unknown bit 3",
+	"Unknown bit 4",
+	"Unknown bit 5",
+	"Unknown bit 6",
+	"Unknown bit 7",
+	"Unknown bit 8",
+	"Unknown bit 9",
+	"Unknown bit 10",
+	"Unknown bit 11",
+	"Unknown bit 12",
+	"Unknown bit 13",
+	"Unknown bit 14",
+	"Unknown bit 15",
 	"Local Load/Store",
 	"Local Add",
 	"Local Min/Max"
@@ -388,20 +388,20 @@ static const char* fp_atomic_caps_str[] = {
 static const char* fp_atomic_caps_raw_str[] = {
 	"CL_GLOBAL_FP_ATOMIC_LOAD_STORE_EXT",
 	"CL_GLOBAL_FP_ATOMIC_ADD_EXT",
-	"CL_GLOBAL_FP_ATOMIC_MIN_MAX_EXT"
-	"CL_UNKNOWN_FP_ATOMIC_BIT_3"
-	"CL_UNKNOWN_FP_ATOMIC_BIT_4"
-	"CL_UNKNOWN_FP_ATOMIC_BIT_5"
-	"CL_UNKNOWN_FP_ATOMIC_BIT_6"
-	"CL_UNKNOWN_FP_ATOMIC_BIT_7"
-	"CL_UNKNOWN_FP_ATOMIC_BIT_8"
-	"CL_UNKNOWN_FP_ATOMIC_BIT_9"
-	"CL_UNKNOWN_FP_ATOMIC_BIT_10"
-	"CL_UNKNOWN_FP_ATOMIC_BIT_11"
-	"CL_UNKNOWN_FP_ATOMIC_BIT_12"
-	"CL_UNKNOWN_FP_ATOMIC_BIT_13"
-	"CL_UNKNOWN_FP_ATOMIC_BIT_14"
-	"CL_UNKNOWN_FP_ATOMIC_BIT_15"
+	"CL_GLOBAL_FP_ATOMIC_MIN_MAX_EXT",
+	"CL_UNKNOWN_FP_ATOMIC_BIT_3",
+	"CL_UNKNOWN_FP_ATOMIC_BIT_4",
+	"CL_UNKNOWN_FP_ATOMIC_BIT_5",
+	"CL_UNKNOWN_FP_ATOMIC_BIT_6",
+	"CL_UNKNOWN_FP_ATOMIC_BIT_7",
+	"CL_UNKNOWN_FP_ATOMIC_BIT_8",
+	"CL_UNKNOWN_FP_ATOMIC_BIT_9",
+	"CL_UNKNOWN_FP_ATOMIC_BIT_10",
+	"CL_UNKNOWN_FP_ATOMIC_BIT_11",
+	"CL_UNKNOWN_FP_ATOMIC_BIT_12",
+	"CL_UNKNOWN_FP_ATOMIC_BIT_13",
+	"CL_UNKNOWN_FP_ATOMIC_BIT_14",
+	"CL_UNKNOWN_FP_ATOMIC_BIT_15",
 	"CL_LOCAL_FP_ATOMIC_LOAD_STORE_EXT",
 	"CL_LOCAL_FP_ATOMIC_ADD_EXT",
 	"CL_LOCAL_FP_ATOMIC_MIN_MAX_EXT",
