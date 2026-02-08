@@ -2886,14 +2886,14 @@ device_info_fp_atomic_caps(struct device_info_ret *ret,
 
 		for (offset = 0; offset < 32; offset += 16) {
 			for (i = 0; i < num_flags; ++i) {
-				cl_device_fp_atomic_capabilities_ext cur = (cl_device_fp_atomic_capabilities_ext)(1) << i;
-				cl_bool present = !!(ret->value.fpconfig & cur);
+				cl_device_fp_atomic_capabilities_ext cur = (cl_device_fp_atomic_capabilities_ext)(1) << (offset + i);
+				cl_bool present = !!(ret->value.fp_atomic_caps & cur);
 				if (output->mode == CLINFO_HUMAN) {
 					strbuf_append(loc->pname, &ret->str, "\n%s" I2_STR "%s",
-						line_pfx, fpstr[i], bool_str[present]);
+						line_pfx, fpstr[offset + i], bool_str[present]);
 				} else if (present) {
 					strbuf_append(loc->pname, &ret->str, "%s%s%s%s",
-						(count > 0 ? sep : ""), quote, fpstr[i], quote);
+						(count > 0 ? sep : ""), quote, fpstr[offset + i], quote);
 					++count;
 				}
 			}
