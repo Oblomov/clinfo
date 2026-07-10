@@ -9,7 +9,7 @@
  * On Windows, we must get the module handle for it, on Unix-like
  * systems we can just use RTLD_DEFAULT
  */
-#ifdef _MSC_VER
+#if defined(_WIN32) || defined(_WIN64)
 # include <windows.h>
 # define dlsym GetProcAddress
 # define DL_MODULE GetModuleHandle("OpenCL")
