@@ -67,6 +67,7 @@ LDLIBS__common = -lOpenCL -ldl
 # OS-specific library includes
 LDLIBS_Darwin = -framework OpenCL
 LDLIBS_Darwin_exclude = -lOpenCL
+LDLIBS_Windows_NT_exclude = -ldl
 
 LDLIBS += $(LDLIBS_${OS}) $(LDLIBS__common:$(LDLIBS_${OS}_exclude)=)
 

@@ -8,7 +8,7 @@
 #ifndef FMT_MACROS_H
 #define FMT_MACROS_H
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__MINGW32__)
 /* TODO FIXME WIN64 support */
 # include <stdint.h>
 # include <stddef.h> // size_t
