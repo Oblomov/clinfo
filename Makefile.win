@@ -33,6 +33,8 @@ LIBS = libOpenCL.a
 # switching
 !IF "$(PROCESSOR_ARCHITECTURE)" == "AMD64"
 ARCH=64
+!ELSE IF "$(PROCESSOR_ARCHITECTURE)" == "ARM64"
+ARCH=ARM64
 !ELSE
 ARCH=32
 !ENDIF
@@ -42,16 +44,21 @@ ARCH=32
 ARCH=64
 !ELSE IF "$(PLATFORM)" == "x86" || "$(PLATFORM)" == "X86"
 ARCH=32
+!ELSE IF "$(PLATFORM)" == "arm64" || "$(PLATFORM)" == "ARM64"
+ARCH=ARM64
 !ENDIF
 
-!MESSAGE Building for $(ARCH)-bit (processor architecture: $(PROCESSOR_ARCHITECTURE), platform: $(PLATFORM))
+!MESSAGE Building for $(ARCH) (processor architecture: $(PROCESSOR_ARCHITECTURE), platform: $(PLATFORM))
 
 LIBPATH32 = /LIBPATH:"$(OPENCLDIR)\lib" /LIBPATH:"$(OPENCLDIR)\lib\x86"
 LIBPATH64 = /LIBPATH:"$(OPENCLDIR)\lib\x64" /LIBPATH:"$(OPENCLDIR)\lib\x86_64" /LIBPATH:"$(OPENCLDIR)\lib\x86_amd64"
+LIBPATHARM64 = /LIBPATH:"$(OPENCLDIR)\lib\arm64" /LIBPATH:"$(OPENCLDIR)\lib\aarch64"
 
 # And since we can't do $(LIBPATH$(ARCH)) with nmake ...
 !IF "$(ARCH)" == "64"
 LINKOPTS = /LTCG $(LIBPATH64) /nologo
+!ELSE IF "$(ARCH)" == "ARM64"
+LINKOPTS = /LTCG $(LIBPATHARM64) /nologo
 !ELSE
 LINKOPTS = /LTCG $(LIBPATH32) /nologo
 !ENDIF
