@@ -4721,6 +4721,12 @@ void usage(void)
 	puts("Defaults to raw mode if invoked with a name that contains the string \"raw\"");
 }
 
+void missing_option(const char * what, const char *flagname)
+{
+	fprintf(stderr, "missing %s after %s\n", what, flagname);
+	exit(1);
+}
+
 int main(int argc, char *argv[])
 {
 	cl_uint p;
@@ -4766,11 +4772,13 @@ int main(int argc, char *argv[])
 			output.brief = CL_TRUE;
 		else if (!strcmp(argv[a], "-d") || !strcmp(argv[a], "--device")) {
 			++a;
+			if (a >= argc) missing_option("device number", argv[a-1]);
 			parse_device_spec(argv[a], &output);
 		} else if (!strncmp(argv[a], "-d", 2)) {
 			parse_device_spec(argv[a] + 2, &output);
 		} else if (!strcmp(argv[a], "--prop")) {
 			++a;
+			if (a >= argc) missing_option("property name", argv[a-1]);
 			parse_prop(argv[a], &output);
 		} else if (!strcmp(argv[a], "-?") || !strcmp(argv[a], "-h") || !strcmp(argv[a], "--help")) {
 			usage();
