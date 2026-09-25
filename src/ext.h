@@ -199,19 +199,18 @@ typedef struct _cl_name_version {
 
 /* cl_khr_extended_versioning */
 // the _KHR fields are the same as the unsuffixed from OpenCL 3
-#define CL_PLATFORM_NUMERIC_VERSION_KHR			CL_PLATFORM_NUMERIC_VERSION
-#define CL_PLATFORM_EXTENSIONS_WITH_VERSION_KHR		CL_PLATFORM_EXTENSIONS_WITH_VERSION
-#define CL_DEVICE_NUMERIC_VERSION_KHR			CL_DEVICE_NUMERIC_VERSION
+#define CL_PLATFORM_NUMERIC_VERSION_KHR			0x0906
+#define CL_PLATFORM_EXTENSIONS_WITH_VERSION_KHR		0x0907
+#define CL_DEVICE_NUMERIC_VERSION_KHR			0x105E
 #define CL_DEVICE_OPENCL_C_NUMERIC_VERSION_KHR		0x105F
-#define CL_DEVICE_EXTENSIONS_WITH_VERSION_KHR		CL_DEVICE_EXTENSIONS_WITH_VERSION
-#define CL_DEVICE_ILS_WITH_VERSION_KHR			CL_DEVICE_ILS_WITH_VERSION
-#define CL_DEVICE_BUILT_IN_KERNELS_WITH_VERSION_KHR	CL_DEVICE_BUILT_IN_KERNELS_WITH_VERSION
+#define CL_DEVICE_EXTENSIONS_WITH_VERSION_KHR		0x1060
+#define CL_DEVICE_ILS_WITH_VERSION_KHR			0x1061
+#define CL_DEVICE_BUILT_IN_KERNELS_WITH_VERSION_KHR	0x1062
 
 /* cl_khr_image2d_from_buffer */
 // the _KHR fields are the same as the unsuffixed from OpenCL 2
-#define CL_DEVICE_IMAGE_PITCH_ALIGNMENT_KHR		CL_DEVICE_IMAGE_PITCH_ALIGNMENT
-#define CL_DEVICE_IMAGE_BASE_ADDRESS_ALIGNMENT_KHR	CL_DEVICE_IMAGE_BASE_ADDRESS_ALIGNMENT
-
+#define CL_DEVICE_IMAGE_PITCH_ALIGNMENT_KHR		0x104A
+#define CL_DEVICE_IMAGE_BASE_ADDRESS_ALIGNMENT_KHR	0x104B
 
 /* cl_khr_icd */
 #define CL_PLATFORM_ICD_SUFFIX_KHR			0x0920
@@ -275,7 +274,7 @@ typedef cl_bitfield         cl_mutable_dispatch_fields_khr;
  * so I'm currently extrapolating them from the specification
  */
 typedef cl_bitfield cl_device_terminate_capability_khr;
-#define CL_DEVICE_TERMINATE_CAPABILITY_CONTEXT_KHR	(1<<0)
+#define CL_DEVICE_TERMINATE_CAPABILITY_CONTEXT_KHR	(1 << 0)
 
 /* cl_khr_subgroup_named_barrier */
 #define CL_DEVICE_MAX_NAMED_BARRIER_COUNT_KHR		0x2035
@@ -301,6 +300,7 @@ typedef cl_uint cl_external_memory_handle_type_khr;
 
 
 /* cl_khr_pci_bus_info */
+#ifndef CL_DEVICE_PCI_BUS_INFO_KHR
 typedef struct _cl_device_pci_bus_info_khr {
 	cl_uint	pci_domain;
 	cl_uint	pci_bus;
@@ -309,6 +309,7 @@ typedef struct _cl_device_pci_bus_info_khr {
 } cl_device_pci_bus_info_khr;
 
 #define CL_DEVICE_PCI_BUS_INFO_KHR			0x410F
+#endif
 
 /* cl_nv_device_attribute_query */
 #define CL_DEVICE_COMPUTE_CAPABILITY_MAJOR_NV		0x4000
@@ -440,10 +441,10 @@ typedef cl_ulong  cl_device_partition_property_ext;
 
 /* cl_arm_shared_virtual_memory */
 #define CL_DEVICE_SVM_CAPABILITIES_ARM			0x40B6
-#define CL_DEVICE_SVM_COARSE_GRAIN_BUFFER_ARM		CL_DEVICE_SVM_COARSE_GRAIN_BUFFER
-#define CL_DEVICE_SVM_FINE_GRAIN_BUFFER_ARM		CL_DEVICE_SVM_FINE_GRAIN_BUFFER
-#define CL_DEVICE_SVM_FINE_GRAIN_SYSTEM_ARM		CL_DEVICE_SVM_FINE_GRAIN_SYSTEM
-#define CL_DEVICE_SVM_ATOMICS_ARM			CL_DEVICE_SVM_ATOMICS
+#define CL_DEVICE_SVM_COARSE_GRAIN_BUFFER_ARM		(1 << 0)
+#define CL_DEVICE_SVM_FINE_GRAIN_BUFFER_ARM		(1 << 1)
+#define CL_DEVICE_SVM_FINE_GRAIN_SYSTEM_ARM		(1 << 2)
+#define CL_DEVICE_SVM_ATOMICS_ARM			(1 << 3)
 
 /* cl_arm_core_id */
 #define CL_DEVICE_COMPUTE_UNITS_BITFIELD_ARM		0x40BF
@@ -474,6 +475,7 @@ typedef cl_bitfield cl_device_controlled_termination_capabilities_arm;
 
 typedef cl_bitfield         cl_command_queue_capabilities_intel;
 
+#ifndef CL_QUEUE_FAMILY_MAX_NAME_SIZE_INTEL
 #define CL_QUEUE_FAMILY_MAX_NAME_SIZE_INTEL                 64
 typedef struct _cl_queue_family_properties_intel {
     cl_command_queue_properties properties;
@@ -481,6 +483,7 @@ typedef struct _cl_queue_family_properties_intel {
     cl_uint count;
     char name[CL_QUEUE_FAMILY_MAX_NAME_SIZE_INTEL];
 } cl_queue_family_properties_intel;
+#endif
 
 /* cl_arm_job_slot_selection */
 #define CL_DEVICE_JOB_SLOTS_ARM				0x41E0
@@ -518,6 +521,7 @@ typedef cl_bitfield cl_device_feature_capabilities_intel;
 #define CL_DEVICE_NUM_THREADS_PER_EU_INTEL		0x4255
 #define CL_DEVICE_FEATURE_CAPABILITIES_INTEL		0x4256
 
+#if 0 // before standardization
 /* clGeICDLoaderInfoOCLICD */
 typedef enum {
 	CL_ICDL_OCL_VERSION=1,
@@ -525,5 +529,15 @@ typedef enum {
 	CL_ICDL_NAME=3,
 	CL_ICDL_VENDOR=4,
 } cl_icdl_info;
+#else
+typedef cl_uint             cl_icdl_info;
+
+/* cl_icdl_info */
+#define CL_ICDL_OCL_VERSION                                 1
+#define CL_ICDL_VERSION                                     2
+#define CL_ICDL_NAME                                        3
+#define CL_ICDL_VENDOR                                      4
+
+#endif
 
 #endif
