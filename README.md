@@ -152,3 +152,17 @@ alt='Build status on AppVeyor'></a></td>
 <td><a href='https://ci.appveyor.com/api/projects/oblomov/clinfo/artifacts/clinfo.exe?job=platform%3a+x64'>64-bit</a></td>
 </tr>
 </table>
+
+`clinfo` is also packaged and distributed on [MSYS2](https://www.msys2.org/). 
+
+Install for Windows x64 using:
+
+```sh
+pacman -Sy mingw-w64-ucrt-x86_64-clinfo
+```
+
+Or install for Windows ARM64 using:
+
+```sh
+pacman -Sy mingw-w64-clang-aarch64-clinfo
+```
