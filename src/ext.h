@@ -249,6 +249,7 @@ typedef cl_bitfield         cl_device_kernel_clock_capabilities_khr;
 
 /* cl_khr_command_buffer */
 #define CL_DEVICE_COMMAND_BUFFER_CAPABILITIES_KHR	0x12A9
+#define CL_DEVICE_COMMAND_BUFFER_SUPPORTED_QUEUE_PROPERTIES_KHR 0x129A
 #define CL_DEVICE_COMMAND_BUFFER_REQUIRED_QUEUE_PROPERTIES_KHR	0x12AA
 typedef cl_bitfield         cl_device_command_buffer_capabilities_khr;
 

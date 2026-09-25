@@ -256,6 +256,7 @@ const size_t device_enqueue_cap_count = ARRAY_SIZE(atomic_cap_str);
 
 static const char *command_buffer_str[] = {
 	"kernel printf", "device side enqueue", "simultaneous use", "out of order",
+	"multiple queue",
 };
 
 static const char *command_buffer_raw_str[] = {
@@ -263,6 +264,7 @@ static const char *command_buffer_raw_str[] = {
 	"CL_COMMAND_BUFFER_CAPABILITY_DEVICE_SIDE_ENQUEUE_KHR",
 	"CL_COMMAND_BUFFER_CAPABILITY_SIMULTANEOUS_USE_KHR",
 	"CL_COMMAND_BUFFER_CAPABILITY_OUT_OF_ORDER_KHR",
+	"CL_COMMAND_BUFFER_CAPABILITY_MULTIPLE_QUEUE_KHR",
 };
 
 const size_t command_buffer_count = ARRAY_SIZE(command_buffer_str);
@@ -3571,6 +3573,8 @@ struct device_info_traits dinfo_traits[] = {
 
 	/* Command buffers */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_COMMAND_BUFFER_CAPABILITIES_KHR, "Command buffer capabilities", command_buffer_caps), dev_has_command_buffer },
+	/* These two should have their qprop shown with extra indent */
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_COMMAND_BUFFER_SUPPORTED_QUEUE_PROPERTIES_KHR, INDENT "Supported queue properties for command buffer", qprop), dev_has_command_buffer },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_COMMAND_BUFFER_REQUIRED_QUEUE_PROPERTIES_KHR, INDENT "Required queue properties for command buffer", qprop), dev_has_command_buffer },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MUTABLE_DISPATCH_CAPABILITIES_KHR, "Mutable dispatch capabilities", mutable_dispatch_caps), dev_has_mutable_dispatch },
 
