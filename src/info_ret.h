@@ -49,6 +49,7 @@ struct device_info_ret {
 		cl_device_pci_bus_info_khr devtopo_khr;
 		cl_device_scheduling_controls_capabilities_arm sched_controls;
 		cl_device_affinity_domain affinity_domain;
+		cl_device_integer_dot_product_acceleration_properties_khr int_dot_product_accel;
 		cl_device_fp_config fpconfig;
 		cl_device_fp_atomic_capabilities_ext fp_atomic_caps;
 		cl_command_queue_properties qprop;

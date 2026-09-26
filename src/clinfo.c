@@ -412,6 +412,17 @@ static const char* fp_atomic_caps_raw_str[] = {
 /* There are three global and three local flags. This will be handled in device_info_fp_atomic_caps */
 const size_t fp_atomic_caps_count = 3;
 
+static const char* int_dot_product_str[] = {
+	"4x8bit packed",
+	"4x8bit",
+};
+
+static const char* int_dot_product_raw_str[] = {
+	"CL_DEVICE_INTEGER_DOT_PRODUCT_INPUT_4x8BIT_PACKED",
+	"CL_DEVICE_INTEGER_DOT_PRODUCT_INPUT_4x8BIT",
+};
+
+const size_t int_dot_product_count = ARRAY_SIZE(int_dot_product_str);
 
 static const char* svm_cap_str[] = {
 	"Coarse-grained buffer sharing",
@@ -1326,6 +1337,7 @@ struct device_info_checks {
 	cl_device_type devtype;
 	cl_device_mem_cache_type cachetype;
 	cl_device_local_mem_type lmemtype;
+	cl_device_integer_dot_product_capabilities_khr int_dot_product_caps;
 	cl_bool image_support;
 	cl_bool compiler_available;
 	cl_bool arm_register_alloc_support;
@@ -1346,6 +1358,7 @@ struct device_info_checks {
 	char has_arm_scheduling_controls[27];
 	char has_fission[22];
 	char has_atomic_counters[26];
+	char has_int_dot_product[27];
 	char has_image2d_buffer[27];
 	char has_il_program[18];
 	char has_intel_queue_families[32];
@@ -1394,6 +1407,7 @@ DEFINE_EXT_CHECK(arm_job_slots)
 DEFINE_EXT_CHECK(arm_scheduling_controls)
 DEFINE_EXT_CHECK(fission)
 DEFINE_EXT_CHECK(atomic_counters)
+DEFINE_EXT_CHECK(int_dot_product)
 DEFINE_EXT_CHECK(il_program)
 DEFINE_EXT_CHECK(intel)
 DEFINE_EXT_CHECK(intel_queue_families)
@@ -1588,6 +1602,15 @@ cl_bool dev_has_double_atomics(const struct device_info_checks *chk)
 	return dev_has_float_atomics(chk) && dev_has_double(chk);
 }
 
+cl_bool dev_has_int_dot_product_packed(const struct device_info_checks *chk)
+{
+	return !!(chk->int_dot_product_caps & CL_DEVICE_INTEGER_DOT_PRODUCT_INPUT_4x8BIT_PACKED_KHR);
+}
+
+cl_bool dev_has_int_dot_product_unpacked(const struct device_info_checks *chk)
+{
+	return !!(chk->int_dot_product_caps & CL_DEVICE_INTEGER_DOT_PRODUCT_INPUT_4x8BIT_KHR);
+}
 
 void identify_device_extensions(const char *extensions, struct device_info_checks *chk)
 {
@@ -1626,6 +1649,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 	CHECK_EXT(atomic_counters, cl_ext_atomic_counters_64);
 	if (dev_has_atomic_counters(chk))
 		CHECK_EXT(atomic_counters, cl_ext_atomic_counters_32);
+	CHECK_EXT(int_dot_product, cl_khr_integer_dot_product);
 	CHECK_EXT(image2d_buffer, cl_khr_image2d_from_buffer);
 	CHECK_EXT(il_program, cl_khr_il_program);
 	CHECK_EXT(intel_queue_families, cl_intel_command_queue_families);
@@ -2423,6 +2447,51 @@ device_info_atomic_caps(struct device_info_ret *ret,
 			"capabilities");
 	}
 }
+
+void
+device_info_int_dot_product(struct device_info_ret *ret,
+	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
+	const struct opt_out *output)
+{
+	GET_VAL(ret, loc, bits);
+	if (!ret->err) {
+		device_info_bitfield(ret, loc, chk, output, ret->value.bits,
+			int_dot_product_count, (output->mode == CLINFO_HUMAN ?
+				int_dot_product_str : int_dot_product_raw_str),
+			"capabilities");
+	}
+}
+
+void
+device_info_int_dot_product_accel(struct device_info_ret *ret,
+	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
+	const struct opt_out *output)
+{
+	GET_VAL(ret, loc, int_dot_product_accel);
+	if (!ret->err) {
+		set_common_separator(output);
+		const char *fmt = output->json ? "%s\"%s\"" : "%s%s";
+		if (output->json) {
+			strbuf_append(loc->pname, &ret->str,
+				"{ \"raw\": %" PRIu64 ", \"fields\" : [ ",
+				ret->value.bits);
+		}
+#define CHECK_BIT(sep, raw, human) do { \
+	if (ret->value.int_dot_product_accel.raw) { \
+		strbuf_append(loc->pname, &ret->str, fmt, sep, (output->mode == CLINFO_HUMAN ? human : #raw)); \
+	} } while (0)
+		CHECK_BIT("", signed_accelerated, "signed");
+		CHECK_BIT(sep, unsigned_accelerated, "unsigned");
+		CHECK_BIT(sep, mixed_signedness_accelerated, "mixed signedness");
+		CHECK_BIT(sep, accumulating_saturating_signed_accelerated,   "accumulating saturating signed");
+		CHECK_BIT(sep, accumulating_saturating_unsigned_accelerated, "accumulating saturating unsigned");;
+		CHECK_BIT(sep, accumulating_saturating_mixed_signedness_accelerated, "accumulating saturating mixed signedness");
+#undef CHECK_BIT
+		if (output->json)
+			strbuf_append_str(loc->pname, &ret->str, " ] }");
+	}
+}
+
 
 void
 device_info_device_enqueue_caps(struct device_info_ret *ret,
@@ -3450,6 +3519,7 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_EXTENSIONS, "Device Extensions", str), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_EXTENSIONS_WITH_VERSION, "Device Extensions with Version", ext_version), dev_has_ext_ver },
 
+	/* TODO: this should tell if it's being done due to the device being 3.1 or due to it having the cl_khr_device_uuid */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_UUID_KHR, "Device UUID", uuid), dev_has_device_uuid },
 	{ CLINFO_BOTH, DINFO(CL_DRIVER_UUID_KHR, "Driver UUID", uuid), dev_has_device_uuid },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_LUID_VALID_KHR, "Valid Device LUID", bool), dev_has_device_uuid },
@@ -3530,6 +3600,9 @@ struct device_info_traits dinfo_traits[] = {
 
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, "Max work item dimensions", int), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_WORK_ITEM_SIZES, "Max work item sizes", szptr_times), NULL },
+	/* TODO this or the previous depending on whether device is 3.1 or earlier?
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_WORK_GROUP_SIZES, "Max work group sizes", szptr_times), NULL },
+	*/
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_WORK_GROUP_SIZE, "Max work group size", sz), NULL },
 
 	/* cl_amd_device_attribute_query v4 */
@@ -3559,6 +3632,11 @@ struct device_info_traits dinfo_traits[] = {
 	DINFO_VECWIDTH(HALF, half), /* this should be excluded for 1.0 */
 	DINFO_VECWIDTH(FLOAT, float),
 	DINFO_VECWIDTH(DOUBLE, double),
+
+	/* TODO: this should tell if it's being done due to the device being 3.1 or due to it having the cl_khr_integer_dot_product extension */
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_INTEGER_DOT_PRODUCT_CAPABILITIES_KHR, "Integer dot product capabilities", int_dot_product), dev_has_int_dot_product },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_INTEGER_DOT_PRODUCT_ACCELERATION_PROPERTIES_8BIT_KHR, INDENT "4x8bit dot product acceleration", int_dot_product_accel), dev_has_int_dot_product_unpacked },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_INTEGER_DOT_PRODUCT_ACCELERATION_PROPERTIES_4x8BIT_PACKED_KHR, INDENT "4x8bit packed dot product acceleration", int_dot_product_accel), dev_has_int_dot_product_packed },
 
 	/* Floating point configurations */
 #define DINFO_FPCONF(Type, type, cond) \
@@ -3752,7 +3830,7 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_ILS_WITH_VERSION, INDENT "ILs with version", ext_version), dev_has_ext_ver },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SPIR_VERSIONS, INDENT "SPIR versions", str), dev_has_spir },
 
-	/* cl_khr_spirv_queries or TODO OpenCL 3.1 */
+	/* TODO: this should tell if it's being done due to the device being 3.1 or due to it having the cl_khr_spirv_queries */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SPIRV_EXTENDED_INSTRUCTION_SETS_KHR, INDENT "SPIR-V extended instruction sets", strptr_newline), dev_has_spirv_queries },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SPIRV_EXTENSIONS_KHR, INDENT "SPIR-V extensions", strptr_newline), dev_has_spirv_queries },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SPIRV_CAPABILITIES_KHR, INDENT "SPIR-V capabilities", spirv_caps), dev_has_spirv_queries },
@@ -3941,6 +4019,9 @@ printDeviceInfo(cl_device_id dev, const struct platform_list *plist, cl_uint p,
 			chk.arm_register_alloc_support = !!(ret.value.sched_controls & CL_DEVICE_SCHEDULING_REGISTER_ALLOCATION_ARM);
 			// TODO warp count support should check for extension version >= 0.4
 			chk.arm_warp_count_support = !!(ret.value.sched_controls);
+			break;
+		case CL_DEVICE_INTEGER_DOT_PRODUCT_CAPABILITIES_KHR:
+			chk.int_dot_product_caps = ret.value.bits;
 			break;
 		default:
 			/* do nothing */

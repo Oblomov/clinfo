@@ -188,9 +188,19 @@ typedef struct _cl_name_version {
 #define CL_DEVICE_ATOMIC_SCOPE_ALL_DEVICES	(1 << 6)
 
 /* cl_device_device_enqueue_capabilities */
-#define CL_DEVICE_QUEUE_SUPPORTED               (1 << 0)
-#define CL_DEVICE_QUEUE_REPLACEABLE_DEFAULT     (1 << 1)
+#define CL_DEVICE_QUEUE_SUPPORTED		(1 << 0)
+#define CL_DEVICE_QUEUE_REPLACEABLE_DEFAULT	(1 << 1)
 
+#endif
+
+#ifndef CL_VERSION_3_1
+/* This is exactly the same as the pre-3.1
+ * CL_DEVICE_MAX_WORK_ITEM_SIZES, but renamed
+ */
+#define CL_DEVICE_MAX_WORK_GROUP_SIZES		0x1005
+/* TODO: enums promoted from cl_khr_device_uuid */
+/* TODO: enums promoted from cl_khr_integer_dot_product */
+/* TODO: enums promoted from cl_khr_spirv_queries */
 #endif
 
 /*
@@ -225,6 +235,26 @@ typedef cl_bitfield         cl_device_kernel_clock_capabilities_khr;
 
 /* cl_amd_object_metadata */
 #define CL_PLATFORM_MAX_KEYS_AMD			0x403C
+
+/* cl_khr_integer_dot_product */
+#ifndef CL_DEVICE_INTEGER_DOT_PRODUCT_CAPABILITIES_KHR
+typedef cl_bitfield         cl_device_integer_dot_product_capabilities_khr;
+typedef struct _cl_device_integer_dot_product_acceleration_properties_khr {
+    cl_bool signed_accelerated;
+    cl_bool unsigned_accelerated;
+    cl_bool mixed_signedness_accelerated;
+    cl_bool accumulating_saturating_signed_accelerated;
+    cl_bool accumulating_saturating_unsigned_accelerated;
+    cl_bool accumulating_saturating_mixed_signedness_accelerated;
+} cl_device_integer_dot_product_acceleration_properties_khr;
+
+#define CL_DEVICE_INTEGER_DOT_PRODUCT_INPUT_4x8BIT_PACKED_KHR	(1 << 0)
+#define CL_DEVICE_INTEGER_DOT_PRODUCT_INPUT_4x8BIT_KHR		(1 << 1)
+
+#define CL_DEVICE_INTEGER_DOT_PRODUCT_CAPABILITIES_KHR				0x1073
+#define CL_DEVICE_INTEGER_DOT_PRODUCT_ACCELERATION_PROPERTIES_8BIT_KHR		0x1074
+#define CL_DEVICE_INTEGER_DOT_PRODUCT_ACCELERATION_PROPERTIES_4x8BIT_PACKED_KHR	0x1075
+#endif
 
 /* cl_khr_device_uuid extension */
 
