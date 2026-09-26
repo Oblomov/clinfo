@@ -31,6 +31,7 @@ struct device_info_ret {
 	struct _strbuf err_str;
 	/* actual value, when not a string */
 	union {
+		uintptr_t ptr;
 		size_t s;
 		cl_long i64;
 		cl_ulong u64;

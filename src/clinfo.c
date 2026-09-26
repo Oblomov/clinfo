@@ -1735,6 +1735,18 @@ DEFINE_DEVINFO_SHOW(hex, cl_uint, u32, output->json ? "%" PRIu32 : "%#" PRIx32)
 DEFINE_DEVINFO_SHOW(long, cl_ulong, u64, "%" PRIu64)
 DEFINE_DEVINFO_SHOW(sz, size_t, s, "%" PRIuS)
 
+/* Show the actual device ID */
+void
+device_info_dev_id(struct device_info_ret *ret,
+	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
+	const struct opt_out* UNUSED(output))
+{
+	ret->value.ptr = (uintptr_t)(loc->dev);
+	ret->err = CL_SUCCESS;
+	strbuf_append(loc->pname, &ret->str, "%p", (void*)(ret->value.ptr));
+	ret->needs_escaping = CL_TRUE;
+}
+
 void
 device_info_str(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
@@ -3295,9 +3307,12 @@ device_info_p2p_dev_list(struct device_info_ret *ret,
 		size_t cursor = 0;
 		strbuf_append_str_len(loc->pname, &ret->str, "[ ", 2);
 		set_common_separator(output);
+		/* we show then as hex, so we need to quote them for JSON */
+		const char* json_quote = output->json ? "\"" : "";
 		for (cursor = 0; cursor < numval; ++cursor) {
-			strbuf_append(loc->pname, &ret->str, "%s%p",
-				(cursor > 0 ? sep : ""), (void*)val[cursor]);
+			strbuf_append(loc->pname, &ret->str, "%s%s%p%s",
+				(cursor > 0 ? sep : ""),
+				json_quote, (void*)(val[cursor]), json_quote);
 		}
 		strbuf_append_str_len(loc->pname, &ret->str, " ]", 2);
 		// TODO: ret->value.??? = val;
@@ -3422,6 +3437,9 @@ struct device_info_traits {
 #define DINFO(symbol, name, typ) symbol, #symbol, name, NULL, device_info_##typ
 
 struct device_info_traits dinfo_traits[] = {
+	/* Not an actual device property, but can be useful for CL_DEVICE_P2P_DEVICES_AMD */
+	{ CLINFO_BOTH, CL_TRUE, "device_id", "Device ID (this run)", NULL, device_info_dev_id, NULL },
+
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_NAME, "Device Name", str), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_VENDOR, "Device Vendor", str), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_VENDOR_ID, "Device Vendor ID", hex), NULL },
@@ -4389,8 +4407,8 @@ void checkNullCtxFromType(const struct platform_list *plist, const struct opt_ou
 		pinfo_traits[0].sname);
 
 	const char *devname_prop = (output->mode == CLINFO_HUMAN ?
-		dinfo_traits[0].pname :
-		dinfo_traits[0].sname);
+		dinfo_traits[1].pname :
+		dinfo_traits[1].sname);
 
 	reset_loc(&loc, __func__);
 	INIT_RET(ret, "null ctx from type");
