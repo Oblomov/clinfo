@@ -753,6 +753,7 @@ static const cl_interop_name cl_interop_names[] = {
 
 const size_t num_known_interops = ARRAY_SIZE(cl_interop_names);
 
+#include "spv-capabilities.h"
 
 #define INDENT "  "
 #define I0_STR "%-48s  "
@@ -1357,6 +1358,7 @@ struct device_info_checks {
 	char has_p2p[23];
 	char has_pci_bus_info[20];
 	char has_spir[12];
+	char has_spirv_queries[21];
 	char has_qcom_ext_host_ptr[21];
 	char has_simultaneous_sharing[30];
 	char has_subgroup_named_barrier[30];
@@ -1404,6 +1406,7 @@ DEFINE_EXT_CHECK(altera_dev_temp)
 DEFINE_EXT_CHECK(p2p)
 DEFINE_EXT_CHECK(pci_bus_info)
 DEFINE_EXT_CHECK(spir)
+DEFINE_EXT_CHECK(spirv_queries)
 DEFINE_EXT_CHECK(qcom_ext_host_ptr)
 DEFINE_EXT_CHECK(simultaneous_sharing)
 DEFINE_EXT_CHECK(subgroup_named_barrier)
@@ -1601,6 +1604,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 	char *has;
 	CHECK_EXT(half, cl_khr_fp16);
 	CHECK_EXT(spir, cl_khr_spir);
+	CHECK_EXT(spirv_queries, cl_khr_spirv_queries);
 	CHECK_EXT(double, cl_khr_fp64);
 	if (!dev_has_double(chk))
 		CHECK_EXT(double, cl_amd_fp64);
@@ -1956,6 +1960,115 @@ device_info_intptr(struct device_info_ret *ret,
 	}
 	free(val);
 }
+
+
+/* Like intptr, but print in hex */
+void
+device_info_hexptr(struct device_info_ret *ret,
+	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
+	const struct opt_out *output)
+{
+	cl_uint *val = NULL;
+	size_t szval = 0, numval = 0;
+	GET_VAL_ARRAY(ret, loc);
+	if (!ret->err) {
+		size_t counter = 0;
+		set_separator(output->mode == CLINFO_HUMAN ? comma_str : output->json ? comma_str : spc_str);
+		const char * hexfmt = output->json ? "%" PRIu32 : "%#" PRIx32;
+		if (output->json)
+			strbuf_append_str_len(loc->pname, &ret->str, " [", 2);
+		for (counter = 0; counter < numval; ++counter) {
+			if (counter > 0) strbuf_append_str(loc->pname, &ret->str, sep);
+			strbuf_append(loc->pname, &ret->str, hexfmt, val[counter]);
+		}
+		if (output->json)
+			strbuf_append_str_len(loc->pname, &ret->str, " ]", 2);
+		// TODO: ret->value.??? = val;
+	}
+	free(val);
+}
+
+/* Like intptr, but print in hex */
+void
+device_info_spirv_caps(struct device_info_ret *ret,
+	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
+	const struct opt_out *output)
+{
+	cl_uint *val = NULL;
+	size_t szval = 0, numval = 0;
+	GET_VAL_ARRAY(ret, loc);
+	if (!ret->err) {
+		size_t counter = 0;
+		set_separator(output->mode == CLINFO_HUMAN ? comma_str : output->json ? comma_str : spc_str);
+		const char * fmt = output->json ? "\"%s\", %" PRIu32 : "%s (%" PRIu32 ")";
+		if (output->json)
+			strbuf_append_str_len(loc->pname, &ret->str, " [", 2);
+		for (counter = 0; counter < numval; ++counter) {
+			/* find the SPIRV cap name */
+			const cl_uint cap_idx = val[counter];
+			const char *cap_name = "<unknown>";
+			cl_uint cap_name_idx = 0;
+			cl_uint cap_range_counter = 0;
+			for (cap_range_counter = 0; cap_range_counter < num_spirv_caps_ranges; ++cap_range_counter) {
+				const cl_uint2 range = spirv_capability_ranges[cap_range_counter];
+				if (cap_idx < range.s[0]) {
+					break; /* in a hole */
+				}
+				if (cap_idx > range.s[1]) { /* next range */
+					cap_name_idx += range.s[1] - range.s[0] + 1;
+				} else { /* in range */
+					size_t actual_index = cap_name_idx + (cap_idx - range.s[0]);
+					cap_name = spirv_capabilities[actual_index];
+					break;
+				}
+			}
+
+			if (counter > 0) strbuf_append_str(loc->pname, &ret->str, sep);
+			strbuf_append(loc->pname, &ret->str, fmt, cap_name, cap_idx);
+		}
+		if (output->json)
+			strbuf_append_str_len(loc->pname, &ret->str, " ]", 2);
+		// TODO: ret->value.??? = val;
+	}
+	free(val);
+}
+
+
+/* Array of strings */
+void
+device_info_strptr_sep(struct device_info_ret *ret, const char *human_sep,
+	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
+	const struct opt_out *output)
+{
+	const char **val = NULL;
+	size_t szval = 0, numval = 0;
+	GET_VAL_ARRAY(ret, loc);
+	if (!ret->err) {
+		size_t counter = 0;
+		set_separator(output->mode == CLINFO_HUMAN ? human_sep : output->json ? comma_str : spc_str);
+		/* TODO proper JSONing */
+		const char *strfmt = output->json ? "\"%s\"" : "%s";
+		if (output->json)
+			strbuf_append_str_len(loc->pname, &ret->str, " [", 2);
+		for (counter = 0; counter < numval; ++counter) {
+			if (counter > 0) strbuf_append_str(loc->pname, &ret->str, sep);
+			strbuf_append(loc->pname, &ret->str, strfmt, val[counter]);
+		}
+		if (output->json)
+			strbuf_append_str_len(loc->pname, &ret->str, " ]", 2);
+		// TODO: ret->value.??? = val;
+	}
+	free(val);
+}
+
+void
+device_info_strptr_comma(struct device_info_ret *ret,
+	const struct info_loc *loc, const struct device_info_checks* chk,
+	const struct opt_out *output)
+{
+	device_info_strptr_sep(ret, comma_str, loc, chk, output);
+}
+
 
 void
 device_info_szptr_sep(struct device_info_ret *ret, const char *human_sep,
@@ -3620,6 +3733,12 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_IL_VERSION, INDENT "IL version", str), dev_has_il },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_ILS_WITH_VERSION, INDENT "ILs with version", ext_version), dev_has_ext_ver },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SPIR_VERSIONS, INDENT "SPIR versions", str), dev_has_spir },
+
+	/* cl_khr_spirv_queries or TODO OpenCL 3.1 */
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_SPIRV_EXTENDED_INSTRUCTION_SETS_KHR, INDENT "SPIR-V extended instruction sets", strptr_comma), dev_has_spirv_queries },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_SPIRV_EXTENSIONS_KHR, INDENT "SPIR-V extensions", strptr_comma), dev_has_spirv_queries },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_SPIRV_CAPABILITIES_KHR, INDENT "SPIR-V capabilities", spirv_caps), dev_has_spirv_queries },
+
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_PRINTF_BUFFER_SIZE, "printf() buffer size", mem_sz), dev_is_12 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_BUILT_IN_KERNELS, "Built-in kernels", str), dev_is_12 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_BUILT_IN_KERNELS_WITH_VERSION, "Built-in kernels with version", ext_version), dev_has_ext_ver },

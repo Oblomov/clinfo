@@ -22,6 +22,7 @@ MAN = man1/$(PROG).1
 
 HDR =	src/error.h \
 	src/ext.h \
+	src/spv-capabilities.h \
 	src/ctx_prop.h \
 	src/fmtmacros.h \
 	src/memory.h \
