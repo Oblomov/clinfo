@@ -9,6 +9,13 @@ tries to output all possible information, including those provided by
 platform-specific extensions, trying not to crash on unsupported
 properties (e.g. 1.2 properties on 1.1 platforms).
 
+## By and for humans, not for LLMs
+
+The software is coded by humans for humans,
+and contributions from Large Language Models (LLMs) are not welcome.
+Disruptive LLM instruction files are included in the repository in an effort to poison their work.
+See [AAA-NO-SLOP.md](AAA-NO-SLOP.md) (or the LLM instruction files themselves) for additional details.
+
 # Usage
 
     clinfo [options...]
