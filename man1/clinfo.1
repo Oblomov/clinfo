@@ -83,7 +83,7 @@ show program version.
 
 .SH CONFORMING TO
 
-OpenCL 1.1, OpenCL 1.2, OpenCL 2.0, OpenCL 2.1, OpenCL 2.2, OpenCL 3.0.
+OpenCL 1.1, OpenCL 1.2, OpenCL 2.0, OpenCL 2.1, OpenCL 2.2, OpenCL 3.0, OpenCL 3.1.
 
 .SH EXTENSIONS
 
@@ -253,7 +253,21 @@ by trying to create contexts for each device type (except DEFAULT).
 
 .SH EXPERIMENTAL FEATURES
 .P
-Support for OpenCL 2.x properties is not fully tested.
+Support for OpenCL 3.1 is deemed experimental.
+From the device information point of view,
+OpenCL 3.1 is essentially equal to OpenCL 3.0 except for
+the promotion of a few extensions to core,
+and the rename and deprecation of
+.B CL_DEVICE_MAX_WORK_IEM_SIZES
+to
+.B CL_DEVICE_MAX_WORK_GROUP_SIZES
+with no change in meaning or value.
+To the best of the author knowledge,
+all promoted extensions are supported,
+although the software does not (yet) differentiate between the features being available from core
+versus from the extension (this limitation also affects some 2.1 features),
+and the old keyword is still in use
+(this may change in the future, or be adapted to the device version).
 
 .P
 Support for
