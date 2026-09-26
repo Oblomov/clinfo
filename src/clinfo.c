@@ -2011,7 +2011,7 @@ device_info_spirv_caps(struct device_info_ret *ret,
 	GET_VAL_ARRAY(ret, loc);
 	if (!ret->err) {
 		size_t counter = 0;
-		set_separator(output->mode == CLINFO_HUMAN ? comma_str : output->json ? comma_str : spc_str);
+		set_separator(output->mode == CLINFO_HUMAN ? full_padding : output->json ? comma_str : spc_str);
 		const char * fmt = output->json ? "\"%s\", %" PRIu32 : "%s (%" PRIu32 ")";
 		if (output->json)
 			strbuf_append_str_len(loc->pname, &ret->str, " [", 2);
@@ -2074,11 +2074,11 @@ device_info_strptr_sep(struct device_info_ret *ret, const char *human_sep,
 }
 
 void
-device_info_strptr_comma(struct device_info_ret *ret,
+device_info_strptr_newline(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* chk,
 	const struct opt_out *output)
 {
-	device_info_strptr_sep(ret, comma_str, loc, chk, output);
+	device_info_strptr_sep(ret, full_padding, loc, chk, output);
 }
 
 
@@ -3753,8 +3753,8 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SPIR_VERSIONS, INDENT "SPIR versions", str), dev_has_spir },
 
 	/* cl_khr_spirv_queries or TODO OpenCL 3.1 */
-	{ CLINFO_BOTH, DINFO(CL_DEVICE_SPIRV_EXTENDED_INSTRUCTION_SETS_KHR, INDENT "SPIR-V extended instruction sets", strptr_comma), dev_has_spirv_queries },
-	{ CLINFO_BOTH, DINFO(CL_DEVICE_SPIRV_EXTENSIONS_KHR, INDENT "SPIR-V extensions", strptr_comma), dev_has_spirv_queries },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_SPIRV_EXTENDED_INSTRUCTION_SETS_KHR, INDENT "SPIR-V extended instruction sets", strptr_newline), dev_has_spirv_queries },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_SPIRV_EXTENSIONS_KHR, INDENT "SPIR-V extensions", strptr_newline), dev_has_spirv_queries },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SPIRV_CAPABILITIES_KHR, INDENT "SPIR-V capabilities", spirv_caps), dev_has_spirv_queries },
 
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_PRINTF_BUFFER_SIZE, "printf() buffer size", mem_sz), dev_is_12 },
