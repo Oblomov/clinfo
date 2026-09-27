@@ -495,6 +495,17 @@ typedef cl_bitfield cl_device_controlled_termination_capabilities_arm;
 #define CL_DEVICE_SPIRV_EXTENSIONS_KHR			0x12BA
 #define CL_DEVICE_SPIRV_CAPABILITIES_KHR		0x12BB
 
+/* cl_img_mem_properties */
+typedef cl_bitfield cl_mem_alloc_flags_img;
+#define CL_MEM_ALLOC_RELAX_REQUIREMENTS_IMG		(1 << 0)
+#define CL_MEM_ALLOC_GPU_WRITE_COMBINE_IMG		(1 << 1)
+#define CL_MEM_ALLOC_GPU_CACHED_IMG			(1 << 2)
+#define CL_MEM_ALLOC_CPU_LOCAL_IMG			(1 << 3)
+#define CL_MEM_ALLOC_GPU_LOCAL_IMG			(1 << 4)
+#define CL_MEM_ALLOC_GPU_PRIVATE_IMG			(1 << 5)
+
+#define CL_DEVICE_MEMORY_CAPABILITIES_IMG		0x40D8
+
 /* cl_img_safety_mechanisms */
 #define CL_DEVICE_WORKGROUP_PROTECTION_SVM_CAPABILITIES_IMG	0x40DA
 #define CL_DEVICE_WORKGROUP_PROTECTION_DEVICE_ENQUEUE_CAPABILITIES_IMG	0x40DB

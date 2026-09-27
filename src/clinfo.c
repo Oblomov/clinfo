@@ -517,6 +517,26 @@ static const char* ext_mem_handle_raw_str[] = {
 const size_t ext_mem_handle_count = ARRAY_SIZE(ext_mem_handle_str);
 const size_t ext_mem_handle_offset = 0x2060;
 
+static const char *img_mem_alloc_flags_str[] = {
+	"relax requirements",
+	"GPU write combined",
+	"GPU cached",
+	"CPU local",
+	"GPU local",
+	"GPU private",
+};
+
+static const char *img_mem_alloc_flags_raw_str[] = {
+	"CL_MEM_ALLOC_RELAX_REQUIREMENTS_IMG",
+	"CL_MEM_ALLOC_GPU_WRITE_COMBINE_IMG",
+	"CL_MEM_ALLOC_GPU_CACHED_IMG",
+	"CL_MEM_ALLOC_CPU_LOCAL_IMG",
+	"CL_MEM_ALLOC_GPU_LOCAL_IMG",
+	"CL_MEM_ALLOC_GPU_PRIVATE_IMG",
+};
+
+const size_t img_mem_alloc_flags_count = ARRAY_SIZE(img_mem_alloc_flags_str);
+
 static const char* semaphore_type_str[] = {
 	"Binary"
 };
@@ -1373,6 +1393,7 @@ struct device_info_checks {
 	char has_int_dot_product[27];
 	char has_image2d_buffer[27];
 	char has_il_program[18];
+	char has_img_mem_properties[22];
 	char has_img_safety_mechanisms[25];
 	char has_intel_queue_families[32];
 	char has_intel_local_thread[30];
@@ -1424,6 +1445,7 @@ DEFINE_EXT_CHECK(atomic_counters)
 DEFINE_EXT_CHECK(int_dot_product)
 DEFINE_EXT_CHECK(il_program)
 DEFINE_EXT_CHECK(intel)
+DEFINE_EXT_CHECK(img_mem_properties)
 DEFINE_EXT_CHECK(img_safety_mechanisms)
 DEFINE_EXT_CHECK(intel_queue_families)
 DEFINE_EXT_CHECK(intel_local_thread)
@@ -1668,6 +1690,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 	CHECK_EXT(int_dot_product, cl_khr_integer_dot_product);
 	CHECK_EXT(image2d_buffer, cl_khr_image2d_from_buffer);
 	CHECK_EXT(il_program, cl_khr_il_program);
+	CHECK_EXT(img_mem_properties, cl_img_mem_properties);
 	CHECK_EXT(img_safety_mechanisms, cl_img_safety_mechanisms);
 	CHECK_EXT(intel_queue_families, cl_intel_command_queue_families);
 	CHECK_EXT(intel_local_thread, cl_intel_exec_by_local_thread);
@@ -2475,6 +2498,20 @@ device_info_kernel_clock_caps(struct device_info_ret *ret,
 		device_info_bitfield(ret, loc, chk, output, ret->value.kernel_clock_caps,
 			kernel_clock_cap_count, (output->mode == CLINFO_HUMAN ?
 				kernel_clock_cap_str : kernel_clock_cap_raw_str),
+			"capabilities");
+	}
+}
+
+void
+device_info_img_mem_alloc_flags(struct device_info_ret *ret,
+	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
+	const struct opt_out *output)
+{
+	GET_VAL(ret, loc, bits);
+	if (!ret->err) {
+		device_info_bitfield(ret, loc, chk, output, ret->value.bits,
+			img_mem_alloc_flags_count, (output->mode == CLINFO_HUMAN ?
+				img_mem_alloc_flags_str : img_mem_alloc_flags_raw_str),
 			"capabilities");
 	}
 }
@@ -3705,6 +3742,8 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_MEM_ALLOC_SIZE, "Max memory allocation", mem), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_HOST_UNIFIED_MEMORY, "Unified memory for Host and Device", bool), dev_is_11 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_INTEGRATED_MEMORY_NV, "Integrated memory (NV)", bool), dev_has_nv },
+
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_MEMORY_CAPABILITIES_IMG, "Memory capabilities (IMG)", img_mem_alloc_flags), dev_has_img_mem_properties },
 
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SVM_CAPABILITIES, "Shared Virtual Memory (SVM) capabilities", svm_cap), dev_has_svm },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SVM_CAPABILITIES_ARM, "Shared Virtual Memory (SVM) capabilities (ARM)", svm_cap), dev_has_arm_svm },
