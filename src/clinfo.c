@@ -244,6 +244,18 @@ static const char* atomic_cap_raw_str[] = {
 };
 const size_t atomic_cap_count = ARRAY_SIZE(atomic_cap_str);
 
+static const char *kernel_clock_cap_str[] = {
+	"device", "work-group", "sub-group"
+};
+
+static const char *kernel_clock_cap_raw_str[] = {
+	"CL_DEVICE_KERNEL_CLOCK_SCOPE_DEVICE_KHR",
+	"CL_DEVICE_KERNEL_CLOCK_SCOPE_WORK_GROUP_KHR",
+	"CL_DEVICE_KERNEL_CLOCK_SCOPE_SUB_GROUP_KHR",
+};
+
+const size_t kernel_clock_cap_count = ARRAY_SIZE(kernel_clock_cap_str);
+
 static const char *device_enqueue_cap_str[] = {
 	"supported", "replaceable default queue"
 };
@@ -1379,6 +1391,7 @@ struct device_info_checks {
 	char has_mutable_dispatch[27];
 	char has_terminate_context[25];
 	char has_terminate_arm[37];
+	char has_kernel_clock[20];
 	char has_extended_versioning[27];
 	char has_cxx_for_opencl[22];
 	char has_device_uuid[19];
@@ -1428,6 +1441,7 @@ DEFINE_EXT_CHECK(command_buffer)
 DEFINE_EXT_CHECK(mutable_dispatch)
 DEFINE_EXT_CHECK(terminate_context)
 DEFINE_EXT_CHECK(terminate_arm)
+DEFINE_EXT_CHECK(kernel_clock)
 DEFINE_EXT_CHECK(extended_versioning)
 DEFINE_EXT_CHECK(cxx_for_opencl)
 DEFINE_EXT_CHECK(device_uuid)
@@ -1668,6 +1682,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 	CHECK_EXT(mutable_dispatch, cl_khr_mutable_dispatch);
 	CHECK_EXT(terminate_context, cl_khr_terminate_context);
 	CHECK_EXT(terminate_arm, cl_arm_controlled_kernel_termination);
+	CHECK_EXT(kernel_clock, cl_khr_kernel_clock);
 	CHECK_EXT(extended_versioning, cl_khr_extended_versioning);
 	CHECK_EXT(cxx_for_opencl, cl_ext_cxx_for_opencl);
 	CHECK_EXT(device_uuid, cl_khr_device_uuid);
@@ -2024,7 +2039,6 @@ device_info_hexptr(struct device_info_ret *ret,
 	free(val);
 }
 
-/* Like intptr, but print in hex */
 void
 device_info_spirv_caps(struct device_info_ret *ret,
 	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
@@ -2447,6 +2461,21 @@ device_info_atomic_caps(struct device_info_ret *ret,
 			"capabilities");
 	}
 }
+
+void
+device_info_kernel_clock_caps(struct device_info_ret *ret,
+	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
+	const struct opt_out *output)
+{
+	GET_VAL(ret, loc, kernel_clock_caps);
+	if (!ret->err) {
+		device_info_bitfield(ret, loc, chk, output, ret->value.kernel_clock_caps,
+			kernel_clock_cap_count, (output->mode == CLINFO_HUMAN ?
+				kernel_clock_cap_str : kernel_clock_cap_raw_str),
+			"capabilities");
+	}
+}
+
 
 void
 device_info_int_dot_product(struct device_info_ret *ret,
@@ -3806,6 +3835,9 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_PROFILING_TIMER_RESOLUTION, "Profiling timer resolution", "ns", sz), NULL },
 	{ CLINFO_HUMAN, DINFO(CL_DEVICE_PROFILING_TIMER_OFFSET_AMD, "Profiling timer offset since Epoch (AMD)", time_offset), dev_has_amd },
 	{ CLINFO_RAW, DINFO(CL_DEVICE_PROFILING_TIMER_OFFSET_AMD, "Profiling timer offset since Epoch (AMD)", long), dev_has_amd },
+
+	/* Kernel clock capabilities */
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_KERNEL_CLOCK_CAPABILITIES_KHR, "Kernel clock capabilities", kernel_clock_caps), dev_has_kernel_clock },
 
 	/* Kernel execution capabilities */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_EXECUTION_CAPABILITIES, "Execution capabilities", execap), NULL },

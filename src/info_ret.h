@@ -57,6 +57,7 @@ struct device_info_ret {
 		cl_device_exec_capabilities execap;
 		cl_device_svm_capabilities svmcap;
 		cl_device_terminate_capability_khr termcap;
+		cl_device_kernel_clock_capabilities_khr kernel_clock_caps;
 	} value;
 	/* pointer base for array data or other auxiliary information */
 	union {
