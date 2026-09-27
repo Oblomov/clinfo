@@ -491,9 +491,14 @@ typedef cl_bitfield cl_device_controlled_termination_capabilities_arm;
 #define CL_DEVICE_SPIR_VERSIONS				0x40E0
 
 /* cl_khr_spirv_queries */
-#define CL_DEVICE_SPIRV_EXTENDED_INSTRUCTION_SETS_KHR       0x12B9
-#define CL_DEVICE_SPIRV_EXTENSIONS_KHR                      0x12BA
-#define CL_DEVICE_SPIRV_CAPABILITIES_KHR                    0x12BB
+#define CL_DEVICE_SPIRV_EXTENDED_INSTRUCTION_SETS_KHR	0x12B9
+#define CL_DEVICE_SPIRV_EXTENSIONS_KHR			0x12BA
+#define CL_DEVICE_SPIRV_CAPABILITIES_KHR		0x12BB
+
+/* cl_img_safety_mechanisms */
+#define CL_DEVICE_WORKGROUP_PROTECTION_SVM_CAPABILITIES_IMG	0x40DA
+#define CL_DEVICE_WORKGROUP_PROTECTION_DEVICE_ENQUEUE_CAPABILITIES_IMG	0x40DB
+#define CL_DEVICE_SAFETY_MEM_SIZE_IMG			0x40DC
 
 /* cl_altera_device_temperature */
 #define CL_DEVICE_CORE_TEMPERATURE_ALTERA		0x40F3

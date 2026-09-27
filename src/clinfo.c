@@ -1373,6 +1373,7 @@ struct device_info_checks {
 	char has_int_dot_product[27];
 	char has_image2d_buffer[27];
 	char has_il_program[18];
+	char has_img_safety_mechanisms[25];
 	char has_intel_queue_families[32];
 	char has_intel_local_thread[30];
 	char has_intel_AME[36];
@@ -1423,6 +1424,7 @@ DEFINE_EXT_CHECK(atomic_counters)
 DEFINE_EXT_CHECK(int_dot_product)
 DEFINE_EXT_CHECK(il_program)
 DEFINE_EXT_CHECK(intel)
+DEFINE_EXT_CHECK(img_safety_mechanisms)
 DEFINE_EXT_CHECK(intel_queue_families)
 DEFINE_EXT_CHECK(intel_local_thread)
 DEFINE_EXT_CHECK(intel_AME)
@@ -1666,6 +1668,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 	CHECK_EXT(int_dot_product, cl_khr_integer_dot_product);
 	CHECK_EXT(image2d_buffer, cl_khr_image2d_from_buffer);
 	CHECK_EXT(il_program, cl_khr_il_program);
+	CHECK_EXT(img_safety_mechanisms, cl_img_safety_mechanisms);
 	CHECK_EXT(intel_queue_families, cl_intel_command_queue_families);
 	CHECK_EXT(intel_local_thread, cl_intel_exec_by_local_thread);
 	CHECK_EXT(intel_AME, cl_intel_advanced_motion_estimation);
@@ -3693,6 +3696,7 @@ struct device_info_traits dinfo_traits[] = {
 
 	/* Global memory */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_MEM_SIZE, "Global memory size", mem), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_SAFETY_MEM_SIZE_IMG, "Safety memory size (IMG)", mem), dev_has_img_safety_mechanisms },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_FREE_MEMORY_AMD, "Global free memory (AMD)", free_mem_amd), dev_is_gpu_amd },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_MEM_CHANNELS_AMD, "Global memory channels (AMD)", int), dev_is_gpu_amd },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_MEM_CHANNEL_BANKS_AMD, "Global memory banks per channel (AMD)", int), dev_is_gpu_amd },
@@ -3704,6 +3708,7 @@ struct device_info_traits dinfo_traits[] = {
 
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SVM_CAPABILITIES, "Shared Virtual Memory (SVM) capabilities", svm_cap), dev_has_svm },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SVM_CAPABILITIES_ARM, "Shared Virtual Memory (SVM) capabilities (ARM)", svm_cap), dev_has_arm_svm },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_SVM_CAPABILITIES_ARM, "SVM capabilities w/ work-group protection (IMG)", svm_cap), dev_has_img_safety_mechanisms },
 
 	{ CLINFO_HUMAN, DINFO_SFX(CL_FALSE, "Unified Shared Memory (USM)", "(cl_intel_unified_shared_memory)", str), dev_has_intel_usm },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_HOST_MEM_CAPABILITIES_INTEL, "Host USM capabilities (Intel)", intel_usm_cap), dev_has_intel_usm },
@@ -3801,6 +3806,7 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_QUEUE_PROPERTIES, "Queue properties", qprop), dev_not_20 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_QUEUE_ON_HOST_PROPERTIES, "Queue properties (on host)", qprop), dev_is_20 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_DEVICE_ENQUEUE_CAPABILITIES, "Device enqueue capabilities", device_enqueue_caps), dev_is_30 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_WORKGROUP_PROTECTION_DEVICE_ENQUEUE_CAPABILITIES_IMG, INDENT "with work-group protection (IMG)", device_enqueue_caps), dev_is_30 },
 	/* TODO FIXME: the above should be true if dev is [2.0, 3.0[, and the next properties should be nested */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_QUEUE_ON_DEVICE_PROPERTIES, "Queue properties (on device)", qprop), dev_is_20 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_QUEUE_ON_DEVICE_PREFERRED_SIZE, INDENT "Preferred size", mem), dev_is_20 },
