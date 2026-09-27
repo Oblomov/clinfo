@@ -146,8 +146,7 @@ required way more time than I should have spent, really, but I digress),
 by running `make` in a Developer Command Prompt for Visual Studio,
 provided an OpenCL SDK (such as the Intel or AMD one) is installed.
 
-Precompiled Windows executable are available as artefacts of the
-AppVeyor CI.
+Precompiled Windows executable are usually available as artefacts of the AppVeyor CI.
 
 <table style='margin: 1em auto; width: 100%; max-width: 33em'>
 <tr><th>Build status</th><th colspan=2>Windows binaries</th></tr>
@@ -160,7 +159,11 @@ alt='Build status on AppVeyor'></a></td>
 </tr>
 </table>
 
-`clinfo` is also packaged and distributed on [MSYS2](https://www.msys2.org/). 
+Note that AppVeyor deletes the artifacts after a few months,
+so if there have been new commits since the last build,
+artifacts may not be available.
+
+`clinfo` is also packaged and distributed on [MSYS2](https://www.msys2.org/).
 
 Install for Windows x64 using:
 
