@@ -2508,7 +2508,15 @@ device_info_img_mem_alloc_flags(struct device_info_ret *ret,
 	const struct opt_out *output)
 {
 	GET_VAL(ret, loc, bits);
-	if (!ret->err) {
+	// The CL_DEVICE_MEMORY_CAPABILITIES_IMG property was added in version 1.1.1 of the extension, on older versions we get an error
+	// TODO FIXME we should do proper extension version checking instead
+	if (ret->err == CL_INVALID_VALUE) {
+		printf("IMG err %d\n", ret->err);
+		ret->value.bits = 0;
+		strbuf_append_str(loc->pname, &ret->str, not_specified(output));
+		reset_strbuf(&ret->err_str);
+		ret->err = CL_SUCCESS;
+	} else if (!ret->err) {
 		device_info_bitfield(ret, loc, chk, output, ret->value.bits,
 			img_mem_alloc_flags_count, (output->mode == CLINFO_HUMAN ?
 				img_mem_alloc_flags_str : img_mem_alloc_flags_raw_str),
