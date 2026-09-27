@@ -3845,7 +3845,7 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_QUEUE_PROPERTIES, "Queue properties", qprop), dev_not_20 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_QUEUE_ON_HOST_PROPERTIES, "Queue properties (on host)", qprop), dev_is_20 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_DEVICE_ENQUEUE_CAPABILITIES, "Device enqueue capabilities", device_enqueue_caps), dev_is_30 },
-	{ CLINFO_BOTH, DINFO(CL_DEVICE_WORKGROUP_PROTECTION_DEVICE_ENQUEUE_CAPABILITIES_IMG, INDENT "with work-group protection (IMG)", device_enqueue_caps), dev_is_30 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_WORKGROUP_PROTECTION_DEVICE_ENQUEUE_CAPABILITIES_IMG, INDENT "with work-group protection (IMG)", device_enqueue_caps), dev_has_img_safety_mechanisms },
 	/* TODO FIXME: the above should be true if dev is [2.0, 3.0[, and the next properties should be nested */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_QUEUE_ON_DEVICE_PROPERTIES, "Queue properties (on device)", qprop), dev_is_20 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_QUEUE_ON_DEVICE_PREFERRED_SIZE, INDENT "Preferred size", mem), dev_is_20 },
