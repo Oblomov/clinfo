@@ -44,7 +44,7 @@ report_ocl_error_loc(struct _strbuf *str, cl_int err, const char *fmt,
 			loc->function, loc->line, fmt, err);
 		snprintf(str->buf, str->sz, full_fmt, loc->sname);
 	}
-	return err != CL_SUCCESS;
+	return err;
 }
 
 void
