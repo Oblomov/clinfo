@@ -1408,6 +1408,7 @@ struct device_info_checks {
 	char has_spirv_queries[21];
 	char has_qcom_ext_host_ptr[21];
 	char has_qcom_extended_images[24];
+	char has_qcom_onchip_global_memory[29];
 	char has_amd_printf[14];
 	char has_arm_printf[14];
 	char has_intel_printf[16];
@@ -1465,6 +1466,7 @@ DEFINE_EXT_CHECK(spir)
 DEFINE_EXT_CHECK(spirv_queries)
 DEFINE_EXT_CHECK(qcom_ext_host_ptr)
 DEFINE_EXT_CHECK(qcom_extended_images)
+DEFINE_EXT_CHECK(qcom_onchip_global_memory)
 DEFINE_EXT_CHECK(amd_printf)
 DEFINE_EXT_CHECK(arm_printf)
 DEFINE_EXT_CHECK(intel_printf)
@@ -1722,6 +1724,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 	CHECK_EXT(pci_bus_info, cl_khr_pci_bus_info);
 	CHECK_EXT(qcom_ext_host_ptr, cl_qcom_ext_host_ptr);
 	CHECK_EXT(qcom_extended_images, cl_qcom_extended_images);
+	CHECK_EXT(qcom_onchip_global_memory, cl_qcom_onchip_global_memory);
 	CHECK_EXT(amd_printf, cl_amd_printf);
 	CHECK_EXT(arm_printf, cl_arm_printf);
 	CHECK_EXT(intel_printf, cl_intel_printf);
@@ -3795,6 +3798,7 @@ struct device_info_traits dinfo_traits[] = {
 	/* Global memory */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_MEM_SIZE, "Global memory size", mem), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SAFETY_MEM_SIZE_IMG, "Safety memory size (IMG)", mem), dev_has_img_safety_mechanisms },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_ONCHIP_GLOBAL_MEM_SIZE_QCOM, "Global onchip memory size (IMG)", mem), dev_has_qcom_onchip_global_memory },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_FREE_MEMORY_AMD, "Global free memory (AMD)", free_mem_amd), dev_is_gpu_amd },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_MEM_CHANNELS_AMD, "Global memory channels (AMD)", int), dev_is_gpu_amd },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_MEM_CHANNEL_BANKS_AMD, "Global memory banks per channel (AMD)", int), dev_is_gpu_amd },

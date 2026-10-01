@@ -469,6 +469,9 @@ typedef cl_ulong  cl_device_partition_property_ext;
 #define CL_DEVICE_EXT_MEM_PADDING_IN_BYTES_QCOM		0x40A0
 #define CL_DEVICE_PAGE_SIZE_QCOM			0x40A1
 
+/* cl_qcom_onchip_global_memory */
+#define CL_DEVICE_ONCHIP_GLOBAL_MEM_SIZE_QCOM		0x41A4
+
 /* cl_qcom_extended_images */
 #define CL_DEVICE_EXTENDED_IMAGE2D_MAX_WIDTH_QCOM	0x40AB
 #define CL_DEVICE_EXTENDED_IMAGE2D_MAX_HEIGHT_QCOM	0x40AC
