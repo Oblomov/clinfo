@@ -1407,6 +1407,7 @@ struct device_info_checks {
 	char has_spir[12];
 	char has_spirv_queries[21];
 	char has_qcom_ext_host_ptr[21];
+	char has_qcom_extended_images[24];
 	char has_amd_printf[14];
 	char has_arm_printf[14];
 	char has_intel_printf[16];
@@ -1463,6 +1464,7 @@ DEFINE_EXT_CHECK(pci_bus_info)
 DEFINE_EXT_CHECK(spir)
 DEFINE_EXT_CHECK(spirv_queries)
 DEFINE_EXT_CHECK(qcom_ext_host_ptr)
+DEFINE_EXT_CHECK(qcom_extended_images)
 DEFINE_EXT_CHECK(amd_printf)
 DEFINE_EXT_CHECK(arm_printf)
 DEFINE_EXT_CHECK(intel_printf)
@@ -1719,6 +1721,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 	CHECK_EXT(p2p, cl_amd_copy_buffer_p2p);
 	CHECK_EXT(pci_bus_info, cl_khr_pci_bus_info);
 	CHECK_EXT(qcom_ext_host_ptr, cl_qcom_ext_host_ptr);
+	CHECK_EXT(qcom_extended_images, cl_qcom_extended_images);
 	CHECK_EXT(amd_printf, cl_amd_printf);
 	CHECK_EXT(arm_printf, cl_arm_printf);
 	CHECK_EXT(intel_printf, cl_intel_printf);
@@ -2310,31 +2313,17 @@ device_info_img_sz_2d(struct device_info_ret *ret,
 {
 	struct info_loc loc2 = *loc;
 	size_t width = 0, height = 0;
-	_GET_VAL(ret, loc, height); /* HEIGHT */
+	_GET_VAL(ret, loc, width); /* WIDTH */
 	if (!ret->err) {
-		RESET_LOC_PARAM(loc2, dev, CL_DEVICE_IMAGE2D_MAX_WIDTH);
-		_GET_VAL(ret, &loc2, width);
+		/* assume the HEIGHT is +1 ; this works both for the core
+		 * CL_DEVICE_IMAGE2D_MAX_{WIDTH,HEIGHT}
+		 * CL_DEVICE_PLANAR_YUV_MAX_{WIDTH,HEIGHT}_INTEL, and for
+		 * CL_DEVICE_EXTENDED_IMAGE2D_MAX_{WIDTH,HEIGHT}_QCOM
+		 */
+		RESET_LOC_PARAM(loc2, dev, loc->param.dev + 1);
+		_GET_VAL(ret, &loc2, height);
 		if (!ret->err) {
 			strbuf_append("image size 2D", &ret->str, "%" PRIuS "x%" PRIuS, width, height);
-		}
-	}
-	ret->value.u64v.s[0] = width;
-	ret->value.u64v.s[1] = height;
-}
-
-void
-device_info_img_sz_intel_planar_yuv(struct device_info_ret *ret,
-	const struct info_loc *loc, const struct device_info_checks* UNUSED(chk),
-	const struct opt_out *output)
-{
-	struct info_loc loc2 = *loc;
-	size_t width = 0, height = 0;
-	_GET_VAL(ret, loc, height); /* HEIGHT */
-	if (!ret->err) {
-		RESET_LOC_PARAM(loc2, dev, CL_DEVICE_PLANAR_YUV_MAX_WIDTH_INTEL);
-		_GET_VAL(ret, &loc2, width);
-		if (!ret->err) {
-			 strbuf_append("image size planar YUV", &ret->str, "%" PRIuS "x%" PRIuS, width, height);
 		}
 	}
 	ret->value.u64v.s[0] = width;
@@ -2349,12 +2338,16 @@ device_info_img_sz_3d(struct device_info_ret *ret,
 {
 	struct info_loc loc2 = *loc;
 	size_t width = 0, height = 0, depth = 0;
-	_GET_VAL(ret, loc, height); /* HEIGHT */
+	_GET_VAL(ret, loc, width); /* WIDTH */
 	if (!ret->err) {
-		RESET_LOC_PARAM(loc2, dev, CL_DEVICE_IMAGE3D_MAX_WIDTH);
-		_GET_VAL(ret, &loc2, width);
+		/* assume the HEIGHT is + 1 and depth is + 2; this works both for the core
+		 * CL_DEVICE_IMAGE3D_MAX_{WIDTH, HEIGHT, DEPTH}, and for
+		 * CL_DEVICE_EXTENDED_IMAGE3D_MAX_{WIDTH, HEIGHT, DEPTH}_QCOM
+		 */
+		RESET_LOC_PARAM(loc2, dev, loc->param.dev + 1);
+		_GET_VAL(ret, &loc2, height);
 		if (!ret->err) {
-			RESET_LOC_PARAM(loc2, dev, CL_DEVICE_IMAGE3D_MAX_DEPTH);
+			RESET_LOC_PARAM(loc2, dev, loc->param.dev + 2);
 			_GET_VAL(ret, &loc2, depth);
 			if (!ret->err) {
 				strbuf_append("image size 3D", &ret->str,
@@ -3869,16 +3862,23 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO_SFX(CL_DEVICE_IMAGE_PITCH_ALIGNMENT, INDENT "Pitch alignment for 2D image buffers", pixels_str, sz), dev_has_image2d_buffer },
 
 	/* Image dimensions are split for RAW, combined for HUMAN */
-	{ CLINFO_HUMAN, DINFO_SFX(CL_DEVICE_IMAGE2D_MAX_HEIGHT, INDENT "Max 2D image size",  pixels_str, img_sz_2d), dev_has_images },
-	{ CLINFO_RAW, DINFO(CL_DEVICE_IMAGE2D_MAX_HEIGHT, INDENT "Max 2D image height",  sz), dev_has_images },
+	{ CLINFO_HUMAN, DINFO_SFX(CL_DEVICE_IMAGE2D_MAX_WIDTH, INDENT "Max 2D image size",  pixels_str, img_sz_2d), dev_has_images },
 	{ CLINFO_RAW, DINFO(CL_DEVICE_IMAGE2D_MAX_WIDTH, INDENT "Max 2D image width",  sz), dev_has_images },
-	{ CLINFO_HUMAN, DINFO_SFX(CL_DEVICE_PLANAR_YUV_MAX_HEIGHT_INTEL, INDENT "Max planar YUV image size",  pixels_str, img_sz_2d), dev_has_intel_planar_yuv },
-	{ CLINFO_RAW, DINFO(CL_DEVICE_PLANAR_YUV_MAX_HEIGHT_INTEL, INDENT "Max planar YUV image height",  sz), dev_has_intel_planar_yuv },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_IMAGE2D_MAX_HEIGHT, INDENT "Max 2D image height",  sz), dev_has_images },
+	{ CLINFO_HUMAN, DINFO_SFX(CL_DEVICE_EXTENDED_IMAGE2D_MAX_WIDTH_QCOM, INDENT "Max extended 2D image size (QCOM)",  pixels_str, img_sz_2d), dev_has_qcom_extended_images },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_EXTENDED_IMAGE2D_MAX_WIDTH_QCOM, INDENT "Max extendend 2D image width (QCOM)",  sz), dev_has_qcom_extended_images },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_EXTENDED_IMAGE2D_MAX_HEIGHT_QCOM, INDENT "Max extended 2D image height (QCOM)",  sz), dev_has_qcom_extended_images },
+	{ CLINFO_HUMAN, DINFO_SFX(CL_DEVICE_PLANAR_YUV_MAX_WIDTH_INTEL, INDENT "Max planar YUV image size",  pixels_str, img_sz_2d), dev_has_intel_planar_yuv },
 	{ CLINFO_RAW, DINFO(CL_DEVICE_PLANAR_YUV_MAX_WIDTH_INTEL, INDENT "Max planar YUV image width",  sz), dev_has_intel_planar_yuv },
-	{ CLINFO_HUMAN, DINFO_SFX(CL_DEVICE_IMAGE3D_MAX_HEIGHT, INDENT "Max 3D image size",  pixels_str, img_sz_3d), dev_has_images },
-	{ CLINFO_RAW, DINFO(CL_DEVICE_IMAGE3D_MAX_HEIGHT, INDENT "Max 3D image height",  sz), dev_has_images },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_PLANAR_YUV_MAX_HEIGHT_INTEL, INDENT "Max planar YUV image height",  sz), dev_has_intel_planar_yuv },
+	{ CLINFO_HUMAN, DINFO_SFX(CL_DEVICE_IMAGE3D_MAX_WIDTH, INDENT "Max 3D image size",  pixels_str, img_sz_3d), dev_has_images },
 	{ CLINFO_RAW, DINFO(CL_DEVICE_IMAGE3D_MAX_WIDTH, INDENT "Max 3D image width",  sz), dev_has_images },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_IMAGE3D_MAX_HEIGHT, INDENT "Max 3D image height",  sz), dev_has_images },
 	{ CLINFO_RAW, DINFO(CL_DEVICE_IMAGE3D_MAX_DEPTH, INDENT "Max 3D image depth",  sz), dev_has_images },
+	{ CLINFO_HUMAN, DINFO_SFX(CL_DEVICE_EXTENDED_IMAGE3D_MAX_WIDTH_QCOM, INDENT "Max 3D image size",  pixels_str, img_sz_3d), dev_has_qcom_extended_images },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_EXTENDED_IMAGE3D_MAX_HEIGHT_QCOM, INDENT "Max 3D image height",  sz), dev_has_qcom_extended_images },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_EXTENDED_IMAGE3D_MAX_WIDTH_QCOM, INDENT "Max 3D image width",  sz), dev_has_qcom_extended_images },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_EXTENDED_IMAGE3D_MAX_DEPTH_QCOM, INDENT "Max 3D image depth",  sz), dev_has_qcom_extended_images },
 
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_READ_IMAGE_ARGS, INDENT "Max number of read image args", int), dev_has_images },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_MAX_WRITE_IMAGE_ARGS, INDENT "Max number of write image args", int), dev_has_images },
