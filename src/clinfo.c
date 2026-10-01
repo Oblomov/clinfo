@@ -1410,6 +1410,7 @@ struct device_info_checks {
 	char has_qcom_extended_images[24];
 	char has_qcom_recordable_queues[26];
 	char has_qcom_onchip_global_memory[29];
+	char has_qcom_accelerated_image_ops[30];
 	char has_amd_printf[14];
 	char has_arm_printf[14];
 	char has_intel_printf[16];
@@ -1469,6 +1470,7 @@ DEFINE_EXT_CHECK(qcom_ext_host_ptr)
 DEFINE_EXT_CHECK(qcom_extended_images)
 DEFINE_EXT_CHECK(qcom_recordable_queues)
 DEFINE_EXT_CHECK(qcom_onchip_global_memory)
+DEFINE_EXT_CHECK(qcom_accelerated_image_ops)
 DEFINE_EXT_CHECK(amd_printf)
 DEFINE_EXT_CHECK(arm_printf)
 DEFINE_EXT_CHECK(intel_printf)
@@ -1728,6 +1730,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 	CHECK_EXT(qcom_extended_images, cl_qcom_extended_images);
 	CHECK_EXT(qcom_recordable_queues, cl_qcom_recordable_queues);
 	CHECK_EXT(qcom_onchip_global_memory, cl_qcom_onchip_global_memory);
+	CHECK_EXT(qcom_accelerated_image_ops, cl_qcom_accelerated_image_ops);
 	CHECK_EXT(amd_printf, cl_amd_printf);
 	CHECK_EXT(arm_printf, cl_arm_printf);
 	CHECK_EXT(intel_printf, cl_intel_printf);
@@ -3992,6 +3995,16 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_PRINTF_BUFFER_SIZE, INDENT "printf() buffer size", mem_sz), dev_has_printf },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_BUILT_IN_KERNELS, "Built-in kernels", str), dev_is_12 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_BUILT_IN_KERNELS_WITH_VERSION, "Built-in kernels with version", ext_version), dev_has_ext_ver },
+
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_HOF_MAX_NUM_PHASES_QCOM, "Max HOF phases (QCOM)", int), dev_has_qcom_accelerated_image_ops },
+	/* TODO FIXME are these actually size_t or just cl_uint? I need hardware on which to test! */
+	{ CLINFO_HUMAN, DINFO(CL_DEVICE_HOF_MAX_FILTER_SIZE_X_QCOM, "Max HOF size (QCOM)", img_sz_2d), dev_has_qcom_accelerated_image_ops },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_HOF_MAX_FILTER_SIZE_X_QCOM, "Max HOF X size (QCOM)", sz), dev_has_qcom_accelerated_image_ops },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_HOF_MAX_FILTER_SIZE_Y_QCOM, "Max HOF Y size (QCOM)", sz), dev_has_qcom_accelerated_image_ops },
+	{ CLINFO_HUMAN, DINFO(CL_DEVICE_BLOCK_MATCHING_MAX_REGION_SIZE_X_QCOM, "Max block matching region size (QCOM)", img_sz_2d), dev_has_qcom_accelerated_image_ops },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_BLOCK_MATCHING_MAX_REGION_SIZE_X_QCOM, "Max block matchin region X size (QCOM)", sz), dev_has_qcom_accelerated_image_ops },
+	{ CLINFO_RAW, DINFO(CL_DEVICE_BLOCK_MATCHING_MAX_REGION_SIZE_Y_QCOM, "Max block matchin region Y size (QCOM)", sz), dev_has_qcom_accelerated_image_ops },
+
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_ME_VERSION_INTEL, "Motion Estimation accelerator version (Intel)", int), dev_has_intel_AME },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_AVC_ME_VERSION_INTEL, INDENT "Device-side AVC Motion Estimation version", int), dev_has_intel_AVC_ME },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_AVC_ME_SUPPORTS_TEXTURE_SAMPLER_USE_INTEL, INDENT INDENT "Supports texture sampler use", bool), dev_has_intel_AVC_ME },

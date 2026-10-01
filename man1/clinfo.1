@@ -236,7 +236,11 @@ for the maximum number of elements in a recordable queue
 in some QUALCOMM header files);
 .TP
 .B cl_qcom_extended_images
-for the maximum dimensions of QUALCOMM extended 2D/3D images.
+for the maximum dimensions of QUALCOMM extended 2D/3D images;
+.TP
+.B cl_qcom_accelerated_image_ops
+for the maximum number of high-order filter phases,
+maximum filter size and maximum box matching region size.
 
 .SH NOTES
 Some information is duplicated when available from multiple sources.
@@ -296,6 +300,13 @@ and the old keyword is still in use
 Support for
 .B cl_khr_subgroup_named_barrier
 is experimental due to missing definitions in the official OpenCL headers.
+
+.P
+Support for
+.B cl_qcom_accelerated_image_ops
+is experimental due to missing information about the parameters' types
+in the QUALCOMM documentation.
+
 
 .P
 Raw (machine-parsable) output is considered experimental, the output format
