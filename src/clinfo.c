@@ -1407,6 +1407,10 @@ struct device_info_checks {
 	char has_spir[12];
 	char has_spirv_queries[21];
 	char has_qcom_ext_host_ptr[21];
+	char has_amd_printf[14];
+	char has_arm_printf[14];
+	char has_intel_printf[16];
+	char has_qcom_limited_printf[23];
 	char has_simultaneous_sharing[30];
 	char has_subgroup_named_barrier[30];
 	char has_command_buffer[25];
@@ -1459,6 +1463,10 @@ DEFINE_EXT_CHECK(pci_bus_info)
 DEFINE_EXT_CHECK(spir)
 DEFINE_EXT_CHECK(spirv_queries)
 DEFINE_EXT_CHECK(qcom_ext_host_ptr)
+DEFINE_EXT_CHECK(amd_printf)
+DEFINE_EXT_CHECK(arm_printf)
+DEFINE_EXT_CHECK(intel_printf)
+DEFINE_EXT_CHECK(qcom_limited_printf)
 DEFINE_EXT_CHECK(simultaneous_sharing)
 DEFINE_EXT_CHECK(subgroup_named_barrier)
 DEFINE_EXT_CHECK(command_buffer)
@@ -1510,6 +1518,15 @@ cl_bool dev_not_20(const struct device_info_checks *chk)
 cl_bool dev_is_30(const struct device_info_checks *chk)
 {
 	return !(chk->dev_version < 30);
+}
+
+// device supports printf() in kernel
+cl_bool dev_has_printf(const struct device_info_checks *chk)
+{
+	return dev_is_12(chk) || dev_has_qcom_limited_printf(chk)
+		|| dev_has_intel_printf(chk)
+		|| dev_has_arm_printf(chk)
+		|| dev_has_amd_printf(chk);
 }
 
 // device has extended versioning: 3.0 or has_extended_versioning
@@ -1702,6 +1719,10 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 	CHECK_EXT(p2p, cl_amd_copy_buffer_p2p);
 	CHECK_EXT(pci_bus_info, cl_khr_pci_bus_info);
 	CHECK_EXT(qcom_ext_host_ptr, cl_qcom_ext_host_ptr);
+	CHECK_EXT(amd_printf, cl_amd_printf);
+	CHECK_EXT(arm_printf, cl_arm_printf);
+	CHECK_EXT(intel_printf, cl_intel_printf);
+	CHECK_EXT(qcom_limited_printf, cl_qcom_limited_printf);
 	CHECK_EXT(simultaneous_sharing, cl_intel_simultaneous_sharing);
 	CHECK_EXT(subgroup_named_barrier, cl_khr_subgroup_named_barrier);
 	CHECK_EXT(command_buffer, cl_khr_command_buffer);
@@ -1923,7 +1944,7 @@ void strbuf_mem(const char *what, struct _strbuf *str, cl_ulong val)
 {
 	double dbl = (double)val;
 	size_t sfx = 0;
-	while (dbl > 1024 && sfx < memsfx_end) {
+	while (dbl >= 1024 && sfx < memsfx_end) {
 		dbl /= 1024;
 		++sfx;
 	}
@@ -1962,6 +1983,17 @@ device_info_mem_sz(struct device_info_ret *ret,
 	const struct opt_out *output)
 {
 	GET_VAL(ret, loc, s);
+	if (ret->err) {
+		// We want to check for a special case: CL_DEVICE_PRINTF_BUFFER_SIZE
+		// on a device with OpenCL < 1.2 and the cl_arm_printf extension.
+		// In this case the buffer is 1MiB per the specification of the extension.
+		// I do not know if the query is supported though
+		if (loc->param.dev == CL_DEVICE_PRINTF_BUFFER_SIZE &&
+		    !dev_is_12(chk) && dev_has_arm_printf(chk)) {
+			ret->err = CL_SUCCESS;
+			ret->value.s = 1024U*1024U;
+		}
+	}
 	if (!ret->err) {
 		strbuf_append(loc->pname, &ret->str, "%" PRIuS, ret->value.s);
 		if (output->mode == CLINFO_HUMAN && ret->value.s > 1024)
@@ -2838,6 +2870,34 @@ device_info_intel_features(struct device_info_ret *ret,
 		"features_intel");
 }
 
+/* Device printf support */
+void
+device_info_printf_support(struct device_info_ret *ret,
+	const struct info_loc *UNUSED(loc), const struct device_info_checks *chk,
+	const struct opt_out* UNUSED(output))
+{
+	cl_bool is_12 = dev_is_12(chk);
+	cl_bool has_intel = dev_has_intel_printf(chk);
+	cl_bool has_qcom = dev_has_qcom_limited_printf(chk);
+	cl_bool has_arm = dev_has_arm_printf(chk);
+	cl_bool has_amd = dev_has_amd_printf(chk);
+
+	cl_bool has_any = is_12 || has_intel || has_qcom || has_arm || has_amd;
+
+	strbuf_append("printf support", &ret->str, "(%s%s%s%s%s%s%s%s%s%s)",
+		(is_12 ? core : empty_str),
+		((is_12 && has_intel) ? comma_str : empty_str),
+		chk->has_intel_printf,
+		(((is_12 || has_intel) && has_qcom) ? comma_str : empty_str),
+		chk->has_qcom_limited_printf,
+		(((is_12 || has_intel || has_qcom) && has_arm) ? comma_str : empty_str),
+		chk->has_arm_printf,
+		(((is_12 || has_intel || has_qcom || has_arm) && has_amd) ? comma_str : empty_str),
+		chk->has_amd_printf,
+		(!has_any ? na : empty_str));
+
+	ret->err = CL_SUCCESS;
+}
 
 
 /* Device Partition, CLINFO_HUMAN header */
@@ -3920,7 +3980,8 @@ struct device_info_traits dinfo_traits[] = {
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SPIRV_EXTENSIONS_KHR, INDENT "SPIR-V extensions", strptr_newline), dev_has_spirv_queries },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SPIRV_CAPABILITIES_KHR, INDENT "SPIR-V capabilities", spirv_caps), dev_has_spirv_queries },
 
-	{ CLINFO_BOTH, DINFO(CL_DEVICE_PRINTF_BUFFER_SIZE, "printf() buffer size", mem_sz), dev_is_12 },
+	{ CLINFO_HUMAN, DINFO(CL_DEVICE_PRINTF_BUFFER_SIZE, "Kernel printf()", printf_support), NULL },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_PRINTF_BUFFER_SIZE, INDENT "printf() buffer size", mem_sz), dev_has_printf },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_BUILT_IN_KERNELS, "Built-in kernels", str), dev_is_12 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_BUILT_IN_KERNELS_WITH_VERSION, "Built-in kernels with version", ext_version), dev_has_ext_ver },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_ME_VERSION_INTEL, "Motion Estimation accelerator version (Intel)", int), dev_has_intel_AME },
