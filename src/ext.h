@@ -472,6 +472,13 @@ typedef cl_ulong  cl_device_partition_property_ext;
 /* cl_qcom_onchip_global_memory */
 #define CL_DEVICE_ONCHIP_GLOBAL_MEM_SIZE_QCOM		0x41A4
 
+/* cl_qcom_recordable_queues */
+/* NOTE: this is improperly declared without the _QCOM suffix
+ * in the Adreno OpenCL SDK cl_ext_qcom.h header already!
+ * Also the extension is erroneously reported as cl_recordable_command_queue.
+ */
+#define CL_DEVICE_RECORDABLE_QUEUE_MAX_SIZE		0x41DE
+
 /* cl_qcom_extended_images */
 #define CL_DEVICE_EXTENDED_IMAGE2D_MAX_WIDTH_QCOM	0x40AB
 #define CL_DEVICE_EXTENDED_IMAGE2D_MAX_HEIGHT_QCOM	0x40AC

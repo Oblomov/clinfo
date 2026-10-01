@@ -1408,6 +1408,7 @@ struct device_info_checks {
 	char has_spirv_queries[21];
 	char has_qcom_ext_host_ptr[21];
 	char has_qcom_extended_images[24];
+	char has_qcom_recordable_queues[26];
 	char has_qcom_onchip_global_memory[29];
 	char has_amd_printf[14];
 	char has_arm_printf[14];
@@ -1466,6 +1467,7 @@ DEFINE_EXT_CHECK(spir)
 DEFINE_EXT_CHECK(spirv_queries)
 DEFINE_EXT_CHECK(qcom_ext_host_ptr)
 DEFINE_EXT_CHECK(qcom_extended_images)
+DEFINE_EXT_CHECK(qcom_recordable_queues)
 DEFINE_EXT_CHECK(qcom_onchip_global_memory)
 DEFINE_EXT_CHECK(amd_printf)
 DEFINE_EXT_CHECK(arm_printf)
@@ -1724,6 +1726,7 @@ void identify_device_extensions(const char *extensions, struct device_info_check
 	CHECK_EXT(pci_bus_info, cl_khr_pci_bus_info);
 	CHECK_EXT(qcom_ext_host_ptr, cl_qcom_ext_host_ptr);
 	CHECK_EXT(qcom_extended_images, cl_qcom_extended_images);
+	CHECK_EXT(qcom_recordable_queues, cl_qcom_recordable_queues);
 	CHECK_EXT(qcom_onchip_global_memory, cl_qcom_onchip_global_memory);
 	CHECK_EXT(amd_printf, cl_amd_printf);
 	CHECK_EXT(arm_printf, cl_arm_printf);
@@ -3798,7 +3801,7 @@ struct device_info_traits dinfo_traits[] = {
 	/* Global memory */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_MEM_SIZE, "Global memory size", mem), NULL },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_SAFETY_MEM_SIZE_IMG, "Safety memory size (IMG)", mem), dev_has_img_safety_mechanisms },
-	{ CLINFO_BOTH, DINFO(CL_DEVICE_ONCHIP_GLOBAL_MEM_SIZE_QCOM, "Global onchip memory size (IMG)", mem), dev_has_qcom_onchip_global_memory },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_ONCHIP_GLOBAL_MEM_SIZE_QCOM, "Global onchip memory size (QCOM)", mem_sz), dev_has_qcom_onchip_global_memory },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_FREE_MEMORY_AMD, "Global free memory (AMD)", free_mem_amd), dev_is_gpu_amd },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_MEM_CHANNELS_AMD, "Global memory channels (AMD)", int), dev_is_gpu_amd },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_GLOBAL_MEM_CHANNEL_BANKS_AMD, "Global memory banks per channel (AMD)", int), dev_is_gpu_amd },
@@ -3915,6 +3918,7 @@ struct device_info_traits dinfo_traits[] = {
 
 	/* Queue properties */
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_QUEUE_PROPERTIES, "Queue properties", qprop), dev_not_20 },
+	{ CLINFO_BOTH, DINFO(CL_DEVICE_RECORDABLE_QUEUE_MAX_SIZE, "Recordable queue max size (QCOM)", int), dev_has_qcom_recordable_queues },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_QUEUE_ON_HOST_PROPERTIES, "Queue properties (on host)", qprop), dev_is_20 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_DEVICE_ENQUEUE_CAPABILITIES, "Device enqueue capabilities", device_enqueue_caps), dev_is_30 },
 	{ CLINFO_BOTH, DINFO(CL_DEVICE_WORKGROUP_PROTECTION_DEVICE_ENQUEUE_CAPABILITIES_IMG, INDENT "with work-group protection (IMG)", device_enqueue_caps), dev_has_img_safety_mechanisms },
