@@ -4825,7 +4825,7 @@ void checkNullBehavior(const struct platform_list *plist, const struct opt_out *
 
 /* Function pointer to the ICD loader info function */
 
-typedef cl_int (*icdl_info_fn_ptr)(cl_icdl_info, size_t, void*, size_t*);
+typedef cl_int (CL_API_CALL *icdl_info_fn_ptr)(cl_icdl_info, size_t, void*, size_t*);
 icdl_info_fn_ptr clGetICDLoaderInfoOCLICD;
 
 /* We want to auto-detect the OpenCL version supported by the ICD loader.
